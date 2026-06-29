@@ -108,7 +108,7 @@ export default function CartPage() {
           <div className="lg:col-span-2 space-y-4">
             {cartItems.map((item) => (
               <div
-                key={item._id}
+                key={item.cartKey}
                 className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 hover:shadow-md transition-all duration-200"
               >
                 <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -120,9 +120,9 @@ export default function CartPage() {
                   <div>
                     <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                       <span>{item.name}</span>
-                      {item.size && (
-                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
-                          {item.size}
+                      {item.selectedSize && (
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
+                          {item.selectedSize}
                         </span>
                       )}
                     </h3>
@@ -134,14 +134,14 @@ export default function CartPage() {
                   {/* Quantity Controls */}
                   <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
                     <button
-                      onClick={() => updateQuantity(item._id, Math.max(1, item.quantity - 1))}
+                      onClick={() => updateQuantity(item.cartKey, Math.max(1, item.quantity - 1))}
                       className="px-3 py-1 font-bold text-slate-600 hover:bg-slate-200 transition-colors"
                     >
                       -
                     </button>
                     <span className="px-4 font-bold text-slate-800">{item.quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item._id, item.quantity + 1)}
+                      onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
                       className="px-3 py-1 font-bold text-slate-600 hover:bg-slate-200 transition-colors"
                     >
                       +
@@ -155,7 +155,7 @@ export default function CartPage() {
 
                   {/* Remove Button */}
                   <button
-                    onClick={() => removeFromCart(item._id)}
+                    onClick={() => removeFromCart(item.cartKey)}
                     className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-2 rounded-full transition-colors"
                     title="حذف"
                   >

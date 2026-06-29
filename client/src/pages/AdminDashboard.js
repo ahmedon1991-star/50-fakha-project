@@ -51,6 +51,7 @@ export default function AdminDashboard() {
     category: 'عصائر طازجة',
     image: '',
     size: '',
+    sizes: [],
     available: true
   });
 
@@ -217,6 +218,22 @@ export default function AdminDashboard() {
     }
   };
 
+  // Sizes CRUD handlers
+  const handleAddSize = () => {
+    setProductForm(prev => ({ ...prev, sizes: [...prev.sizes, { name: '', price: '' }] }));
+  };
+
+  const handleSizeChange = (idx, field, value) => {
+    setProductForm(prev => ({
+      ...prev,
+      sizes: prev.sizes.map((sz, i) => i === idx ? { ...sz, [field]: value } : sz)
+    }));
+  };
+
+  const handleRemoveSize = (idx) => {
+    setProductForm(prev => ({ ...prev, sizes: prev.sizes.filter((_, i) => i !== idx) }));
+  };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -271,11 +288,17 @@ export default function AdminDashboard() {
   const handleProductSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Clean sizes: remove empty, convert prices to numbers
+      const cleanedSizes = (productForm.sizes || [])
+        .filter(sz => sz.name.trim() !== '')
+        .map(sz => ({ name: sz.name.trim(), price: Number(sz.price) || 0 }));
+      const formData = { ...productForm, sizes: cleanedSizes };
+
       if (editingProduct) {
         // Update product
         const { data, error } = await supabase
           .from('products')
-          .update(productForm)
+          .update(formData)
           .eq('id', editingProduct.id)
           .select()
           .single();
@@ -286,7 +309,7 @@ export default function AdminDashboard() {
         // Create product
         const { data, error } = await supabase
           .from('products')
-          .insert(productForm)
+          .insert(formData)
           .select()
           .single();
         
@@ -309,6 +332,7 @@ export default function AdminDashboard() {
       category: product.category || 'عصائر طازجة',
       image: product.image || '',
       size: product.size || '',
+      sizes: product.sizes || [],
       available: product.available ?? true
     });
     setShowProductModal(true);
@@ -353,6 +377,7 @@ export default function AdminDashboard() {
       category: 'عصائر طازجة',
       image: '',
       size: '',
+      sizes: [],
       available: true
     });
   };
@@ -845,39 +870,77 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-700 text-sm font-semibold mb-1">فئة الصنف</label>
-                  <select
-                    id="client-prod-category"
-                    value={productForm.category}
-                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+              <div>
+                <label className="block text-slate-700 text-sm font-semibold mb-1">فئة الصنف</label>
+                <select
+                  id="client-prod-category"
+                  value={productForm.category}
+                  onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                >
+                  {categories.map(c => (
+                    <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                  ))}
+                  {categories.length === 0 && (
+                    <>
+                      <option value="عصائر طازجة">عصائر طازجة</option>
+                      <option value="سلطات فواكه">سلطات فواكه</option>
+                      <option value="حلويات">حلويات</option>
+                      <option value="أخرى">أخرى</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              {/* Multi-Size Editor */}
+              <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-slate-700 text-sm font-bold">أحجام المنتج مع أسعارها</label>
+                    <p className="text-xs text-slate-400 mt-0.5">أضف أحجام بأسعار مختلفة — يختارها العميل عند الطلب</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddSize}
+                    className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-700 transition shadow-sm"
                   >
-                    {categories.map(c => (
-                      <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                    + إضافة حجم
+                  </button>
+                </div>
+                {productForm.sizes.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-3 border border-dashed border-slate-300 rounded-xl bg-white">
+                    لا توجد أحجام — سيُستخدم السعر الأساسي أعلاه للمنتج
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {productForm.sizes.map((sz, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          placeholder="اسم الحجم (كبير، وسط، صغير...)"
+                          value={sz.name}
+                          onChange={(e) => handleSizeChange(idx, 'name', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                        />
+                        <input
+                          type="number"
+                          placeholder="السعر ج.س"
+                          value={sz.price}
+                          onChange={(e) => handleSizeChange(idx, 'price', e.target.value)}
+                          className="w-28 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSize(idx)}
+                          className="text-rose-500 hover:text-rose-700 p-2 hover:bg-rose-50 rounded-lg transition flex-shrink-0"
+                          title="حذف الحجم"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     ))}
-                    {categories.length === 0 && (
-                      <>
-                        <option value="عصائر طازجة">عصائر طازجة</option>
-                        <option value="سلطات فواكه">سلطات فواكه</option>
-                        <option value="حلويات">حلويات</option>
-                        <option value="أخرى">أخرى</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 text-sm font-semibold mb-1">الحجم (مثال: كبير، لتر)</label>
-                  <input
-                    id="client-prod-size"
-                    type="text"
-                    value={productForm.size}
-                    onChange={(e) => setProductForm({ ...productForm, size: e.target.value })}
-                    placeholder="لتر / كبير / وسط"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                  />
-                </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

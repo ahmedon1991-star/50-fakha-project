@@ -11,6 +11,10 @@ export default function HomePage() {
   const [error, setError] = useState('');
   const { addToCart } = useCart();
 
+  // Product modal state
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedSizeIdx, setSelectedSizeIdx] = useState(0);
+
   useEffect(() => {
     setLoading(true);
     const fetchData = async () => {
@@ -55,6 +59,35 @@ export default function HomePage() {
     } else {
       setFilteredProducts(products.filter(p => p.category === category));
     }
+  };
+
+  const openProductModal = (product) => {
+    setSelectedProduct(product);
+    setSelectedSizeIdx(0);
+  };
+
+  const closeModal = () => setSelectedProduct(null);
+
+  const handleAddToCart = () => {
+    if (!selectedProduct) return;
+    const hasSizes = selectedProduct.sizes && selectedProduct.sizes.length > 0;
+    if (hasSizes) {
+      const sz = selectedProduct.sizes[selectedSizeIdx];
+      addToCart(selectedProduct, sz.name, sz.price);
+    } else {
+      addToCart(selectedProduct);
+    }
+    closeModal();
+  };
+
+  // Get the current displayed price in the modal
+  const getModalPrice = () => {
+    if (!selectedProduct) return 0;
+    const hasSizes = selectedProduct.sizes && selectedProduct.sizes.length > 0;
+    if (hasSizes) {
+      return selectedProduct.sizes[selectedSizeIdx]?.price ?? 0;
+    }
+    return selectedProduct.price;
   };
 
   return (
@@ -147,72 +180,179 @@ export default function HomePage() {
         {/* Product Cards Grid */}
         {!loading && !error && filteredProducts.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProducts.map((p) => (
-              <div
-                key={p._id}
-                className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group"
-              >
-                {/* Product Image */}
-                <div className="relative h-52 overflow-hidden bg-slate-100">
-                  <img
-                    src={p.image || 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400'}
-                    alt={p.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {!p.available && (
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
-                      <span className="bg-slate-800 text-white font-bold px-4 py-2 rounded-full text-sm">
-                        غير متوفر حالياً 🚫
+            {filteredProducts.map((p) => {
+              const hasSizes = p.sizes && p.sizes.length > 0;
+              return (
+                <div
+                  key={p.id || p._id}
+                  onClick={() => p.available && openProductModal(p)}
+                  className={`bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group ${p.available ? 'cursor-pointer' : ''}`}
+                >
+                  {/* Product Image */}
+                  <div className="relative h-52 overflow-hidden bg-slate-100">
+                    <img
+                      src={p.image || 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400'}
+                      alt={p.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {!p.available && (
+                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
+                        <span className="bg-slate-800 text-white font-bold px-4 py-2 rounded-full text-sm">
+                          غير متوفر حالياً 🚫
+                        </span>
+                      </div>
+                    )}
+                    {p.category && (
+                      <span className="absolute top-3 right-3 bg-emerald-500/90 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow backdrop-blur-xs">
+                        {p.category}
                       </span>
+                    )}
+                    {hasSizes && (
+                      <span className="absolute top-3 left-3 bg-amber-500/90 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow backdrop-blur-xs">
+                        {p.sizes.length} أحجام
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="p-5 flex flex-col flex-1 justify-between space-y-4">
+                    <div>
+                      <h3 className="text-xl font-extrabold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                        {p.name}
+                      </h3>
+                      <p className="text-slate-500 text-sm mt-1.5 line-clamp-2 h-10">
+                        {p.description || 'فواكه طازجة وصحية محضرة يومياً خصيصاً لك.'}
+                      </p>
                     </div>
-                  )}
-                  {p.category && (
-                    <span className="absolute top-3 right-3 bg-emerald-500/90 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow backdrop-blur-xs">
-                      {p.category}
-                    </span>
-                  )}
-                  {p.size && (
-                    <span className="absolute top-3 left-3 bg-slate-900/70 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow backdrop-blur-xs">
-                      {p.size}
-                    </span>
-                  )}
-                </div>
 
-                {/* Product Info */}
-                <div className="p-5 flex flex-col flex-1 justify-between space-y-4">
-                  <div>
-                    <h3 className="text-xl font-extrabold text-slate-900 group-hover:text-emerald-600 transition-colors">
-                      {p.name}
-                    </h3>
-                    <p className="text-slate-500 text-sm mt-1.5 line-clamp-2 h-10">
-                      {p.description || 'فواكه طازجة وصحية محضرة يومياً خصيصاً لك.'}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                    <span className="text-2xl font-extrabold text-emerald-700">
-                      {p.price} <span className="text-xs font-semibold text-slate-500">ج.س</span>
-                    </span>
-                    
-                    <button
-                      onClick={() => addToCart(p)}
-                      disabled={!p.available}
-                      className={`font-bold px-5 py-2.5 rounded-xl shadow transition duration-200 text-sm flex items-center gap-1.5 ${
-                        p.available
-                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-105 active:scale-95'
-                          : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                      }`}
-                    >
-                      <span>أضف</span>
-                      <span>🛒</span>
-                    </button>
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                      <div>
+                        {hasSizes ? (
+                          <div>
+                            <span className="text-xs text-slate-400 block">يبدأ من</span>
+                            <span className="text-2xl font-extrabold text-emerald-700">
+                              {Math.min(...p.sizes.map(s => s.price))} <span className="text-xs font-semibold text-slate-500">ج.س</span>
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-2xl font-extrabold text-emerald-700">
+                            {p.price} <span className="text-xs font-semibold text-slate-500">ج.س</span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (p.available) openProductModal(p); }}
+                        disabled={!p.available}
+                        className={`font-bold px-5 py-2.5 rounded-xl shadow transition duration-200 text-sm flex items-center gap-1.5 ${
+                          p.available
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-105 active:scale-95'
+                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        }`}
+                      >
+                        <span>{hasSizes ? 'اختر' : 'أضف'}</span>
+                        <span>🛒</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+
+      {/* Product Detail Modal */}
+      {selectedProduct && (
+        <div
+          className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+          onClick={closeModal}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            style={{ animation: 'slideUp 0.25s ease-out' }}
+          >
+            {/* Product Image */}
+            <div className="relative h-56 overflow-hidden bg-slate-100">
+              <img
+                src={selectedProduct.image || 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400'}
+                alt={selectedProduct.name}
+                className="w-full h-full object-cover"
+              />
+              <button
+                onClick={closeModal}
+                className="absolute top-3 left-3 bg-white/90 text-slate-700 p-2 rounded-full hover:bg-white transition shadow text-sm font-bold"
+              >
+                ✕
+              </button>
+              {selectedProduct.category && (
+                <span className="absolute top-3 right-3 bg-emerald-500/90 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow">
+                  {selectedProduct.category}
+                </span>
+              )}
+            </div>
+
+            <div className="p-6 space-y-5 text-right">
+              <div>
+                <h2 className="text-2xl font-extrabold text-slate-900">{selectedProduct.name}</h2>
+                <p className="text-slate-500 text-sm mt-1">
+                  {selectedProduct.description || 'فواكه طازجة وصحية محضرة يومياً خصيصاً لك.'}
+                </p>
+              </div>
+
+              {/* Size Selection */}
+              {selectedProduct.sizes && selectedProduct.sizes.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-bold text-slate-700">اختر الحجم:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProduct.sizes.map((sz, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedSizeIdx(idx)}
+                        className={`px-4 py-2.5 rounded-xl font-bold text-sm border-2 transition-all duration-200 ${
+                          selectedSizeIdx === idx
+                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-200 scale-105'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-400 hover:bg-emerald-50'
+                        }`}
+                      >
+                        <span>{sz.name}</span>
+                        <span className={`block text-xs mt-0.5 ${selectedSizeIdx === idx ? 'text-emerald-100' : 'text-slate-400'}`}>
+                          {sz.price} ج.س
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Price and Add to Cart */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <div>
+                  <span className="text-xs text-slate-400 block">السعر</span>
+                  <span className="text-3xl font-extrabold text-emerald-700">
+                    {getModalPrice()}{' '}
+                    <span className="text-sm font-semibold text-slate-500">ج.س</span>
+                  </span>
+                </div>
+                <button
+                  onClick={handleAddToCart}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-7 py-3 rounded-xl shadow-md shadow-emerald-200 transition duration-200 flex items-center gap-2 hover:scale-105 active:scale-95 text-base"
+                >
+                  إضافة للسلة 🛒
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

@@ -3,31 +3,58 @@ import { createContext, useState, useContext, useEffect } from 'react';
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  const [cartItems, setCartItems] = useState(() => JSON.parse(localStorage.getItem('cartItems') || '[]'));
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('cartItems') || '[]');
+      // Migrate old items that don't have cartKey
+      return stored.map(item => ({
+        ...item,
+        cartKey: item.cartKey || (item.id || item._id)?.toString() || Math.random().toString(36)
+      }));
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     localStorage.setItem('cartItems', JSON.stringify(cartItems));
   }, [cartItems]);
 
-  const addToCart = (product) => {
-    const pid = product.id || product._id;
+  // addToCart supports optional selectedSize (string) and selectedPrice (number)
+  const addToCart = (product, selectedSize = null, selectedPrice = null) => {
+    const pid = (product.id || product._id)?.toString();
+    const cartKey = selectedSize ? `${pid}_${selectedSize}` : pid;
+    const itemPrice = selectedPrice !== null ? Number(selectedPrice) : Number(product.price);
+
     setCartItems(prev => {
-      const exist = prev.find(p => (p.id || p._id) === pid);
-      return exist 
-        ? prev.map(p => (p.id || p._id) === pid ? { ...p, quantity: p.quantity + 1 } : p) 
-        : [...prev, { ...product, _id: pid, id: pid, quantity: 1 }];
+      const exist = prev.find(p => p.cartKey === cartKey);
+      if (exist) {
+        return prev.map(p => p.cartKey === cartKey ? { ...p, quantity: p.quantity + 1 } : p);
+      }
+      return [...prev, {
+        ...product,
+        cartKey,
+        productId: pid,
+        price: itemPrice,
+        selectedSize,
+        quantity: 1
+      }];
     });
   };
 
-  const removeFromCart = (id) => setCartItems(prev => prev.filter(p => (p.id || p._id) !== id));
+  const removeFromCart = (cartKey) => setCartItems(prev => prev.filter(p => p.cartKey !== cartKey));
 
-  const updateQuantity = (id, qty) => {
-    setCartItems(prev => prev.map(p => (p.id || p._id) === id ? { ...p, quantity: qty } : p));
+  const updateQuantity = (cartKey, qty) => {
+    if (qty < 1) {
+      removeFromCart(cartKey);
+      return;
+    }
+    setCartItems(prev => prev.map(p => p.cartKey === cartKey ? { ...p, quantity: qty } : p));
   };
 
   const clearCart = () => setCartItems([]);
 
-  const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
