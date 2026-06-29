@@ -55,6 +55,12 @@ export default function AdminDashboard() {
     available: true
   });
 
+  // Archive State
+  const [ordersSubTab, setOrdersSubTab] = useState('current');
+  const [archiveOrders, setArchiveOrders] = useState([]);
+  const [archiveSearch, setArchiveSearch] = useState('');
+  const [archiveLoading, setArchiveLoading] = useState(false);
+
   // Settings State
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [bankName, setBankName] = useState('');
@@ -132,15 +138,22 @@ export default function AdminDashboard() {
         computeStatsFromOrders(allOrders || [], statsFilter);
 
       } else if (activeTab === 'orders') {
-        // Fetch all orders with profiles relation join
+        // Auto-archive previous day orders first
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        await supabase
+          .from('orders')
+          .update({ archived: true })
+          .lt('created_at', todayStart.toISOString())
+          .eq('archived', false);
+
+        // Fetch only today's non-archived orders
         const { data, error } = await supabase
           .from('orders')
           .select('*, profiles:user_id(name, id)')
+          .eq('archived', false)
           .order('created_at', { ascending: false });
-        
         if (error) throw error;
-
-        // Map profiles to match expected user object format
         const formattedOrders = (data || []).map(order => ({
           ...order,
           user: order.profiles ? { name: order.profiles.name, email: '' } : null
@@ -174,6 +187,28 @@ export default function AdminDashboard() {
       setCategories(data || []);
     } catch (err) {
       console.error('Error fetching categories:', err.message);
+    }
+  };
+
+  // Fetch archived orders (lazy — only when archive sub-tab is opened)
+  const fetchArchiveOrders = async () => {
+    setArchiveLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, profiles:user_id(name, id)')
+        .eq('archived', true)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const formatted = (data || []).map(order => ({
+        ...order,
+        user: order.profiles ? { name: order.profiles.name, email: '' } : null
+      }));
+      setArchiveOrders(formatted);
+    } catch (err) {
+      console.error('Archive fetch error:', err);
+    } finally {
+      setArchiveLoading(false);
     }
   };
 
@@ -685,75 +720,198 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* TAB 2: ORDERS MANAGEMENT */}
             {activeTab === 'orders' && (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-slate-100">
-                  <h3 className="text-lg font-bold text-slate-800">إدارة طلبات المطعم</h3>
+              <div className="space-y-4">
+
+                {/* Sub-tab switcher */}
+                <div className="flex gap-3 items-center">
+                  <button
+                    onClick={() => setOrdersSubTab('current')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${
+                      ordersSubTab === 'current'
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400'
+                    }`}
+                  >
+                    <span>🟢</span> طلبات اليوم
+                    {orders.length > 0 && (
+                      <span className="bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full font-black">{orders.length}</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { setOrdersSubTab('archive'); fetchArchiveOrders(); }}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${
+                      ordersSubTab === 'archive'
+                        ? 'bg-slate-700 border-slate-700 text-white shadow-md'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
+                    }`}
+                  >
+                    <span>📁</span> الأرشيف
+                  </button>
+                  <span className="text-xs text-slate-400 mr-auto">
+                    {ordersSubTab === 'current' ? 'طلبات اليوم الحالي' : 'طلبات الأيام السابقة - تتم الأرشفة تلقائياً آخر كل يوم'}
+                  </span>
                 </div>
-                {orders.length === 0 ? (
-                  <div className="p-16 text-center text-slate-500 space-y-3">
-                    <span className="text-4xl block">📦</span>
-                    <p className="font-bold text-lg">لا توجد أي طلبات حالياً</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-right border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 text-slate-600 text-sm font-bold border-b border-slate-100">
-                          <th className="p-4">العميل</th>
-                          <th className="p-4">رقم الهاتف</th>
-                          <th className="p-4">العنوان</th>
-                          <th className="p-4">الطلب</th>
-                          <th className="p-4">المبلغ الكلي</th>
-                          <th className="p-4 text-center">الحالة الحالية</th>
-                          <th className="p-4 text-center">تعديل الحالة</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {orders.map((order) => (
-                          <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
-                            <td className="p-4 flex flex-col">
-                              <span className="font-bold text-slate-800">{order.user?.name || 'مجهول'}</span>
-                            </td>
-                            <td className="p-4 font-mono text-slate-600 text-sm">{order.phone || '-'}</td>
-                            <td className="p-4 text-slate-600 text-sm max-w-[200px] truncate" title={order.shipping_address}>
-                              {order.shipping_address}
-                            </td>
-                            <td className="p-4">
-                              <div className="text-sm space-y-1">
-                                {order.items?.map((it, idx) => (
-                                  <div key={idx} className="text-slate-700">
-                                    <span className="font-bold text-emerald-600">{it.quantity}x</span> {it.name}
+
+                {/* CURRENT ORDERS */}
+                {ordersSubTab === 'current' && (
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+                      <h3 className="text-lg font-bold text-slate-800">📦 طلبات اليوم</h3>
+                      <span className="text-xs text-slate-400">تُؤرشف تلقائياً عند بداية كل يوم جديد</span>
+                    </div>
+                    {orders.length === 0 ? (
+                      <div className="p-16 text-center text-slate-500 space-y-3">
+                        <span className="text-4xl block">📦</span>
+                        <p className="font-bold text-lg">لا توجد طلبات اليوم</p>
+                        <p className="text-sm text-slate-400">طلبات الأيام السابقة محفوظة في الأرشيف</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-right border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-600 text-sm font-bold border-b border-slate-100">
+                              <th className="p-4">رقم الطلب</th>
+                              <th className="p-4">العميل</th>
+                              <th className="p-4">رقم الهاتف</th>
+                              <th className="p-4">العنوان</th>
+                              <th className="p-4">الطلب</th>
+                              <th className="p-4">المبلغ</th>
+                              <th className="p-4 text-center">الحالة</th>
+                              <th className="p-4 text-center">تعديل</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {orders.map((order) => (
+                              <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
+                                <td className="p-4 font-mono text-xs text-slate-400">{order.id?.slice(0,8)}...</td>
+                                <td className="p-4">
+                                  <span className="font-bold text-slate-800">{order.user?.name || 'مجهول'}</span>
+                                </td>
+                                <td className="p-4 font-mono text-slate-600 text-sm">{order.phone || '-'}</td>
+                                <td className="p-4 text-slate-600 text-sm max-w-[150px] truncate" title={order.shipping_address}>{order.shipping_address}</td>
+                                <td className="p-4">
+                                  <div className="text-sm space-y-1">
+                                    {order.items?.map((it, idx) => (
+                                      <div key={idx} className="text-slate-700">
+                                        <span className="font-bold text-emerald-600">{it.quantity}x</span> {it.name}
+                                        {it.selectedSize && <span className="text-xs text-slate-400 mr-1">({it.selectedSize})</span>}
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="p-4 font-extrabold text-emerald-700">{order.total_amount} ج.س</td>
-                            <td className="p-4 text-center">
-                              <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
-                                {order.status}
-                              </span>
-                            </td>
-                            <td className="p-4 text-center">
-                              <select
-                                value={order.status}
-                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-bold"
-                              >
-                                <option value="قيد الانتظار">قيد الانتظار</option>
-                                <option value="تم التأكيد">تم التأكيد</option>
-                                <option value="قيد التوصيل">قيد التوصيل</option>
-                                <option value="تم التوصيل">تم التوصيل</option>
-                                <option value="ملغي">ملغي</option>
-                              </select>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                                </td>
+                                <td className="p-4 font-extrabold text-emerald-700">{order.total_amount} ج.س</td>
+                                <td className="p-4 text-center">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
+                                    {order.status}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-center">
+                                  <select
+                                    value={order.status}
+                                    onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-bold"
+                                  >
+                                    <option value="قيد الانتظار">قيد الانتظار</option>
+                                    <option value="تم التأكيد">تم التأكيد</option>
+                                    <option value="قيد التوصيل">قيد التوصيل</option>
+                                    <option value="تم التوصيل">تم التوصيل</option>
+                                    <option value="ملغي">ملغي</option>
+                                  </select>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
+
+                {/* ARCHIVE TAB */}
+                {ordersSubTab === 'archive' && (
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-slate-100 space-y-3">
+                      <h3 className="text-lg font-bold text-slate-800">📁 أرشيف الطلبات السابقة</h3>
+                      {/* Search Box */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={archiveSearch}
+                          onChange={e => setArchiveSearch(e.target.value)}
+                          placeholder="🔍 ابحث برقم الطلب أو رقم الهاتف..."
+                          className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:outline-none text-right text-sm"
+                        />
+                        {archiveSearch && (
+                          <button onClick={() => setArchiveSearch('')} className="absolute left-3 top-3 text-slate-400 hover:text-slate-700">✕</button>
+                        )}
+                      </div>
+                    </div>
+
+                    {archiveLoading ? (
+                      <div className="p-12 text-center">
+                        <div className="w-8 h-8 border-4 border-slate-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                        <p className="text-slate-500 text-sm">جاري تحميل الأرشيف...</p>
+                      </div>
+                    ) : (() => {
+                      const filtered = archiveOrders.filter(o => {
+                        if (!archiveSearch.trim()) return true;
+                        const q = archiveSearch.trim().toLowerCase();
+                        return o.id?.toLowerCase().includes(q) || o.phone?.toLowerCase().includes(q);
+                      });
+                      return filtered.length === 0 ? (
+                        <div className="p-16 text-center text-slate-400 space-y-3">
+                          <span className="text-4xl block">📂</span>
+                          <p className="font-bold">{archiveSearch ? 'لا توجد نتائج مطابقة' : 'الأرشيف فارغ حالياً'}</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-right border-collapse">
+                            <thead>
+                              <tr className="bg-slate-50 text-slate-600 text-sm font-bold border-b border-slate-100">
+                                <th className="p-4">رقم الطلب</th>
+                                <th className="p-4">التاريخ</th>
+                                <th className="p-4">العميل</th>
+                                <th className="p-4">رقم الهاتف</th>
+                                <th className="p-4">الطلب</th>
+                                <th className="p-4">المبلغ</th>
+                                <th className="p-4 text-center">الحالة</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filtered.map((order) => (
+                                <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/40 transition">
+                                  <td className="p-4">
+                                    <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded-lg text-slate-600">{order.id?.slice(0,8)}...</span>
+                                  </td>
+                                  <td className="p-4 text-slate-500 text-xs">{new Date(order.created_at).toLocaleDateString('ar-SD')}</td>
+                                  <td className="p-4 font-bold text-slate-800">{order.user?.name || 'مجهول'}</td>
+                                  <td className="p-4 font-mono text-slate-600 text-sm">{order.phone || '-'}</td>
+                                  <td className="p-4">
+                                    <div className="text-sm space-y-1">
+                                      {order.items?.map((it, idx) => (
+                                        <div key={idx} className="text-slate-600">
+                                          <span className="font-bold text-slate-400">{it.quantity}x</span> {it.name}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </td>
+                                  <td className="p-4 font-extrabold text-slate-700">{order.total_amount} ج.س</td>
+                                  <td className="p-4 text-center">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
+                                      {order.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
               </div>
             )}
 
