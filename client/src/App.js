@@ -11,12 +11,26 @@ import AdminDashboard from './pages/AdminDashboard';
 import MemberDashboard from './pages/MemberDashboard';
 
 function AdminRoute({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex-1 min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-emerald-600 border-t-transparent"></div>
+      </div>
+    );
+  }
   return user?.isAdmin ? children : <Navigate to="/login" />;
 }
 
 function ProtectedRoute({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex-1 min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-emerald-600 border-t-transparent"></div>
+      </div>
+    );
+  }
   return user ? children : <Navigate to="/login" />;
 }
 

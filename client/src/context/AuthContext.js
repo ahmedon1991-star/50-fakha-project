@@ -4,7 +4,14 @@ import { supabase } from '../supabaseClient';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (sessionUser) => {
@@ -17,7 +24,7 @@ export const AuthProvider = ({ children }) => {
       
       if (error) throw error;
       
-      return {
+      const fullUser = {
         id: sessionUser.id,
         phone: sessionUser.phone,
         email: sessionUser.email,
@@ -25,15 +32,20 @@ export const AuthProvider = ({ children }) => {
         name: data?.name || 'عميلنا',
         isAdmin: data?.is_admin || false
       };
+      
+      localStorage.setItem('cached_user', JSON.stringify(fullUser));
+      return fullUser;
     } catch (err) {
       console.error('Error fetching profile:', err.message);
-      return {
+      const fallbackUser = {
         id: sessionUser.id,
         phone: sessionUser.phone,
         email: sessionUser.email,
         name: sessionUser.user_metadata?.name || 'عميلنا',
         isAdmin: false
       };
+      localStorage.setItem('cached_user', JSON.stringify(fallbackUser));
+      return fallbackUser;
     }
   };
 
@@ -47,6 +59,7 @@ export const AuthProvider = ({ children }) => {
         setUser(fullUser);
       } else {
         setUser(null);
+        localStorage.removeItem('cached_user');
       }
       setLoading(false);
     };
@@ -61,6 +74,7 @@ export const AuthProvider = ({ children }) => {
         setUser(fullUser);
       } else {
         setUser(null);
+        localStorage.removeItem('cached_user');
       }
       setLoading(false);
     });
@@ -77,7 +91,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (name, email, phone, password) => {
-    // Sign up user with Email, Password and metadata
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -91,7 +104,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const verifyOtp = async (phone, token, name) => {
-    // Verify phone OTP via type 'phone_change'
     const { data, error } = await supabase.auth.verifyOtp({
       phone,
       token,
@@ -106,11 +118,12 @@ export const AuthProvider = ({ children }) => {
     const { error } = await supabase.auth.signOut();
     if (error) console.error('Error signing out:', error.message);
     setUser(null);
+    localStorage.removeItem('cached_user');
   };
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, verifyOtp, logout }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
