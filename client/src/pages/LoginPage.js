@@ -18,22 +18,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await login(email, password);
-      
-      // Check profile to redirect
-      const { data: profile, error: profileErr } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', data.user.id)
-        .single();
-      
-      if (profileErr) throw profileErr;
-
-      if (profile?.is_admin) {
-        navigate('/admin');
-      } else {
-        navigate('/');
-      }
+      await login(email, password);
+      navigate('/');
     } catch (err) {
       setError(err.message || 'بيانات الدخول غير صحيحة');
     } finally {
