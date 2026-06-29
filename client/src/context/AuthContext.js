@@ -110,6 +110,7 @@ export const AuthProvider = ({ children }) => {
         .insert({
           id: data.user.id,
           name: name,
+          phone: phone,
           is_admin: false
         });
       if (profileError) console.error('Error inserting profile:', profileError.message);
