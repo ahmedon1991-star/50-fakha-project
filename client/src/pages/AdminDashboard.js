@@ -95,30 +95,47 @@ export default function AdminDashboard() {
       if (!AudioContext) return;
       const ctx = new AudioContext();
       
-      const playTone = (freq, duration, delay) => {
-        setTimeout(() => {
-          try {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.type = 'sawtooth'; // Sharp, loud tone for alarms
-            osc.frequency.setValueAtTime(freq, ctx.currentTime);
-            
-            gain.gain.setValueAtTime(0, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 0.03);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration - 0.03);
-            
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + duration);
-          } catch (e) {}
-        }, delay);
-      };
-
-      // Play sharp alternating dual frequency alarm
-      playTone(980, 0.35, 0);
-      playTone(1300, 0.4, 200);
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      const lfo = ctx.createOscillator();
+      const lfoGain = ctx.createGain();
+      
+      // Standard old mechanical bell frequencies (slightly discordant for penetration)
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(853, ctx.currentTime);
+      
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(960, ctx.currentTime);
+      
+      // LFO modulates the striker speed (16 strikes per second)
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(16, ctx.currentTime);
+      
+      // Set amplitude modulation depth
+      lfoGain.gain.setValueAtTime(0.5, ctx.currentTime);
+      
+      // Connect components
+      lfo.connect(lfoGain);
+      lfoGain.connect(gainNode.gain);
+      
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Main envelope (bell sound duration 1.2s)
+      gainNode.gain.setValueAtTime(0.01, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 0.05); // Attack
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2); // Decay
+      
+      // Start/Stop
+      lfo.start(ctx.currentTime);
+      osc1.start(ctx.currentTime);
+      osc2.start(ctx.currentTime);
+      
+      lfo.stop(ctx.currentTime + 1.2);
+      osc1.stop(ctx.currentTime + 1.2);
+      osc2.stop(ctx.currentTime + 1.2);
     } catch (e) {
       console.error('Audio failed:', e);
     }
@@ -127,7 +144,7 @@ export default function AdminDashboard() {
   const startAlarm = () => {
     playLoudNotification();
     if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
-    audioIntervalRef.current = setInterval(playLoudNotification, 1600);
+    audioIntervalRef.current = setInterval(playLoudNotification, 2000);
     setAlarmActive(true);
   };
 
