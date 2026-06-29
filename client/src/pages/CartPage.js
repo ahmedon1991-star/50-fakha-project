@@ -163,9 +163,10 @@ export default function CartPage() {
   const sendToWhatsApp = (details) => {
     if (!whatsappPhone) return;
 
-    // Formatting beautiful Arabic invoice message
+    const divider = '━━━━━━━━━━━━━━━━━━━━';
     const formattedItems = details.items.map(item => 
-      `• ${item.name} ${item.selectedSize ? `(${item.selectedSize})` : ''} \n  *الكمية:* ${item.quantity} | *السعر:* ${item.price * item.quantity} ج.س`
+      `• *${item.name}* ${item.selectedSize ? `(_${item.selectedSize}_)` : ''}\n` +
+      `  الكمية: *${item.quantity}* ✖️ ${item.price} ج.س = *${item.price * item.quantity} ج.س*`
     ).join('\n\n');
 
     const paymentText = details.paymentMethod === 'bank' 
@@ -173,25 +174,26 @@ export default function CartPage() {
       : '💵 الدفع عند الاستلام (كاش)';
 
     const bankDetailsSection = details.paymentMethod === 'bank'
-      ? `\n*بيانات الحساب البنكي للتأكيد:*\n🏦 البنك: ${details.bankName}\n💳 رقم الحساب: ${details.bankAccount}\n👤 صاحب الحساب: ${details.bankHolderName}\n🔗 *رابط إشعار التحويل:* ${details.receiptUrl}\n`
+      ? `\n*تفاصيل التحويل البنكي للتأكيد:*\n🏦 البنك: ${details.bankName}\n💳 رقم الحساب: ${details.bankAccount}\n👤 صاحب الحساب: ${details.bankHolderName}\n🔗 *رابط إشعار التحويل:* ${details.receiptUrl}\n`
       : '';
 
-    const message = `🧾 *فاتورة طلب جديدة - مطعم 50 فاكهة* 🧾\n` +
-      `------------------------------------------\n` +
-      `*رقم الطلب:* #${details.orderNumber}\n` +
-      `*اسم العميل:* ${user?.name || 'عميل المتجر'}\n` +
-      `*رقم الهاتف:* ${details.phone}\n` +
-      `*العنوان:* ${details.address}\n` +
-      `*طريقة الدفع:* ${paymentText}\n` +
-      `------------------------------------------\n\n` +
-      `📋 *الأصناف المطلوبة:*\n${formattedItems}\n\n` +
-      `------------------------------------------\n` +
-      `*المجموع الفرعي:* ${details.totalAmount} ج.س\n` +
-      `*تكلفة التوصيل:* ${details.deliveryFee} ج.س\n` +
-      `*الإجمالي الكلي:* *${details.grandTotal} ج.س*\n` +
-      `------------------------------------------\n` +
+    const message = `✨ *فاتورة طلب جديدة - 50 فاكهة* ✨\n` +
+      `${divider}\n` +
+      `🆔 *رقم الطلب:* \`#${details.orderNumber}\`\n` +
+      `👤 *اسم العميل:* ${user?.name || 'عميل المتجر'}\n` +
+      `📞 *رقم الهاتف:* ${details.phone}\n` +
+      `📍 *العنوان:* ${details.address}\n` +
+      `💳 *طريقة الدفع:* ${paymentText}\n` +
+      `${divider}\n\n` +
+      `🛒 *الأصناف المطلوبة:*\n\n${formattedItems}\n\n` +
+      `${divider}\n` +
+      `📊 *تفاصيل الحساب:*\n` +
+      `▫️ المجموع الفرعي: ${details.totalAmount} ج.س\n` +
+      `▫️ تكلفة التوصيل: ${details.deliveryFee} ج.س\n` +
+      `💰 *الإجمالي الكلي:* *${details.grandTotal} ج.س*\n` +
+      `${divider}\n` +
       bankDetailsSection +
-      `\nشكراً لطلبك من 50 فاكهة! 🍉🍹`;
+      `\n💚 شكراً لطلبك من 50 فاكهة!`;
 
     const cleanPhone = whatsappPhone.replace('+', '').trim();
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
