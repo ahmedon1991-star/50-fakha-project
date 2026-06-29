@@ -1,0 +1,6 @@
+# Supabase project configuration
+
+project_id = "50-fakha-project"
+
+[functions.example-function]
+verify_jwt = false
