@@ -55,8 +55,23 @@ export default function AdminDashboard() {
     available: true
   });
 
+  // Settings State
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+  const [settingsError, setSettingsError] = useState('');
+
   useEffect(() => {
     fetchData();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'settings') fetchAppSettings();
   }, [activeTab]);
 
   const fetchData = async () => {
@@ -399,6 +414,77 @@ export default function AdminDashboard() {
     }
   };
 
+  // ===== SETTINGS HANDLERS =====
+  const fetchAppSettings = async () => {
+    try {
+      const { data } = await supabase.from('app_settings').select('*').single();
+      if (data) {
+        setWhatsappPhone(data.whatsapp_phone || '');
+        setBankName(data.bank_name || '');
+        setBankAccount(data.bank_account || '');
+      }
+    } catch (err) { console.error('Settings fetch error:', err); }
+  };
+
+  const handleUpdateEmail = async (e) => {
+    e.preventDefault();
+    setSettingsLoading(true); setSettingsError(''); setSettingsSuccess('');
+    try {
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      if (error) throw error;
+      setSettingsSuccess('تم إرسال رابط تأكيد البريد الجديد. تحقق من بريدك الإلكتروني.');
+      setNewEmail('');
+    } catch (err) { setSettingsError(err.message || 'خطأ أثناء تحديث البريد'); }
+    finally { setSettingsLoading(false); }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) { setSettingsError('كلمتا المرور غير متطابقتين'); return; }
+    if (newPassword.length < 6) { setSettingsError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
+    setSettingsLoading(true); setSettingsError(''); setSettingsSuccess('');
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setSettingsSuccess('تم تحديث كلمة المرور بنجاح ✅');
+      setNewPassword(''); setConfirmPassword('');
+    } catch (err) { setSettingsError(err.message || 'خطأ أثناء تحديث كلمة المرور'); }
+    finally { setSettingsLoading(false); }
+  };
+
+  const handleSaveAppSettings = async (e) => {
+    e.preventDefault();
+    setSettingsLoading(true); setSettingsError(''); setSettingsSuccess('');
+    try {
+      const { error } = await supabase.from('app_settings').upsert({
+        id: 1,
+        whatsapp_phone: whatsappPhone,
+        bank_name: bankName,
+        bank_account: bankAccount,
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      setSettingsSuccess('تم حفظ الإعدادات بنجاح ✅');
+    } catch (err) { setSettingsError(err.message || 'خطأ أثناء حفظ الإعدادات'); }
+    finally { setSettingsLoading(false); }
+  };
+
+  const handleResetData = async () => {
+    const c1 = window.confirm('⚠️ هل أنت متأكد من تصفير جميع الطلبات والتقارير؟ هذا الإجراء لا يمكن التراجع عنه!');
+    if (!c1) return;
+    const c2 = window.confirm('⚠️ تأكيد أخير: سيتم حذف جميع بيانات الطلبات والمبيعات نهائياً. هل تريد المتابعة؟');
+    if (!c2) return;
+    setSettingsLoading(true); setSettingsError(''); setSettingsSuccess('');
+    try {
+      const { error } = await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
+      setSettingsSuccess('تم تصفير جميع الطلبات والتقارير بنجاح ✅');
+      setStats({ totalOrders: 0, pendingOrders: 0, completedOrders: 0, totalSales: 0, salesByDate: [] });
+      setOrders([]);
+    } catch (err) { setSettingsError(err.message || 'خطأ أثناء التصفير'); }
+    finally { setSettingsLoading(false); }
+  };
+
   return (
     <div className="flex-1 min-h-screen bg-slate-50 flex flex-col pb-16">
       {/* Top Banner Header */}
@@ -469,6 +555,16 @@ export default function AdminDashboard() {
             }`}
           >
             🍉 إدارة المنيو والمنتجات
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`py-4 px-3 font-extrabold text-sm border-b-4 transition-all duration-200 ${
+              activeTab === 'settings'
+                ? 'border-purple-600 text-purple-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            ⚙️ الإعدادات والأمان
           </button>
         </div>
       </div>
@@ -825,6 +921,177 @@ export default function AdminDashboard() {
 
               </div>
             )}
+
+            {/* TAB 4: SETTINGS & SECURITY */}
+            {activeTab === 'settings' && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-3xl">⚙️</span>
+                  <div>
+                    <h2 className="text-2xl font-extrabold text-slate-900">الإعدادات والأمان</h2>
+                    <p className="text-slate-500 text-sm">إدارة حسابك وبيانات التواصل والحساب البنكي</p>
+                  </div>
+                </div>
+
+                {/* Feedback Messages */}
+                {settingsSuccess && (
+                  <div className="bg-emerald-50 border-r-4 border-emerald-500 text-emerald-800 p-4 rounded-xl flex items-center gap-3">
+                    <span className="text-2xl">✅</span>
+                    <span className="font-semibold text-sm">{settingsSuccess}</span>
+                  </div>
+                )}
+                {settingsError && (
+                  <div className="bg-rose-50 border-r-4 border-rose-500 text-rose-800 p-4 rounded-xl flex items-center gap-3">
+                    <span className="text-2xl">❌</span>
+                    <span className="font-semibold text-sm">{settingsError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                  {/* LEFT: Account Security */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+                    <h3 className="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
+                      <span>🔐</span> أمان الحساب
+                    </h3>
+
+                    {/* Change Email */}
+                    <form onSubmit={handleUpdateEmail} className="space-y-3">
+                      <div>
+                        <h4 className="font-bold text-slate-700 text-sm mb-1">تغيير البريد الإلكتروني</h4>
+                        <p className="text-xs text-slate-400 mb-2">البريد الحالي: <span className="font-semibold text-slate-600">{user?.email}</span></p>
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={newEmail}
+                        onChange={e => setNewEmail(e.target.value)}
+                        placeholder="البريد الإلكتروني الجديد"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-right"
+                        dir="ltr"
+                      />
+                      <button
+                        type="submit"
+                        disabled={settingsLoading}
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+                      >
+                        <span>📧</span> تحديث البريد الإلكتروني
+                      </button>
+                    </form>
+
+                    <hr className="border-slate-100" />
+
+                    {/* Change Password */}
+                    <form onSubmit={handleUpdatePassword} className="space-y-3">
+                      <h4 className="font-bold text-slate-700 text-sm">تغيير كلمة المرور</h4>
+                      <input
+                        type="password"
+                        required
+                        value={newPassword}
+                        onChange={e => setNewPassword(e.target.value)}
+                        placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-right"
+                      />
+                      <input
+                        type="password"
+                        required
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        placeholder="تأكيد كلمة المرور الجديدة"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-right"
+                      />
+                      <button
+                        type="submit"
+                        disabled={settingsLoading}
+                        className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+                      >
+                        <span>🔑</span> تحديث كلمة المرور
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* RIGHT: Contact, Bank, Danger Zone */}
+                  <div className="space-y-6">
+
+                    {/* Contact & Bank Settings */}
+                    <form onSubmit={handleSaveAppSettings} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                      <h3 className="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
+                        <span>📱</span> إعدادات التواصل والبنك
+                      </h3>
+
+                      {/* WhatsApp */}
+                      <div className="space-y-1">
+                        <label className="block text-sm font-bold text-slate-700">📞 رقم الواتساب لاستقبال الطلبات</label>
+                        <p className="text-xs text-slate-400">مثال: 249912345678 (بدون + أو مسافات)</p>
+                        <input
+                          type="tel"
+                          value={whatsappPhone}
+                          onChange={e => setWhatsappPhone(e.target.value)}
+                          placeholder="249912345678"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-left"
+                          dir="ltr"
+                        />
+                      </div>
+
+                      {/* Bank Name */}
+                      <div className="space-y-1">
+                        <label className="block text-sm font-bold text-slate-700">🏦 اسم البنك</label>
+                        <input
+                          type="text"
+                          value={bankName}
+                          onChange={e => setBankName(e.target.value)}
+                          placeholder="مثال: بنك الخرطوم"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-right"
+                        />
+                      </div>
+
+                      {/* Bank Account Number */}
+                      <div className="space-y-1">
+                        <label className="block text-sm font-bold text-slate-700">💳 رقم الحساب البنكي</label>
+                        <input
+                          type="text"
+                          value={bankAccount}
+                          onChange={e => setBankAccount(e.target.value)}
+                          placeholder="000-0000-0000"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-left"
+                          dir="ltr"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={settingsLoading}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-bold py-2.5 rounded-xl transition shadow flex items-center justify-center gap-2"
+                      >
+                        <span>💾</span> حفظ الإعدادات
+                      </button>
+                    </form>
+
+                    {/* Danger Zone */}
+                    <div className="bg-white p-6 rounded-2xl border-2 border-rose-200 shadow-sm space-y-4">
+                      <h3 className="text-lg font-bold text-rose-700 border-b border-rose-100 pb-3 flex items-center gap-2">
+                        <span>⚠️</span> منطقة الخطر
+                      </h3>
+                      <p className="text-xs text-slate-500">هذه الإجراءات غير قابلة للتراجع بعد التنفيذ. تأكد تماماً قبل المتابعة.</p>
+                      <button
+                        onClick={handleResetData}
+                        disabled={settingsLoading}
+                        className="w-full bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+                      >
+                        <span>🗑️</span> تصفير جميع الطلبات والتقارير
+                      </button>
+                      <button
+                        onClick={handleLogoutClick}
+                        className="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+                      >
+                        <span>🚪</span> تسجيل الخروج
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </>
         )}
       </div>
