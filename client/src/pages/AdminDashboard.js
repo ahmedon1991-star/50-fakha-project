@@ -49,6 +49,7 @@ export default function AdminDashboard() {
     description: '',
     category: 'عصائر طازجة',
     image: '',
+    size: '',
     available: true
   });
 
@@ -271,6 +272,7 @@ export default function AdminDashboard() {
       description: product.description || '',
       category: product.category || 'عصائر طازجة',
       image: product.image || '',
+      size: product.size || '',
       available: product.available ?? true
     });
     setShowProductModal(true);
@@ -314,6 +316,7 @@ export default function AdminDashboard() {
       description: '',
       category: 'عصائر طازجة',
       image: '',
+      size: '',
       available: true
     });
   };
@@ -595,6 +598,7 @@ export default function AdminDashboard() {
                             <tr className="bg-slate-50 text-slate-600 text-sm font-bold border-b border-slate-100">
                               <th className="p-4">الصورة</th>
                               <th className="p-4">اسم الصنف</th>
+                              <th className="p-4 text-center">الحجم</th>
                               <th className="p-4">السعر</th>
                               <th className="p-4">الفئة</th>
                               <th className="p-4">الوصف</th>
@@ -613,6 +617,7 @@ export default function AdminDashboard() {
                                   />
                                 </td>
                                 <td className="p-4 font-bold text-slate-850">{p.name}</td>
+                                <td className="p-4 text-center text-slate-650 font-semibold text-sm">{p.size || '-'}</td>
                                 <td className="p-4 font-extrabold text-emerald-700">{p.price} ج.م</td>
                                 <td className="p-4">
                                   <span className="bg-emerald-50 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">
@@ -804,26 +809,39 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-700 text-sm font-semibold mb-1">فئة الصنف</label>
-                <select
-                  id="client-prod-category"
-                  value={productForm.category}
-                  onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                >
-                  {categories.map(c => (
-                    <option key={c.id || c.name} value={c.name}>{c.name}</option>
-                  ))}
-                  {categories.length === 0 && (
-                    <>
-                      <option value="عصائر طازجة">عصائر طازجة</option>
-                      <option value="سلطات فواكه">سلطات فواكه</option>
-                      <option value="حلويات">حلويات</option>
-                      <option value="أخرى">أخرى</option>
-                    </>
-                  )}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-slate-700 text-sm font-semibold mb-1">فئة الصنف</label>
+                  <select
+                    id="client-prod-category"
+                    value={productForm.category}
+                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                  >
+                    {categories.map(c => (
+                      <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                    ))}
+                    {categories.length === 0 && (
+                      <>
+                        <option value="عصائر طازجة">عصائر طازجة</option>
+                        <option value="سلطات فواكه">سلطات فواكه</option>
+                        <option value="حلويات">حلويات</option>
+                        <option value="أخرى">أخرى</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-700 text-sm font-semibold mb-1">الحجم (مثال: كبير، لتر)</label>
+                  <input
+                    id="client-prod-size"
+                    type="text"
+                    value={productForm.size}
+                    onChange={(e) => setProductForm({ ...productForm, size: e.target.value })}
+                    placeholder="لتر / كبير / وسط"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                  />
+                </div>
               </div>
 
               <div>

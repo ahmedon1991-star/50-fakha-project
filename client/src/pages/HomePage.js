@@ -171,6 +171,11 @@ export default function HomePage() {
                       {p.category}
                     </span>
                   )}
+                  {p.size && (
+                    <span className="absolute top-3 left-3 bg-slate-900/70 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow backdrop-blur-xs">
+                      {p.size}
+                    </span>
+                  )}
                 </div>
 
                 {/* Product Info */}

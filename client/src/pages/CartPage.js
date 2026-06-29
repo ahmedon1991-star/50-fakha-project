@@ -118,7 +118,14 @@ export default function CartPage() {
                     className="w-20 h-20 object-cover rounded-xl border border-slate-100 flex-shrink-0"
                   />
                   <div>
-                    <h3 className="font-bold text-slate-800 text-lg">{item.name}</h3>
+                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                      <span>{item.name}</span>
+                      {item.size && (
+                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                          {item.size}
+                        </span>
+                      )}
+                    </h3>
                     <p className="text-slate-500 text-sm mt-1">{item.price} ج.م</p>
                   </div>
                 </div>
