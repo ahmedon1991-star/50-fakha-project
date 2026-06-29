@@ -191,7 +191,7 @@ export default function HomePage() {
 
                   <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                     <span className="text-2xl font-extrabold text-emerald-700">
-                      {p.price} <span className="text-xs font-semibold text-slate-500">ج.م</span>
+                      {p.price} <span className="text-xs font-semibold text-slate-500">ج.س</span>
                     </span>
                     
                     <button

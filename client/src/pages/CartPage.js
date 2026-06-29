@@ -126,7 +126,7 @@ export default function CartPage() {
                         </span>
                       )}
                     </h3>
-                    <p className="text-slate-500 text-sm mt-1">{item.price} ج.م</p>
+                    <p className="text-slate-500 text-sm mt-1">{item.price} ج.س</p>
                   </div>
                 </div>
 
@@ -150,7 +150,7 @@ export default function CartPage() {
 
                   {/* Item Total */}
                   <span className="font-extrabold text-emerald-700 min-w-[70px] text-left">
-                    {item.price * item.quantity} ج.م
+                    {item.price * item.quantity} ج.س
                   </span>
 
                   {/* Remove Button */}
@@ -173,15 +173,15 @@ export default function CartPage() {
               <h2 className="text-xl font-bold text-slate-900 border-b pb-3">تفاصيل الحساب</h2>
               <div className="flex justify-between text-slate-600">
                 <span>المجموع الفرعي:</span>
-                <span className="font-semibold">{totalAmount} ج.م</span>
+                <span className="font-semibold">{totalAmount} ج.س</span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>تكلفة التوصيل:</span>
-                <span className="font-semibold">{deliveryFee} ج.م</span>
+                <span className="font-semibold">{deliveryFee} ج.س</span>
               </div>
               <div className="flex justify-between text-slate-900 font-extrabold text-lg border-t pt-3">
                 <span>الإجمالي الكلي:</span>
-                <span className="text-emerald-700">{grandTotal} ج.م</span>
+                <span className="text-emerald-700">{grandTotal} ج.س</span>
               </div>
             </div>
 

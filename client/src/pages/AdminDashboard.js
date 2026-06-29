@@ -432,7 +432,7 @@ export default function AdminDashboard() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
                     <div className="space-y-1">
                       <p className="text-slate-500 text-sm font-medium">إجمالي المبيعات</p>
-                      <h3 className="text-3xl font-black text-emerald-700">{stats.totalSales} ج.م</h3>
+                      <h3 className="text-3xl font-black text-emerald-700">{stats.totalSales} ج.س</h3>
                     </div>
                     <span className="text-4xl bg-emerald-50 p-3 rounded-2xl">💰</span>
                   </div>
@@ -478,9 +478,9 @@ export default function AdminDashboard() {
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                           <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
                           <YAxis stroke="#94a3b8" fontSize={12} />
-                          <Tooltip formatter={(value) => [`${value} ج.م`, 'المبيعات']} labelStyle={{ color: '#000' }} />
+                          <Tooltip formatter={(value) => [`${value} ج.س`, 'المبيعات']} labelStyle={{ color: '#000' }} />
                           <Legend />
-                          <Area type="monotone" dataKey="sales" name="المبيعات (ج.م)" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+                          <Area type="monotone" dataKey="sales" name="المبيعات (ج.س)" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
@@ -537,7 +537,7 @@ export default function AdminDashboard() {
                                 ))}
                               </div>
                             </td>
-                            <td className="p-4 font-extrabold text-emerald-700">{order.total_amount} ج.م</td>
+                            <td className="p-4 font-extrabold text-emerald-700">{order.total_amount} ج.س</td>
                             <td className="p-4 text-center">
                               <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
                                 {order.status}
@@ -618,7 +618,7 @@ export default function AdminDashboard() {
                                 </td>
                                 <td className="p-4 font-bold text-slate-850">{p.name}</td>
                                 <td className="p-4 text-center text-slate-650 font-semibold text-sm">{p.size || '-'}</td>
-                                <td className="p-4 font-extrabold text-emerald-700">{p.price} ج.م</td>
+                                <td className="p-4 font-extrabold text-emerald-700">{p.price} ج.س</td>
                                 <td className="p-4">
                                   <span className="bg-emerald-50 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">
                                     {p.category || 'غير محدد'}
@@ -796,7 +796,7 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-700 text-sm font-semibold mb-1">السعر (ج.م)</label>
+                  <label className="block text-slate-700 text-sm font-semibold mb-1">السعر (ج.س)</label>
                   <input
                     id="client-prod-price"
                     type="number"

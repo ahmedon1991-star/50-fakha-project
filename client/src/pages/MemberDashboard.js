@@ -304,7 +304,7 @@ export default function MemberDashboard() {
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-slate-500 text-xs font-semibold">المبلغ الكلي: </span>
-                            <span className="font-black text-emerald-600 text-base">{order.total_amount} ج.م</span>
+                            <span className="font-black text-emerald-600 text-base">{order.total_amount} ج.س</span>
                             <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusBadgeColor(order.status)}`}>
                               {order.status}
                             </span>
@@ -383,7 +383,7 @@ export default function MemberDashboard() {
                               {order.items?.map((it, idx) => (
                                 <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-100">
                                   <span className="text-slate-800 font-bold">{it.name}</span>
-                                  <span className="text-slate-500 font-semibold"><span className="text-emerald-600 font-bold">{it.quantity}x</span> {it.price} ج.م</span>
+                                  <span className="text-slate-500 font-semibold"><span className="text-emerald-600 font-bold">{it.quantity}x</span> {it.price} ج.س</span>
                                 </div>
                               ))}
                             </div>
