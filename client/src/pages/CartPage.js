@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { supabase } from '../supabaseClient';
 
 export default function CartPage() {
   const { cartItems, removeFromCart, updateQuantity, totalAmount, clearCart } = useCart();
@@ -32,31 +32,28 @@ export default function CartPage() {
     setError('');
     setLoading(true);
 
-    const orderData = {
-      items: cartItems.map(item => ({
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity
-      })),
-      totalAmount: grandTotal,
-      shippingAddress: address,
-      phone: phone
-    };
-
     try {
-      await axios.post(
-        'http://localhost:5000/api/orders',
-        orderData,
-        {
-          headers: {
-            Authorization: `Bearer ${user.token}`
-          }
-        }
-      );
+      const { error: insertError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          items: cartItems.map(item => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          total_amount: grandTotal,
+          shipping_address: address,
+          phone: phone,
+          status: 'قيد الانتظار'
+        });
+
+      if (insertError) throw insertError;
+
       setOrderSuccess(true);
       clearCart();
     } catch (err) {
-      setError(err.response?.data?.message || 'حدث خطأ أثناء إتمام الطلب، حاول مرة أخرى');
+      setError(err.message || 'حدث خطأ أثناء إتمام الطلب، حاول مرة أخرى');
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { useCart } from '../context/CartContext';
+import { supabase } from '../supabaseClient';
 
 export default function HomePage() {
   const [products, setProducts] = useState([]);
@@ -12,19 +12,27 @@ export default function HomePage() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('http://localhost:5000/api/products')
-      .then(res => {
-        setProducts(res.data);
-        setFilteredProducts(res.data);
+    const fetchProducts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('available', true)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        setProducts(data || []);
+        setFilteredProducts(data || []);
         setError('');
-      })
-      .catch(err => {
+      } catch (err) {
         console.error(err);
-        setError('تعذر تحميل المنتجات حالياً. يرجى التأكد من تشغيل الخادم الخلفي.');
-      })
-      .finally(() => {
+        setError('تعذر تحميل المنتجات حالياً. يرجى التأكد من إعدادات قاعدة البيانات.');
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    
+    fetchProducts();
   }, []);
 
   const handleCategoryChange = (category) => {

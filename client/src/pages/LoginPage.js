@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,15 +18,24 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
-      login(response.data);
-      if (response.data.isAdmin) {
+      const data = await login(email, password);
+      
+      // Check profile to redirect
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (profileErr) throw profileErr;
+
+      if (profile?.is_admin) {
         navigate('/admin');
       } else {
         navigate('/');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'حدث خطأ في الاتصال بالخادم');
+      setError(err.message || 'بيانات الدخول غير صحيحة');
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { supabase } from '../supabaseClient';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -39,12 +39,6 @@ export default function AdminDashboard() {
     available: true
   });
 
-  const axiosConfig = {
-    headers: {
-      Authorization: `Bearer ${user?.token}`
-    }
-  };
-
   useEffect(() => {
     fetchData();
   }, [activeTab]);
@@ -54,18 +48,86 @@ export default function AdminDashboard() {
     setError('');
     try {
       if (activeTab === 'stats') {
-        const res = await axios.get('http://localhost:5000/api/admin/stats', axiosConfig);
-        setStats(res.data);
+        // 1. Fetch total orders
+        const { count: totalOrdersCount, error: totalErr } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true });
+        if (totalErr) throw totalErr;
+
+        // 2. Fetch pending orders
+        const { count: pendingCount, error: pendingErr } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'قيد الانتظار');
+        if (pendingErr) throw pendingErr;
+
+        // 3. Fetch completed orders
+        const { count: completedCount, error: completedErr } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'تم التوصيل');
+        if (completedErr) throw completedErr;
+
+        // 4. Fetch sales data for sales sum and chart
+        const { data: salesData, error: salesErr } = await supabase
+          .from('orders')
+          .select('total_amount, status, created_at')
+          .neq('status', 'ملغي');
+        if (salesErr) throw salesErr;
+
+        const totalSales = salesData.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+
+        // Group by date in Javascript
+        const dailyMap = {};
+        salesData.forEach(o => {
+          const dateStr = new Date(o.created_at).toISOString().split('T')[0];
+          if (!dailyMap[dateStr]) {
+            dailyMap[dateStr] = { date: dateStr, sales: 0, orders: 0 };
+          }
+          dailyMap[dateStr].sales += Number(o.total_amount) || 0;
+          dailyMap[dateStr].orders += 1;
+        });
+
+        const salesByDate = Object.values(dailyMap)
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .slice(-7);
+
+        setStats({
+          totalOrders: totalOrdersCount || 0,
+          pendingOrders: pendingCount || 0,
+          completedOrders: completedCount || 0,
+          totalSales,
+          salesByDate
+        });
+
       } else if (activeTab === 'orders') {
-        const res = await axios.get('http://localhost:5000/api/admin/orders', axiosConfig);
-        setOrders(res.data);
+        // Fetch all orders with profiles relation join
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*, profiles:user_id(name, id)')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+
+        // Map profiles to match expected user object format
+        const formattedOrders = (data || []).map(order => ({
+          ...order,
+          user: order.profiles ? { name: order.profiles.name, email: '' } : null
+        }));
+        setOrders(formattedOrders);
+
       } else if (activeTab === 'products') {
-        const res = await axios.get('http://localhost:5000/api/products');
-        setProducts(res.data);
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        setProducts(data || []);
       }
     } catch (err) {
       console.error(err);
-      setError('تعذر تحميل البيانات من السيرفر. تأكد من تشغيل الخلفية.');
+      setError(err.message || 'تعذر تحميل البيانات من قاعدة بيانات Supabase.');
     } finally {
       setLoading(false);
     }
@@ -74,10 +136,15 @@ export default function AdminDashboard() {
   // Orders Management
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/admin/orders/${orderId}/status`, { status: newStatus }, axiosConfig);
-      setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: newStatus } : o));
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     } catch (err) {
-      alert('خطأ أثناء تعديل حالة الطلب');
+      alert('خطأ أثناء تعديل حالة الطلب: ' + err.message);
     }
   };
 
@@ -86,16 +153,31 @@ export default function AdminDashboard() {
     e.preventDefault();
     try {
       if (editingProduct) {
-        const res = await axios.put(`http://localhost:5000/api/products/${editingProduct._id}`, productForm, axiosConfig);
-        setProducts(prev => prev.map(p => p._id === editingProduct._id ? res.data : p));
+        // Update product
+        const { data, error } = await supabase
+          .from('products')
+          .update(productForm)
+          .eq('id', editingProduct.id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? data : p));
       } else {
-        const res = await axios.post('http://localhost:5000/api/products', productForm, axiosConfig);
-        setProducts(prev => [...prev, res.data]);
+        // Create product
+        const { data, error } = await supabase
+          .from('products')
+          .insert(productForm)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        setProducts(prev => [data, ...prev]);
       }
       setShowProductModal(false);
       resetProductForm();
     } catch (err) {
-      alert(err.response?.data?.message || 'خطأ أثناء حفظ المنتج');
+      alert(err.message || 'خطأ أثناء حفظ المنتج');
     }
   };
 
@@ -115,20 +197,30 @@ export default function AdminDashboard() {
   const handleDeleteProduct = async (productId) => {
     if (!window.confirm('هل أنت متأكد من رغبتك في حذف هذا المنتج؟')) return;
     try {
-      await axios.delete(`http://localhost:5000/api/products/${productId}`, axiosConfig);
-      setProducts(prev => prev.filter(p => p._id !== productId));
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+      
+      if (error) throw error;
+      setProducts(prev => prev.filter(p => p.id !== productId));
     } catch (err) {
-      alert('خطأ أثناء حذف المنتج');
+      alert('خطأ أثناء حذف المنتج: ' + err.message);
     }
   };
 
   const handleToggleAvailable = async (product) => {
     const updatedStatus = !product.available;
     try {
-      await axios.put(`http://localhost:5000/api/products/${product._id}`, { available: updatedStatus }, axiosConfig);
-      setProducts(prev => prev.map(p => p._id === product._id ? { ...p, available: updatedStatus } : p));
+      const { error } = await supabase
+        .from('products')
+        .update({ available: updatedStatus })
+        .eq('id', product.id);
+      
+      if (error) throw error;
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, available: updatedStatus } : p));
     } catch (err) {
-      alert('خطأ أثناء تحديث حالة توفر المنتج');
+      alert('خطأ أثناء تحديث حالة توفر المنتج: ' + err.message);
     }
   };
 
@@ -329,14 +421,13 @@ export default function AdminDashboard() {
                       </thead>
                       <tbody>
                         {orders.map((order) => (
-                          <tr key={order._id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
+                          <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
                             <td className="p-4 flex flex-col">
                               <span className="font-bold text-slate-800">{order.user?.name || 'مجهول'}</span>
-                              <span className="text-slate-400 text-xs font-mono">{order.user?.email || ''}</span>
                             </td>
                             <td className="p-4 font-mono text-slate-600 text-sm">{order.phone || '-'}</td>
-                            <td className="p-4 text-slate-600 text-sm max-w-[200px] truncate" title={order.shippingAddress}>
-                              {order.shippingAddress}
+                            <td className="p-4 text-slate-600 text-sm max-w-[200px] truncate" title={order.shipping_address}>
+                              {order.shipping_address}
                             </td>
                             <td className="p-4">
                               <div className="text-sm space-y-1">
@@ -347,7 +438,7 @@ export default function AdminDashboard() {
                                 ))}
                               </div>
                             </td>
-                            <td className="p-4 font-extrabold text-emerald-700">{order.totalAmount} ج.م</td>
+                            <td className="p-4 font-extrabold text-emerald-700">{order.total_amount} ج.م</td>
                             <td className="p-4 text-center">
                               <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
                                 {order.status}
@@ -356,7 +447,7 @@ export default function AdminDashboard() {
                             <td className="p-4 text-center">
                               <select
                                 value={order.status}
-                                onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                                onChange={(e) => handleStatusChange(order.id, e.target.value)}
                                 className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-bold"
                               >
                                 <option value="قيد الانتظار">قيد الانتظار</option>
@@ -414,7 +505,7 @@ export default function AdminDashboard() {
                         </thead>
                         <tbody>
                           {products.map((p) => (
-                            <tr key={p._id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
+                            <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
                               <td className="p-4">
                                 <img
                                   src={p.image || 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=100'}
@@ -453,7 +544,7 @@ export default function AdminDashboard() {
                                     ✏️ تعديل
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteProduct(p._id)}
+                                    onClick={() => handleDeleteProduct(p.id)}
                                     className="text-rose-600 hover:text-rose-800 hover:bg-rose-50 p-2 rounded-lg text-sm font-semibold transition"
                                   >
                                     🗑️ حذف
