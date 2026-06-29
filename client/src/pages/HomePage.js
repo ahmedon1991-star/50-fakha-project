@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient';
 export default function HomePage() {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [categories, setCategories] = useState(['الكل', 'عصائر طازجة', 'سلطات فواكه', 'حلويات', 'أخرى']);
   const [activeCategory, setActiveCategory] = useState('الكل');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -12,27 +13,39 @@ export default function HomePage() {
 
   useEffect(() => {
     setLoading(true);
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const { data, error } = await supabase
+        // 1. Fetch products
+        const { data: prodData, error: prodErr } = await supabase
           .from('products')
           .select('*')
           .eq('available', true)
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
-        setProducts(data || []);
-        setFilteredProducts(data || []);
+        if (prodErr) throw prodErr;
+        setProducts(prodData || []);
+        setFilteredProducts(prodData || []);
+
+        // 2. Fetch categories
+        const { data: catData, error: catErr } = await supabase
+          .from('categories')
+          .select('name')
+          .order('name', { ascending: true });
+        
+        if (!catErr && catData && catData.length > 0) {
+          setCategories(['الكل', ...catData.map(c => c.name)]);
+        }
+        
         setError('');
       } catch (err) {
         console.error(err);
-        setError('تعذر تحميل المنتجات حالياً. يرجى التأكد من إعدادات قاعدة البيانات.');
+        setError('تعذر تحميل البيانات حالياً. يرجى التأكد من إعدادات قاعدة البيانات.');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchProducts();
+    fetchData();
   }, []);
 
   const handleCategoryChange = (category) => {
@@ -43,8 +56,6 @@ export default function HomePage() {
       setFilteredProducts(products.filter(p => p.category === category));
     }
   };
-
-  const categories = ['الكل', 'عصائر طازجة', 'سلطات فواكه', 'حلويات', 'أخرى'];
 
   return (
     <div className="flex-1 pb-16">

@@ -34,6 +34,12 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Categories State
+  const [categories, setCategories] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+
   // Modals and Forms State
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -137,6 +143,75 @@ export default function AdminDashboard() {
       setError(err.message || 'تعذر تحميل البيانات من قاعدة بيانات Supabase.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (err) {
+      console.error('Error fetching categories:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Categories CRUD
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    setError('');
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert({ name: newCategoryName.trim() })
+        .select()
+        .single();
+      if (error) throw error;
+      setCategories(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewCategoryName('');
+    } catch (err) {
+      setError(err.message || 'خطأ أثناء إضافة القسم. تأكد من أن الاسم غير مكرر.');
+    }
+  };
+
+  const handleUpdateCategory = async (e) => {
+    e.preventDefault();
+    if (!editingCategory || !editCategoryName.trim()) return;
+    setError('');
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .update({ name: editCategoryName.trim() })
+        .eq('id', editingCategory.id);
+      if (error) throw error;
+      setCategories(prev => prev.map(c => c.id === editingCategory.id ? { ...c, name: editCategoryName.trim() } : c).sort((a, b) => a.name.localeCompare(b.name)));
+      setEditingCategory(null);
+      setEditCategoryName('');
+    } catch (err) {
+      setError(err.message || 'خطأ أثناء تحديث القسم.');
+    }
+  };
+
+  const handleDeleteCategory = async (catId) => {
+    if (!window.confirm('هل أنت متأكد من رغبتك في حذف هذا القسم؟ قد يؤثر ذلك على المنتجات المرتبطة به.')) return;
+    setError('');
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', catId);
+      if (error) throw error;
+      setCategories(prev => prev.filter(c => c.id !== catId));
+    } catch (err) {
+      setError(err.message || 'خطأ أثناء حذف القسم. قد يكون هناك منتجات مرتبطة به.');
     }
   };
 
@@ -487,98 +562,195 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* TAB 3: PRODUCT MANAGEMENT / CRUD */}
+            {/* TAB 3: PRODUCT & CATEGORIES MANAGEMENT */}
             {activeTab === 'products' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-bold text-slate-800">قائمة أصناف المنيو</h3>
-                  <button
-                    onClick={() => {
-                      resetProductForm();
-                      setShowProductModal(true);
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition duration-200"
-                  >
-                    <span>إضافة منتج جديد</span>
-                    <span>➕</span>
-                  </button>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Right side (span 2): Products list */}
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-slate-800">قائمة أصناف المنيو</h3>
+                    <button
+                      onClick={() => {
+                        resetProductForm();
+                        setShowProductModal(true);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition duration-200 text-sm"
+                    >
+                      <span>إضافة منتج جديد</span>
+                      <span>➕</span>
+                    </button>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    {products.length === 0 ? (
+                      <div className="p-16 text-center text-slate-400 space-y-3">
+                        <span className="text-4xl block">🍍</span>
+                        <p className="font-bold text-lg">المنيو فارغ حالياً. أضف منتجاتك الأولى!</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-right border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-600 text-sm font-bold border-b border-slate-100">
+                              <th className="p-4">الصورة</th>
+                              <th className="p-4">اسم الصنف</th>
+                              <th className="p-4">السعر</th>
+                              <th className="p-4">الفئة</th>
+                              <th className="p-4">الوصف</th>
+                              <th className="p-4 text-center">التوفر للطلب</th>
+                              <th className="p-4 text-center">الإجراءات</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {products.map((p) => (
+                              <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
+                                <td className="p-4">
+                                  <img
+                                    src={p.image || 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=100'}
+                                    alt={p.name}
+                                    className="w-12 h-12 object-cover rounded-lg border border-slate-100"
+                                  />
+                                </td>
+                                <td className="p-4 font-bold text-slate-850">{p.name}</td>
+                                <td className="p-4 font-extrabold text-emerald-700">{p.price} ج.م</td>
+                                <td className="p-4">
+                                  <span className="bg-emerald-50 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">
+                                    {p.category || 'غير محدد'}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-slate-500 text-sm max-w-[200px] truncate" title={p.description}>
+                                  {p.description || '-'}
+                                </td>
+                                <td className="p-4 text-center">
+                                  <button
+                                    onClick={() => handleToggleAvailable(p)}
+                                    className={`px-3 py-1 rounded-full text-xs font-bold border transition ${
+                                      p.available
+                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                        : 'bg-rose-100 text-rose-800 border-rose-200'
+                                    }`}
+                                  >
+                                    {p.available ? 'متوفر ✅' : 'نفذت الكمية 🚫'}
+                                  </button>
+                                </td>
+                                <td className="p-4 text-center">
+                                  <div className="flex justify-center gap-3">
+                                    <button
+                                      onClick={() => handleEditClick(p)}
+                                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg text-sm font-semibold transition"
+                                    >
+                                      ✏️ تعديل
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteProduct(p.id)}
+                                      className="text-rose-600 hover:text-rose-800 hover:bg-rose-50 p-2 rounded-lg text-sm font-semibold transition"
+                                    >
+                                      🗑️ حذف
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  {products.length === 0 ? (
-                    <div className="p-16 text-center text-slate-400 space-y-3">
-                      <span className="text-4xl block">🍍</span>
-                      <p className="font-bold text-lg">المنيو فارغ حالياً. أضف منتجاتك الأولى!</p>
+                {/* Left side (span 1): Categories Management */}
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-slate-800">📁 إدارة أقسام المنيو</h3>
+                  </div>
+
+                  {/* Add category form */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                    <h4 className="font-bold text-slate-700 text-sm">إضافة قسم جديد</h4>
+                    <form onSubmit={handleAddCategory} className="flex gap-2">
+                      <input
+                        type="text"
+                        required
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="مثال: مشروبات ساخنة"
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-right text-sm"
+                      />
+                      <button
+                        type="submit"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl transition text-sm shadow-sm"
+                      >
+                        إضافة ➕
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Categories list */}
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700 text-sm">
+                      الأقسام الحالية
                     </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-right border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50 text-slate-600 text-sm font-bold border-b border-slate-100">
-                            <th className="p-4">الصورة</th>
-                            <th className="p-4">اسم الصنف</th>
-                            <th className="p-4">السعر</th>
-                            <th className="p-4">الفئة</th>
-                            <th className="p-4">الوصف</th>
-                            <th className="p-4 text-center">التوفر للطلب</th>
-                            <th className="p-4 text-center">الإجراءات</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {products.map((p) => (
-                            <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
-                              <td className="p-4">
-                                <img
-                                  src={p.image || 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=100'}
-                                  alt={p.name}
-                                  className="w-12 h-12 object-cover rounded-lg border border-slate-100"
+                    {categories.length === 0 ? (
+                      <div className="p-8 text-center text-slate-400 text-xs">
+                        لا توجد أقسام مخصصة حالياً.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {categories.map((cat) => (
+                          <div key={cat.id} className="p-4 flex justify-between items-center gap-3">
+                            {editingCategory?.id === cat.id ? (
+                              <form onSubmit={handleUpdateCategory} className="flex gap-2 w-full">
+                                <input
+                                  type="text"
+                                  required
+                                  value={editCategoryName}
+                                  onChange={(e) => setEditCategoryName(e.target.value)}
+                                  className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-right text-xs"
                                 />
-                              </td>
-                              <td className="p-4 font-bold text-slate-850">{p.name}</td>
-                              <td className="p-4 font-extrabold text-emerald-700">{p.price} ج.م</td>
-                              <td className="p-4">
-                                <span className="bg-emerald-50 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">
-                                  {p.category || 'غير محدد'}
-                                </span>
-                              </td>
-                              <td className="p-4 text-slate-500 text-sm max-w-[200px] truncate" title={p.description}>
-                                {p.description || '-'}
-                              </td>
-                              <td className="p-4 text-center">
                                 <button
-                                  onClick={() => handleToggleAvailable(p)}
-                                  className={`px-3 py-1 rounded-full text-xs font-bold border transition ${
-                                    p.available
-                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                      : 'bg-rose-100 text-rose-800 border-rose-200'
-                                  }`}
+                                  type="submit"
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
                                 >
-                                  {p.available ? 'متوفر ✅' : 'نفذت الكمية 🚫'}
+                                  حفظ
                                 </button>
-                              </td>
-                              <td className="p-4 text-center">
-                                <div className="flex justify-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingCategory(null)}
+                                  className="bg-slate-100 hover:bg-slate-200 text-slate-650 px-3 py-1.5 rounded-lg text-xs font-bold"
+                                >
+                                  إلغاء
+                                </button>
+                              </form>
+                            ) : (
+                              <>
+                                <span className="font-bold text-slate-700 text-sm">{cat.name}</span>
+                                <div className="flex gap-2">
                                   <button
-                                    onClick={() => handleEditClick(p)}
-                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg text-sm font-semibold transition"
+                                    onClick={() => {
+                                      setEditingCategory(cat);
+                                      setEditCategoryName(cat.name);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 text-xs font-semibold p-1 hover:bg-blue-50 rounded"
                                   >
                                     ✏️ تعديل
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteProduct(p.id)}
-                                    className="text-rose-600 hover:text-rose-800 hover:bg-rose-50 p-2 rounded-lg text-sm font-semibold transition"
+                                    onClick={() => handleDeleteCategory(cat.id)}
+                                    className="text-rose-600 hover:text-rose-800 text-xs font-semibold p-1 hover:bg-rose-50 rounded"
                                   >
                                     🗑️ حذف
                                   </button>
                                 </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
               </div>
             )}
           </>
@@ -640,10 +812,17 @@ export default function AdminDashboard() {
                   onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                 >
-                  <option value="عصائر طازجة">عصائر طازجة</option>
-                  <option value="سلطات فواكه">سلطات فواكه</option>
-                  <option value="حلويات">حلويات</option>
-                  <option value="أخرى">أخرى</option>
+                  {categories.map(c => (
+                    <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                  ))}
+                  {categories.length === 0 && (
+                    <>
+                      <option value="عصائر طازجة">عصائر طازجة</option>
+                      <option value="سلطات فواكه">سلطات فواكه</option>
+                      <option value="حلويات">حلويات</option>
+                      <option value="أخرى">أخرى</option>
+                    </>
+                  )}
                 </select>
               </div>
 
