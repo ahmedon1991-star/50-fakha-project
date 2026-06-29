@@ -12,6 +12,9 @@ export default function MemberDashboard() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Sub-tab for orders ('active' or 'history')
+  const [ordersSubTab, setOrdersSubTab] = useState('active');
+
   // Delete Account State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -283,24 +286,72 @@ export default function MemberDashboard() {
             {/* TAB 1: ORDER TRACKING */}
             {activeTab === 'orders' && (
               <div className="space-y-6">
-                {orders.length === 0 ? (
-                  <div className="bg-white p-16 rounded-3xl border border-slate-100 shadow-sm text-center text-slate-500 space-y-3">
-                    <span className="text-5xl block">🍍</span>
-                    <p className="font-extrabold text-lg">لم تقم بأي طلبات بعد</p>
-                    <p className="text-sm text-slate-400">توجه للصفحة الرئيسية واطلب ألذ العصائر الطازجة الآن!</p>
-                  </div>
-                ) : (
-                  orders.map((order) => {
+                
+                {/* Orders sub-tab switcher */}
+                <div className="flex gap-3 items-center bg-white p-2.5 rounded-2xl border border-slate-100 shadow-xs">
+                  <button
+                    onClick={() => setOrdersSubTab('active')}
+                    className={`flex items-center gap-1.5 px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 ${
+                      ordersSubTab === 'active'
+                        ? 'bg-emerald-600 text-white shadow'
+                        : 'bg-slate-50 text-slate-650 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>⏳</span> الطلبات النشطة
+                    {orders.filter(o => o.status !== 'تم التوصيل' && o.status !== 'ملغي').length > 0 && (
+                      <span className="bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full font-black">
+                        {orders.filter(o => o.status !== 'تم التوصيل' && o.status !== 'ملغي').length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setOrdersSubTab('history')}
+                    className={`flex items-center gap-1.5 px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 ${
+                      ordersSubTab === 'history'
+                        ? 'bg-slate-700 text-white shadow'
+                        : 'bg-slate-50 text-slate-650 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>📜</span> سجل الطلبات السابقة
+                  </button>
+                </div>
+
+                {(() => {
+                  const filteredOrders = orders.filter(o => {
+                    const isClosed = o.status === 'تم التوصيل' || o.status === 'ملغي';
+                    return ordersSubTab === 'history' ? isClosed : !isClosed;
+                  });
+
+                  if (filteredOrders.length === 0) {
+                    return (
+                      <div className="bg-white p-16 rounded-3xl border border-slate-100 shadow-sm text-center text-slate-500 space-y-3">
+                        <span className="text-5xl block">🍍</span>
+                        <p className="font-extrabold text-lg">
+                          {ordersSubTab === 'active' ? 'لا توجد طلبات نشطة حالياً' : 'سجل طلباتك السابقة فارغ'}
+                        </p>
+                        <p className="text-sm text-slate-400">
+                          {ordersSubTab === 'active' 
+                            ? 'توجه للمتجر واطلب ألذ المشروبات لتبدأ التتبع!'
+                            : 'كافة الطلبات التي تكتمل أو تُلغى ستظهر هنا كأرشيف لبياناتك.'}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return filteredOrders.map((order) => {
                     const currentStep = getStepIndex(order.status);
                     const isCanceled = order.status === 'ملغي';
+                    const isDelivered = order.status === 'تم التوصيل';
                     
                     return (
                       <div key={order.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden text-right transition hover:shadow-md">
                         {/* Order Header Info */}
                         <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                          <div>
-                            <span className="text-slate-500 text-xs font-semibold">تاريخ الطلب: </span>
-                            <span className="font-bold text-slate-700 text-sm">{new Date(order.created_at).toLocaleDateString('ar-EG', { dateStyle: 'long' })}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono text-sm bg-slate-200 text-slate-800 px-3 py-1 rounded-xl font-bold">
+                              طلب رقم: #{order.order_number || order.id?.slice(0, 8)}
+                            </span>
+                            <span className="text-slate-400 text-xs font-semibold">| {new Date(order.created_at).toLocaleDateString('ar-EG', { dateStyle: 'long' })}</span>
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-slate-500 text-xs font-semibold">المبلغ الكلي: </span>
@@ -311,12 +362,17 @@ export default function MemberDashboard() {
                           </div>
                         </div>
 
-                        {/* Order Stepper Tracker */}
+                        {/* Order Stepper / Status Banner */}
                         <div className="p-6 border-b border-slate-100">
                           {isCanceled ? (
                             <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-center text-rose-700 font-bold flex items-center justify-center gap-2">
                               <span>🚫</span>
-                              <span>هذا الطلب ملغي حالياً ولا يمكن تتبعه.</span>
+                              <span>تم إلغاء هذا الطلب ولا يمكن تتبعه.</span>
+                            </div>
+                          ) : isDelivered ? (
+                            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center text-emerald-700 font-bold flex items-center justify-center gap-2">
+                              <span>✅</span>
+                              <span>تم توصيل وتسليم هذا الطلب بنجاح. شكراً لطلبك من 50 فاكهة!</span>
                             </div>
                           ) : (
                             <div className="relative flex flex-col md:flex-row justify-between items-center gap-8 md:gap-4 py-4 max-w-2xl mx-auto">
@@ -376,13 +432,22 @@ export default function MemberDashboard() {
                             <h4 className="font-extrabold text-slate-800 text-sm">🚚 تفاصيل التوصيل:</h4>
                             <p className="text-slate-600 text-xs"><span className="font-bold">العنوان:</span> {order.shipping_address}</p>
                             <p className="text-slate-600 text-xs"><span className="font-bold">رقم الهاتف للطلب:</span> {order.phone}</p>
+                            {order.payment_method && (
+                              <p className="text-slate-600 text-xs">
+                                <span className="font-bold">طريقة الدفع:</span> {
+                                  order.payment_method === 'bank' ? 'تحويل بنكي 🏦' : 'الدفع عند الاستلام 💵'
+                                }
+                              </p>
+                            )}
                           </div>
                           <div className="space-y-2">
                             <h4 className="font-extrabold text-slate-800 text-sm">📋 الأصناف المطلوبة:</h4>
                             <div className="text-xs space-y-1.5">
                               {order.items?.map((it, idx) => (
                                 <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-100">
-                                  <span className="text-slate-800 font-bold">{it.name}</span>
+                                  <span className="text-slate-800 font-bold">
+                                    {it.name} {it.selectedSize ? `(${it.selectedSize})` : ''}
+                                  </span>
                                   <span className="text-slate-500 font-semibold"><span className="text-emerald-600 font-bold">{it.quantity}x</span> {it.price} ج.س</span>
                                 </div>
                               ))}
@@ -391,8 +456,8 @@ export default function MemberDashboard() {
                         </div>
                       </div>
                     );
-                  })
-                )}
+                  });
+                })()}
               </div>
             )}
 
