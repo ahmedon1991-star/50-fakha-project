@@ -77,7 +77,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (name, email, phone, password) => {
-    // 1. Sign up user with Email, Password and metadata
+    // Sign up user with Email, Password and metadata
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -86,19 +86,6 @@ export const AuthProvider = ({ children }) => {
       }
     });
     if (signUpError) throw signUpError;
-
-    // 2. Create the profile in profiles table immediately
-    if (signUpData.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: signUpData.user.id,
-          name: name,
-          phone: phone,
-          is_admin: false
-        });
-      if (profileError) throw profileError;
-    }
 
     return signUpData;
   };
@@ -112,18 +99,6 @@ export const AuthProvider = ({ children }) => {
     });
     if (error) throw error;
 
-    // Create the profile in profiles table
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          name: name,
-          phone: phone,
-          is_admin: false
-        });
-      if (profileError) console.error('Error inserting profile:', profileError.message);
-    }
     return data;
   };
 
