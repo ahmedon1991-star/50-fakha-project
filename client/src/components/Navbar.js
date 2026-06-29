@@ -35,32 +35,36 @@ export default function Navbar() {
 
           {/* User Account Actions */}
           {user ? (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               {user.isAdmin && (
                 <Link 
                   to="/admin" 
-                  className="bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-sm font-bold px-3 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+                  className="bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+                  title="لوحة التحكم"
                 >
-                  لوحة التحكم ⚙️
+                  <span className="hidden sm:inline">لوحة التحكم</span> ⚙️
                 </Link>
               )}
               <Link 
                 to="/profile" 
-                className="bg-emerald-700 hover:bg-emerald-800 text-emerald-100 text-sm font-bold px-4 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+                className="bg-emerald-700 hover:bg-emerald-800 text-emerald-100 text-xs sm:text-sm font-bold px-3 sm:px-4 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+                title="حسابي"
               >
-                حسابي 👤
+                <span className="hidden sm:inline">حسابي</span> 👤
               </Link>
               <button 
                 onClick={handleLogout} 
-                className="bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+                className="bg-rose-500 hover:bg-rose-600 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+                title="تسجيل الخروج"
               >
-                تسجيل الخروج
+                <span className="hidden sm:inline">تسجيل الخروج</span>
+                <span className="sm:hidden">🚪</span>
               </button>
             </div>
           ) : (
             <Link 
               to="/login" 
-              className="bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-sm font-bold px-4 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+              className="bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-xs sm:text-sm font-bold px-4 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
             >
               تسجيل الدخول
             </Link>
