@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -83,6 +83,61 @@ export default function AdminDashboard() {
 
   // Mobile Drawer Menu State
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // New Order Alarm State & Refs
+  const [alarmActive, setAlarmActive] = useState(false);
+  const [latestNewOrder, setLatestNewOrder] = useState(null);
+  const audioIntervalRef = useRef(null);
+
+  const playLoudNotification = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      const playTone = (freq, duration, delay) => {
+        setTimeout(() => {
+          try {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.type = 'sawtooth'; // Sharp, loud tone for alarms
+            osc.frequency.setValueAtTime(freq, ctx.currentTime);
+            
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration - 0.03);
+            
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + duration);
+          } catch (e) {}
+        }, delay);
+      };
+
+      // Play sharp alternating dual frequency alarm
+      playTone(980, 0.35, 0);
+      playTone(1300, 0.4, 200);
+    } catch (e) {
+      console.error('Audio failed:', e);
+    }
+  };
+
+  const startAlarm = () => {
+    playLoudNotification();
+    if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
+    audioIntervalRef.current = setInterval(playLoudNotification, 1600);
+    setAlarmActive(true);
+  };
+
+  const stopAlarm = () => {
+    if (audioIntervalRef.current) {
+      clearInterval(audioIntervalRef.current);
+      audioIntervalRef.current = null;
+    }
+    setAlarmActive(false);
+  };
 
   useEffect(() => {
     fetchData();
@@ -227,6 +282,32 @@ export default function AdminDashboard() {
     fetchCategories();
     fetchAppSettings();
   }, []);
+
+  useEffect(() => {
+    // Realtime listener for incoming orders
+    const channel = supabase
+      .channel('admin-realtime-orders')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          const newOrder = payload.new;
+          if (newOrder && !newOrder.admin_cleared) {
+            // Refresh dashboard data
+            fetchData();
+            // Trigger visual pop-up and alarm sound
+            setLatestNewOrder(newOrder);
+            startAlarm();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
+    };
+  }, []); // eslint-disable-line
 
   // Categories CRUD
   const handleAddCategory = async (e) => {
@@ -1719,6 +1800,31 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Realtime New Order Notification Popup */}
+      {alarmActive && latestNewOrder && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl border-2 border-rose-500 animate-bounce relative">
+            <div className="text-6xl animate-pulse">🔔</div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-rose-600">طلب جديد وارد!</h2>
+              <p className="text-slate-755 text-sm font-bold">
+                وصل طلب جديد للمطعم برقم: 
+                <span className="block mt-2 text-xl bg-slate-100 text-rose-700 px-3 py-1.5 rounded-xl font-mono font-black border border-slate-200">
+                  #{latestNewOrder.order_number}
+                </span>
+              </p>
+              <p className="text-xs text-slate-400 mt-2">يرجى مراجعة تفاصيل الفاتورة وإرسالها للعميل.</p>
+            </div>
+            <button
+              onClick={stopAlarm}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition active:scale-95 text-sm"
+            >
+              إيقاف جرس التنبيه 🔇
+            </button>
           </div>
         </div>
       )}
