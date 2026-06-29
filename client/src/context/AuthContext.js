@@ -77,19 +77,28 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (name, email, phone, password) => {
-    // 1. Sign up user with Email and Password
+    // 1. Sign up user with Email, Password and metadata
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { name }
+        data: { name, phone }
       }
     });
     if (signUpError) throw signUpError;
 
-    // 2. Immediately link and verify the phone number to trigger the SMS OTP
-    const { error: updateError } = await supabase.auth.updateUser({ phone });
-    if (updateError) throw updateError;
+    // 2. Create the profile in profiles table immediately
+    if (signUpData.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: signUpData.user.id,
+          name: name,
+          phone: phone,
+          is_admin: false
+        });
+      if (profileError) throw profileError;
+    }
 
     return signUpData;
   };
