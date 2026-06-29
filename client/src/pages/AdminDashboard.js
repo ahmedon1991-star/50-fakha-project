@@ -278,7 +278,7 @@ export default function AdminDashboard() {
 
       {/* Tabs Navigation */}
       <div className="bg-white border-b border-slate-200 sticky top-[60px] z-30 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 flex gap-6">
+        <div className="max-w-6xl mx-auto px-4 flex gap-2 sm:gap-6 overflow-x-auto whitespace-nowrap scrollbar-none">
           <button
             onClick={() => setActiveTab('stats')}
             className={`py-4 px-3 font-extrabold text-sm border-b-4 transition-all duration-200 ${

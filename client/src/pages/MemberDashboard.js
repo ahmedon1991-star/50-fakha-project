@@ -209,7 +209,7 @@ export default function MemberDashboard() {
 
       {/* Tabs Menu */}
       <div className="bg-white border-b border-slate-200 sticky top-[60px] z-30 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 flex gap-6">
+        <div className="max-w-4xl mx-auto px-4 flex gap-2 sm:gap-6 overflow-x-auto whitespace-nowrap scrollbar-none">
           <button
             onClick={() => setActiveTab('orders')}
             className={`py-4 px-3 font-extrabold text-sm border-b-4 transition-all duration-200 ${
@@ -299,6 +299,14 @@ export default function MemberDashboard() {
                                 <div 
                                   className="h-full bg-emerald-500 transition-all duration-500" 
                                   style={{ width: `${(currentStep / 3) * 100}%` }}
+                                ></div>
+                              </div>
+
+                              {/* Vertical connecting line for mobile (RTL right-aligned circles) */}
+                              <div className="absolute top-[28px] bottom-[28px] right-[28px] w-1 bg-slate-200 md:hidden z-0">
+                                <div 
+                                  className="w-full bg-emerald-500 transition-all duration-500" 
+                                  style={{ height: `${(currentStep / 3) * 100}%` }}
                                 ></div>
                               </div>
 
