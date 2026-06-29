@@ -81,6 +81,9 @@ export default function AdminDashboard() {
   // Order Acceptance Global Toggle State
   const [acceptingOrders, setAcceptingOrders] = useState(true);
 
+  // Mobile Drawer Menu State
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, [activeTab]);
@@ -604,8 +607,119 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="bg-white border-b border-slate-200 sticky top-[60px] z-30 shadow-sm">
+      {/* Mobile Drawer Navigation Trigger */}
+      <div className="bg-white border-b border-slate-200 sticky top-[60px] z-35 shadow-sm md:hidden p-3 flex justify-between items-center">
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="bg-slate-100 hover:bg-slate-250 text-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition active:scale-95 border border-slate-200"
+        >
+          <span>☰</span> تصفح الأقسام
+        </button>
+        <div className="text-right text-xs font-bold text-slate-800 flex items-center gap-1">
+          <span className="text-slate-400 font-normal">القسم الحالي:</span>
+          <span>{
+            activeTab === 'stats' ? '📊 إحصائيات وتقارير' :
+            activeTab === 'orders' ? '📦 طلبات العملاء' :
+            activeTab === 'products' ? '🍉 إدارة المنيو' :
+            activeTab === 'settings' ? '⚙️ الإعدادات والأمان' : ''
+          }</span>
+        </div>
+      </div>
+
+      {/* Mobile Side Drawer Modal Menu */}
+      {mobileMenuOpen && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 transition-opacity duration-300 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          {/* Drawer Sidebar */}
+          <div 
+            className="fixed top-0 right-0 h-full w-64 bg-white shadow-2xl z-50 p-6 flex flex-col justify-between text-right md:hidden transition-transform duration-300 ease-in-out"
+            style={{ animation: 'slideRight 0.22s ease-out' }}
+          >
+            <div className="space-y-6">
+              {/* Close Button & Brand */}
+              <div className="flex justify-between items-center border-b pb-3">
+                <button 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-slate-400 hover:text-slate-700 text-lg p-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg"
+                >
+                  ✕
+                </button>
+                <div className="flex items-center gap-1.5 font-black text-emerald-750">
+                  <span>🍓</span>
+                  <span>50 فاكهة</span>
+                </div>
+              </div>
+
+              {/* Vertical Menu Buttons */}
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => { setActiveTab('stats'); setMobileMenuOpen(false); }}
+                  className={`w-full text-right py-3 px-4 rounded-xl font-bold text-sm transition ${
+                    activeTab === 'stats' 
+                      ? 'bg-emerald-50 text-emerald-800' 
+                      : 'text-slate-650 hover:bg-slate-50'
+                  }`}
+                >
+                  📊 إحصائيات وتقارير
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('orders'); setMobileMenuOpen(false); }}
+                  className={`w-full text-right py-3 px-4 rounded-xl font-bold text-sm transition flex justify-between items-center ${
+                    activeTab === 'orders' 
+                      ? 'bg-emerald-50 text-emerald-800' 
+                      : 'text-slate-650 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>📦</span>
+                    <span>طلبات العملاء</span>
+                  </div>
+                  {stats.pendingOrders > 0 && (
+                    <span className="bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+                      {stats.pendingOrders}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('products'); setMobileMenuOpen(false); }}
+                  className={`w-full text-right py-3 px-4 rounded-xl font-bold text-sm transition ${
+                    activeTab === 'products' 
+                      ? 'bg-emerald-50 text-emerald-800' 
+                      : 'text-slate-650 hover:bg-slate-50'
+                  }`}
+                >
+                  🍉 إدارة المنيو والمنتجات
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('settings'); setMobileMenuOpen(false); }}
+                  className={`w-full text-right py-3 px-4 rounded-xl font-bold text-sm transition ${
+                    activeTab === 'settings' 
+                      ? 'bg-purple-50 text-purple-800' 
+                      : 'text-slate-650 hover:bg-purple-50'
+                  }`}
+                >
+                  ⚙️ الإعدادات والأمان
+                </button>
+              </div>
+            </div>
+
+            {/* Bottom Status */}
+            <div className="border-t pt-4 text-xs text-slate-400">
+              أدمن لوحة تحكم 50 فاكهة
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Desktop Tabs Navigation */}
+      <div className="bg-white border-b border-slate-200 sticky top-[60px] z-30 shadow-sm hidden md:block">
         <div className="max-w-6xl mx-auto px-4 flex gap-2 sm:gap-6 overflow-x-auto whitespace-nowrap scrollbar-none">
           <button
             onClick={() => setActiveTab('stats')}
@@ -653,6 +767,13 @@ export default function AdminDashboard() {
           </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes slideRight {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
 
       {/* Main Content Area */}
       <div className="max-w-6xl w-full mx-auto p-4 md:p-6 mt-4">
