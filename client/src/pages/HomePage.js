@@ -3,11 +3,25 @@ import { useCart } from '../context/CartContext';
 import { supabase } from '../supabaseClient';
 
 export default function HomePage() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_products');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [categories, setCategories] = useState(['الكل', 'عصائر طازجة', 'سلطات فواكه', 'حلويات', 'أخرى']);
+  const [categories, setCategories] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_categories');
+      return cached ? JSON.parse(cached) : ['الكل', 'عصائر طازجة', 'سلطات فواكه', 'حلويات', 'أخرى'];
+    } catch (e) {
+      return ['الكل', 'عصائر طازجة', 'سلطات فواكه', 'حلويات', 'أخرى'];
+    }
+  });
   const [activeCategory, setActiveCategory] = useState('الكل');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => products.length === 0);
   const [error, setError] = useState('');
   const { addToCart } = useCart();
 
@@ -15,11 +29,19 @@ export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSizeIdx, setSelectedSizeIdx] = useState(0);
 
+  // Sync filtered products dynamically whenever products list or active category changes
   useEffect(() => {
-    setLoading(true);
+    if (activeCategory === 'الكل') {
+      setFilteredProducts(products);
+    } else {
+      setFilteredProducts(products.filter(p => p.category === activeCategory));
+    }
+  }, [products, activeCategory]);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Fetch products
+        // 1. Fetch products from Supabase
         const { data: prodData, error: prodErr } = await supabase
           .from('products')
           .select('*')
@@ -27,38 +49,40 @@ export default function HomePage() {
           .order('created_at', { ascending: false });
         
         if (prodErr) throw prodErr;
-        setProducts(prodData || []);
-        setFilteredProducts(prodData || []);
+        
+        const freshProducts = prodData || [];
+        setProducts(freshProducts);
+        localStorage.setItem('cached_products', JSON.stringify(freshProducts));
 
-        // 2. Fetch categories
+        // 2. Fetch categories from Supabase
         const { data: catData, error: catErr } = await supabase
           .from('categories')
           .select('name')
           .order('name', { ascending: true });
         
         if (!catErr && catData && catData.length > 0) {
-          setCategories(['الكل', ...catData.map(c => c.name)]);
+          const freshCategories = ['الكل', ...catData.map(c => c.name)];
+          setCategories(freshCategories);
+          localStorage.setItem('cached_categories', JSON.stringify(freshCategories));
         }
         
         setError('');
       } catch (err) {
         console.error(err);
-        setError('تعذر تحميل البيانات حالياً. يرجى التأكد من إعدادات قاعدة البيانات.');
+        // Only show error if we have no cached data at all (prevent breaking offline experience)
+        if (products.length === 0) {
+          setError('تعذر تحميل البيانات حالياً. يرجى التأكد من الاتصال بالإنترنت.');
+        }
       } finally {
         setLoading(false);
       }
     };
     
     fetchData();
-  }, []);
+  }, []); // eslint-disable-line
 
   const handleCategoryChange = (category) => {
     setActiveCategory(category);
-    if (category === 'الكل') {
-      setFilteredProducts(products);
-    } else {
-      setFilteredProducts(products.filter(p => p.category === category));
-    }
   };
 
   const openProductModal = (product) => {
