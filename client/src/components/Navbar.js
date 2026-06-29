@@ -39,10 +39,12 @@ export default function Navbar() {
         {/* Navigation Links */}
         <div className="flex items-center gap-4 sm:gap-6">
           {/* Cart Icon */}
-          <Link to="/cart" className="relative p-2 rounded-full hover:bg-emerald-700 transition-colors duration-200 flex items-center justify-center">
-            <span className="text-xl sm:text-2xl">🛒</span>
+          <Link to="/cart" className="relative p-2 rounded-full hover:bg-emerald-700 transition-colors duration-200 flex items-center justify-center" title="عربة التسوق">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6 text-white">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+            </svg>
             {totalItems > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 bg-rose-500 text-white text-[10px] sm:text-xs font-black rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center animate-pulse shadow">
+              <span className="absolute top-0.5 right-0.5 bg-rose-550 text-white text-[10px] sm:text-xs font-black rounded-full w-4.5 h-4.5 sm:w-5 sm:h-5 flex items-center justify-center animate-pulse shadow-md border border-white/20">
                 {totalItems}
               </span>
             )}
@@ -53,11 +55,15 @@ export default function Navbar() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold py-2 px-3 sm:px-4 rounded-xl shadow-inner transition flex items-center gap-1.5 border border-emerald-500/25"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold py-2 px-3 sm:px-4 rounded-xl shadow-inner transition flex items-center gap-2 border border-emerald-500/20"
               >
-                <span>👤</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4.5 h-4.5 text-white">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
                 <span className="max-w-[70px] sm:max-w-[120px] truncate hidden xs:inline">{user.name}</span>
-                <span className="text-[10px] opacity-75">▼</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3 text-white opacity-80">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
               </button>
 
               {/* Floating Dropdown Menu */}
