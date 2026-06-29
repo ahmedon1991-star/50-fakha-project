@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
+import { Link } from 'react-router-dom';
 
 export default function MemberDashboard() {
   const { user, logout, verifyOtp } = useAuth();
@@ -188,11 +189,19 @@ export default function MemberDashboard() {
             <h1 className="text-3xl font-black">حسابي الشخصي</h1>
             <p className="text-emerald-100 text-sm mt-1">تتبع طلباتك وقم بإدارة إعدادات أمان حسابك</p>
           </div>
-          <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20">
-            <span className="text-2xl">👤</span>
-            <div className="text-right">
-              <p className="font-bold text-sm">{user?.name}</p>
-              <p className="text-xs text-emerald-200 font-mono">{user?.phone || user?.email}</p>
+          <div className="flex items-center gap-4">
+            <Link 
+              to="/" 
+              className="bg-white text-emerald-800 hover:bg-emerald-50 hover:scale-[1.02] text-xs font-bold px-4 py-2.5 rounded-xl shadow transition duration-200"
+            >
+              العودة للمتجر 🏪
+            </Link>
+            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20">
+              <span className="text-2xl">👤</span>
+              <div className="text-right">
+                <p className="font-bold text-sm">{user?.name}</p>
+                <p className="text-xs text-emerald-200 font-mono">{user?.phone || user?.email}</p>
+              </div>
             </div>
           </div>
         </div>

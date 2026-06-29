@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import {
   ResponsiveContainer,
@@ -261,8 +262,16 @@ export default function AdminDashboard() {
               <p className="text-slate-400 text-xs">إدارة منيو وطلبات مطعم 50 فاكهة</p>
             </div>
           </div>
-          <div className="bg-slate-800 text-slate-200 text-sm px-4 py-2 rounded-xl border border-slate-700 font-semibold">
-            المدير: {user?.name || 'أدمن'}
+          <div className="flex items-center gap-3">
+            <Link 
+              to="/" 
+              className="bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.02] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition duration-200"
+            >
+              العودة للمتجر 🏪
+            </Link>
+            <div className="bg-slate-800 text-slate-200 text-sm px-4 py-2 rounded-xl border border-slate-700 font-semibold">
+              المدير: {user?.name || 'أدمن'}
+            </div>
           </div>
         </div>
       </div>
