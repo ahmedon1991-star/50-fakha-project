@@ -292,7 +292,13 @@ export default function AdminDashboard() {
       const cleanedSizes = (productForm.sizes || [])
         .filter(sz => sz.name.trim() !== '')
         .map(sz => ({ name: sz.name.trim(), price: Number(sz.price) || 0 }));
-      const formData = { ...productForm, sizes: cleanedSizes };
+
+      // Auto-calculate base price: min of sizes prices, or 0 if no sizes
+      const autoPrice = cleanedSizes.length > 0
+        ? Math.min(...cleanedSizes.map(s => s.price))
+        : 0;
+
+      const formData = { ...productForm, sizes: cleanedSizes, price: autoPrice };
 
       if (editingProduct) {
         // Update product
@@ -842,32 +848,18 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <form onSubmit={handleProductSubmit} className="p-6 space-y-4 text-right">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-700 text-sm font-semibold mb-1">اسم الصنف</label>
-                  <input
-                    id="client-prod-name"
-                    type="text"
-                    required
-                    value={productForm.name}
-                    onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                    placeholder="مثال: عصير مانجو طازج"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 text-sm font-semibold mb-1">السعر (ج.س)</label>
-                  <input
-                    id="client-prod-price"
-                    type="number"
-                    required
-                    value={productForm.price}
-                    onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                    placeholder="50"
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
-                  />
-                </div>
+            <form onSubmit={handleProductSubmit} className="p-6 space-y-4 text-right overflow-y-auto max-h-[80vh]">
+              <div>
+                <label className="block text-slate-700 text-sm font-semibold mb-1">اسم الصنف</label>
+                <input
+                  id="client-prod-name"
+                  type="text"
+                  required
+                  value={productForm.name}
+                  onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                  placeholder="مثال: عصير مانجو طازج"
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
+                />
               </div>
 
               <div>
