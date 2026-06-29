@@ -75,7 +75,7 @@ export default function AdminDashboard() {
   const [settingsError, setSettingsError] = useState('');
 
   // Stats Filter State
-  const [statsFilter, setStatsFilter] = useState('all');
+  const [statsFilter, setStatsFilter] = useState('today');
   const [allOrdersForStats, setAllOrdersForStats] = useState([]);
 
   // Order Acceptance Global Toggle State
@@ -171,13 +171,23 @@ export default function AdminDashboard() {
     }
   }, [statsFilter]); // eslint-disable-line
 
+  // Helper to convert date to YYYY-MM-DD in local timezone
+  const getLocalDateString = (dateInput) => {
+    if (!dateInput) return '';
+    const d = new Date(dateInput);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // ===== STATS COMPUTE =====
   const computeStatsFromOrders = (orders, filter) => {
     let filtered = orders;
     const now = new Date();
     if (filter === 'today') {
-      const todayStr = now.toISOString().split('T')[0];
-      filtered = orders.filter(o => o.created_at?.startsWith(todayStr));
+      const todayStr = getLocalDateString(now);
+      filtered = orders.filter(o => getLocalDateString(o.created_at) === todayStr);
     } else if (filter === 'week') {
       const cutoff = new Date(now); cutoff.setDate(now.getDate() - 7);
       filtered = orders.filter(o => new Date(o.created_at) >= cutoff);
@@ -193,7 +203,7 @@ export default function AdminDashboard() {
       .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
     const dailyMap = {};
     filtered.filter(o => o.status !== 'ملغي').forEach(o => {
-      const dateStr = new Date(o.created_at).toISOString().split('T')[0];
+      const dateStr = getLocalDateString(o.created_at);
       if (!dailyMap[dateStr]) dailyMap[dateStr] = { date: dateStr, sales: 0, orders: 0 };
       dailyMap[dateStr].sales += Number(o.total_amount) || 0;
       dailyMap[dateStr].orders += 1;
