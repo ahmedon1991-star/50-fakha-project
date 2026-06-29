@@ -65,6 +65,7 @@ export default function AdminDashboard() {
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankAccount, setBankAccount] = useState('');
+  const [bankHolderName, setBankHolderName] = useState('');
   const [deliveryFee, setDeliveryFee] = useState('15');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -461,6 +462,7 @@ export default function AdminDashboard() {
         setWhatsappPhone(data.whatsapp_phone || '');
         setBankName(data.bank_name || '');
         setBankAccount(data.bank_account || '');
+        setBankHolderName(data.bank_holder_name || '');
         setDeliveryFee(data.delivery_fee !== undefined && data.delivery_fee !== null ? String(data.delivery_fee) : '15');
         setAcceptingOrders(data.accepting_orders ?? true);
       }
@@ -522,6 +524,7 @@ export default function AdminDashboard() {
         whatsapp_phone: whatsappPhone,
         bank_name: bankName,
         bank_account: bankAccount,
+        bank_holder_name: bankHolderName,
         delivery_fee: Number(deliveryFee) || 0,
         accepting_orders: acceptingOrders,
         updated_at: new Date().toISOString()
@@ -1326,6 +1329,18 @@ export default function AdminDashboard() {
                           placeholder="000-0000-0000"
                           className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-left"
                           dir="ltr"
+                        />
+                      </div>
+
+                      {/* Bank Account Holder Name */}
+                      <div className="space-y-1">
+                        <label className="block text-sm font-bold text-slate-700">👤 اسم صاحب الحساب</label>
+                        <input
+                          type="text"
+                          value={bankHolderName}
+                          onChange={e => setBankHolderName(e.target.value)}
+                          placeholder="الاسم الكامل لصاحب الحساب"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-right"
                         />
                       </div>
 

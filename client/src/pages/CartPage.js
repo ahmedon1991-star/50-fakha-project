@@ -18,10 +18,10 @@ export default function CartPage() {
   const [deliveryFee, setDeliveryFee] = useState(15);
   const [acceptingOrders, setAcceptingOrders] = useState(true);
 
-  // App Settings for WhatsApp and Bank info
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankAccount, setBankAccount] = useState('');
+  const [bankHolderName, setBankHolderName] = useState('');
 
   // Payment Options
   const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' or 'bank'
@@ -34,7 +34,7 @@ export default function CartPage() {
       try {
         const { data } = await supabase
           .from('app_settings')
-          .select('delivery_fee, accepting_orders, whatsapp_phone, bank_name, bank_account')
+          .select('delivery_fee, accepting_orders, whatsapp_phone, bank_name, bank_account, bank_holder_name')
           .single();
         if (data) {
           if (data.delivery_fee !== null && data.delivery_fee !== undefined) {
@@ -46,6 +46,7 @@ export default function CartPage() {
           setWhatsappPhone(data.whatsapp_phone || '');
           setBankName(data.bank_name || '');
           setBankAccount(data.bank_account || '');
+          setBankHolderName(data.bank_holder_name || '');
         }
       } catch (err) {
         console.error('Could not fetch app settings:', err);
@@ -139,7 +140,10 @@ export default function CartPage() {
         address,
         phone,
         paymentMethod,
-        receiptUrl
+        receiptUrl,
+        bankName,
+        bankAccount,
+        bankHolderName
       };
       setLastOrderDetails(savedDetails);
 
@@ -168,6 +172,10 @@ export default function CartPage() {
       ? '🏦 تحويل بنكي (مرفق إشعار التحويل)' 
       : '💵 الدفع عند الاستلام (كاش)';
 
+    const bankDetailsSection = details.paymentMethod === 'bank'
+      ? `\n*بيانات الحساب البنكي للتأكيد:*\n🏦 البنك: ${details.bankName}\n💳 رقم الحساب: ${details.bankAccount}\n👤 صاحب الحساب: ${details.bankHolderName}\n🔗 *رابط إشعار التحويل:* ${details.receiptUrl}\n`
+      : '';
+
     const message = `🧾 *فاتورة طلب جديدة - مطعم 50 فاكهة* 🧾\n` +
       `------------------------------------------\n` +
       `*رقم الطلب:* #${details.orderNumber}\n` +
@@ -182,7 +190,7 @@ export default function CartPage() {
       `*تكلفة التوصيل:* ${details.deliveryFee} ج.س\n` +
       `*الإجمالي الكلي:* *${details.grandTotal} ج.س*\n` +
       `------------------------------------------\n` +
-      (details.paymentMethod === 'bank' ? `🔗 *رابط إشعار التحويل:* ${details.receiptUrl}\n` : '') +
+      bankDetailsSection +
       `\nشكراً لطلبك من 50 فاكهة! 🍉🍹`;
 
     const cleanPhone = whatsappPhone.replace('+', '').trim();
@@ -215,6 +223,14 @@ export default function CartPage() {
               <p>📞 *الهاتف:* {lastOrderDetails.phone}</p>
               <p>📍 *العنوان:* {lastOrderDetails.address}</p>
               <p>💳 *طريقة الدفع:* {lastOrderDetails.paymentMethod === 'bank' ? 'تحويل بنكي 🏦' : 'الدفع عند الاستلام 💵'}</p>
+              {lastOrderDetails.paymentMethod === 'bank' && (
+                <div className="bg-slate-100 p-2.5 rounded-lg border text-xs space-y-0.5 mt-2">
+                  <p className="font-bold text-slate-700">بيانات الحساب المستخدم:</p>
+                  <p>🏦 البنك: {lastOrderDetails.bankName}</p>
+                  <p>💳 الحساب: {lastOrderDetails.bankAccount}</p>
+                  <p>👤 الاسم: {lastOrderDetails.bankHolderName}</p>
+                </div>
+              )}
             </div>
 
             <div className="border-t pt-3 space-y-2">
@@ -442,10 +458,11 @@ export default function CartPage() {
                   {/* Bank Details & Receipt File Upload */}
                   {paymentMethod === 'bank' && (
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                      <div className="text-xs text-slate-600 space-y-1">
+                      <div className="text-xs text-slate-600 space-y-1 text-right">
                         <p className="font-bold text-slate-700">بيانات الحساب للتحويل البنكي:</p>
                         <p>🏦 البنك: <span className="font-bold">{bankName || 'غير محدد'}</span></p>
                         <p>💳 رقم الحساب: <span className="font-mono font-bold">{bankAccount || 'غير محدد'}</span></p>
+                        <p>👤 اسم صاحب الحساب: <span className="font-bold">{bankHolderName || 'غير محدد'}</span></p>
                       </div>
                       
                       <div className="space-y-1">
