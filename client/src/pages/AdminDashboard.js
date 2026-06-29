@@ -59,6 +59,7 @@ export default function AdminDashboard() {
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankAccount, setBankAccount] = useState('');
+  const [deliveryFee, setDeliveryFee] = useState('15');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -422,6 +423,7 @@ export default function AdminDashboard() {
         setWhatsappPhone(data.whatsapp_phone || '');
         setBankName(data.bank_name || '');
         setBankAccount(data.bank_account || '');
+        setDeliveryFee(data.delivery_fee !== undefined && data.delivery_fee !== null ? String(data.delivery_fee) : '15');
       }
     } catch (err) { console.error('Settings fetch error:', err); }
   };
@@ -461,6 +463,7 @@ export default function AdminDashboard() {
         whatsapp_phone: whatsappPhone,
         bank_name: bankName,
         bank_account: bankAccount,
+        delivery_fee: Number(deliveryFee) || 0,
         updated_at: new Date().toISOString()
       });
       if (error) throw error;
@@ -1055,6 +1058,20 @@ export default function AdminDashboard() {
                           placeholder="000-0000-0000"
                           className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-left"
                           dir="ltr"
+                        />
+                      </div>
+
+                      {/* Delivery Fee */}
+                      <div className="space-y-1 bg-amber-50 p-3 rounded-xl border border-amber-200">
+                        <label className="block text-sm font-bold text-amber-800">🚚 سعر التوصيل (ج.س)</label>
+                        <p className="text-xs text-amber-600">يُطبَّق تلقائياً على جميع طلبات العملاء</p>
+                        <input
+                          type="number"
+                          min="0"
+                          value={deliveryFee}
+                          onChange={e => setDeliveryFee(e.target.value)}
+                          placeholder="15"
+                          className="w-full px-4 py-2.5 border border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white font-bold text-lg text-center"
                         />
                       </div>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -15,7 +15,22 @@ export default function CartPage() {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const deliveryFee = 15; // static delivery fee
+  const [deliveryFee, setDeliveryFee] = useState(15);
+
+  useEffect(() => {
+    const fetchDeliveryFee = async () => {
+      try {
+        const { data } = await supabase.from('app_settings').select('delivery_fee').single();
+        if (data && data.delivery_fee !== null && data.delivery_fee !== undefined) {
+          setDeliveryFee(Number(data.delivery_fee));
+        }
+      } catch (err) {
+        console.error('Could not fetch delivery fee:', err);
+      }
+    };
+    fetchDeliveryFee();
+  }, []);
+
   const grandTotal = totalAmount + deliveryFee;
 
   const handleCheckout = async (e) => {
