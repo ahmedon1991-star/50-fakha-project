@@ -179,7 +179,7 @@ export default function HomePage() {
 
         {/* Product Cards Grid */}
         {!loading && !error && filteredProducts.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 lg:gap-8">
             {filteredProducts.map((p) => {
               const hasSizes = p.sizes && p.sizes.length > 0;
               return (
@@ -189,7 +189,7 @@ export default function HomePage() {
                   className={`bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group ${p.available ? 'cursor-pointer' : ''}`}
                 >
                   {/* Product Image */}
-                  <div className="relative h-52 overflow-hidden bg-slate-100">
+                  <div className="relative h-32 sm:h-52 overflow-hidden bg-slate-100">
                     <img
                       src={p.image || 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400'}
                       alt={p.name}
@@ -197,46 +197,46 @@ export default function HomePage() {
                     />
                     {!p.available && (
                       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
-                        <span className="bg-slate-800 text-white font-bold px-4 py-2 rounded-full text-sm">
-                          غير متوفر حالياً 🚫
+                        <span className="bg-slate-800 text-white font-bold px-2 py-1 sm:px-4 sm:py-2 rounded-full text-[10px] sm:text-sm">
+                          غير متوفر 🚫
                         </span>
                       </div>
                     )}
                     {p.category && (
-                      <span className="absolute top-3 right-3 bg-emerald-500/90 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow backdrop-blur-xs">
+                      <span className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-emerald-500/90 text-white font-bold text-[9px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow backdrop-blur-xs">
                         {p.category}
                       </span>
                     )}
                     {hasSizes && (
-                      <span className="absolute top-3 left-3 bg-amber-500/90 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow backdrop-blur-xs">
+                      <span className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-amber-500/90 text-white font-bold text-[9px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow backdrop-blur-xs">
                         {p.sizes.length} أحجام
                       </span>
                     )}
                   </div>
 
                   {/* Product Info */}
-                  <div className="p-5 flex flex-col flex-1 justify-between space-y-4">
+                  <div className="p-3 sm:p-5 flex flex-col flex-1 justify-between gap-3 sm:gap-4 text-right">
                     <div>
-                      <h3 className="text-xl font-extrabold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                      <h3 className="text-sm sm:text-xl font-extrabold text-slate-900 group-hover:text-emerald-600 transition-colors">
                         {p.name}
                       </h3>
-                      <p className="text-slate-500 text-sm mt-1.5 line-clamp-2 h-10">
+                      <p className="hidden sm:block text-slate-500 text-sm mt-1.5 line-clamp-2 h-10">
                         {p.description || 'فواكه طازجة وصحية محضرة يومياً خصيصاً لك.'}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                    <div className="flex items-center justify-between pt-2 sm:pt-4 border-t border-slate-50">
                       <div>
                         {hasSizes ? (
                           <div>
-                            <span className="text-xs text-slate-400 block">يبدأ من</span>
-                            <span className="text-2xl font-extrabold text-emerald-700">
-                              {Math.min(...p.sizes.map(s => s.price))} <span className="text-xs font-semibold text-slate-500">ج.س</span>
+                            <span className="text-[10px] text-slate-400 block">يبدأ من</span>
+                            <span className="text-base sm:text-2xl font-black text-emerald-700">
+                              {Math.min(...p.sizes.map(s => s.price))} <span className="text-[10px] sm:text-xs font-semibold text-slate-500">ج.س</span>
                             </span>
                           </div>
                         ) : (
-                          <span className="text-2xl font-extrabold text-emerald-700">
-                            {p.price} <span className="text-xs font-semibold text-slate-500">ج.س</span>
+                          <span className="text-base sm:text-2xl font-black text-emerald-700">
+                            {p.price} <span className="text-[10px] sm:text-xs font-semibold text-slate-500">ج.س</span>
                           </span>
                         )}
                       </div>
@@ -244,14 +244,14 @@ export default function HomePage() {
                       <button
                         onClick={(e) => { e.stopPropagation(); if (p.available) openProductModal(p); }}
                         disabled={!p.available}
-                        className={`font-bold px-5 py-2.5 rounded-xl shadow transition duration-200 text-sm flex items-center gap-1.5 ${
+                        className={`font-bold px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-xl shadow transition duration-200 text-xs sm:text-sm flex items-center gap-1 ${
                           p.available
                             ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-105 active:scale-95'
                             : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                         }`}
                       >
                         <span>{hasSizes ? 'اختر' : 'أضف'}</span>
-                        <span>🛒</span>
+                        <span className="hidden sm:inline">🛒</span>
                       </button>
                     </div>
                   </div>
