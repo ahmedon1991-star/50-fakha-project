@@ -77,6 +77,9 @@ export default function AdminDashboard() {
   const [statsFilter, setStatsFilter] = useState('all');
   const [allOrdersForStats, setAllOrdersForStats] = useState([]);
 
+  // Order Acceptance Global Toggle State
+  const [acceptingOrders, setAcceptingOrders] = useState(true);
+
   useEffect(() => {
     fetchData();
   }, [activeTab]);
@@ -214,6 +217,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchCategories();
+    fetchAppSettings();
   }, []);
 
   // Categories CRUD
@@ -458,8 +462,29 @@ export default function AdminDashboard() {
         setBankName(data.bank_name || '');
         setBankAccount(data.bank_account || '');
         setDeliveryFee(data.delivery_fee !== undefined && data.delivery_fee !== null ? String(data.delivery_fee) : '15');
+        setAcceptingOrders(data.accepting_orders ?? true);
       }
     } catch (err) { console.error('Settings fetch error:', err); }
+  };
+
+  const handleToggleAcceptingOrders = async () => {
+    const nextVal = !acceptingOrders;
+    setAcceptingOrders(nextVal);
+    setSettingsError('');
+    setSettingsSuccess('');
+    try {
+      const { error } = await supabase.from('app_settings').upsert({
+        id: 1,
+        accepting_orders: nextVal,
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      setSettingsSuccess(nextVal ? 'تم تفعيل استقبال الطلبات بنجاح 🟢' : 'تم إيقاف استقبال الطلبات بنجاح 🔴');
+    } catch (err) {
+      console.error('Error toggling accepting orders:', err);
+      setSettingsError('حدث خطأ أثناء تعديل حالة استقبال الطلبات');
+      setAcceptingOrders(!nextVal); // Rollback
+    }
   };
 
   const handleUpdateEmail = async (e) => {
@@ -498,6 +523,7 @@ export default function AdminDashboard() {
         bank_name: bankName,
         bank_account: bankAccount,
         delivery_fee: Number(deliveryFee) || 0,
+        accepting_orders: acceptingOrders,
         updated_at: new Date().toISOString()
       });
       if (error) throw error;
@@ -536,10 +562,22 @@ export default function AdminDashboard() {
               <p className="text-slate-400 text-xs">إدارة منيو وطلبات مطعم 50 فاكهة</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Toggle accepting orders button */}
+            <button
+              onClick={handleToggleAcceptingOrders}
+              className={`text-xs font-black px-4 py-2.5 rounded-xl shadow transition duration-200 hover:scale-[1.02] flex items-center gap-1.5 ${
+                acceptingOrders
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : 'bg-rose-600 hover:bg-rose-700 text-white'
+              }`}
+            >
+              <span>{acceptingOrders ? 'استقبال الطلبات: مفعل 🟢' : 'استقبال الطلبات: مغلق 🔴'}</span>
+            </button>
+
             <Link 
               to="/" 
-              className="bg-emerald-600 hover:bg-emerald-700 hover:scale-[1.02] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition duration-200"
+              className="bg-slate-700 hover:bg-slate-800 hover:scale-[1.02] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition duration-200"
             >
               العودة للمتجر 🏪
             </Link>
@@ -548,7 +586,7 @@ export default function AdminDashboard() {
             </div>
             <button 
               onClick={handleLogoutClick}
-              className="bg-rose-600 hover:bg-rose-700 hover:scale-[1.02] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition duration-200"
+              className="bg-slate-650 hover:bg-slate-700 hover:scale-[1.02] text-slate-300 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-700 transition duration-200"
             >
               تسجيل الخروج 🚪
             </button>

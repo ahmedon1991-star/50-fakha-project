@@ -16,19 +16,25 @@ export default function CartPage() {
   const [error, setError] = useState('');
 
   const [deliveryFee, setDeliveryFee] = useState(15);
+  const [acceptingOrders, setAcceptingOrders] = useState(true);
 
   useEffect(() => {
-    const fetchDeliveryFee = async () => {
+    const fetchSettings = async () => {
       try {
-        const { data } = await supabase.from('app_settings').select('delivery_fee').single();
-        if (data && data.delivery_fee !== null && data.delivery_fee !== undefined) {
-          setDeliveryFee(Number(data.delivery_fee));
+        const { data } = await supabase.from('app_settings').select('delivery_fee, accepting_orders').single();
+        if (data) {
+          if (data.delivery_fee !== null && data.delivery_fee !== undefined) {
+            setDeliveryFee(Number(data.delivery_fee));
+          }
+          if (data.accepting_orders !== null && data.accepting_orders !== undefined) {
+            setAcceptingOrders(data.accepting_orders);
+          }
         }
       } catch (err) {
-        console.error('Could not fetch delivery fee:', err);
+        console.error('Could not fetch app settings:', err);
       }
     };
-    fetchDeliveryFee();
+    fetchSettings();
   }, []);
 
   const grandTotal = totalAmount + deliveryFee;
@@ -41,6 +47,10 @@ export default function CartPage() {
     }
     if (cartItems.length === 0) {
       setError('عربة التسوق فارغة');
+      return;
+    }
+    if (!acceptingOrders) {
+      setError('نعتذر منك، استقبال الطلبات مغلق حالياً من قِبل الإدارة. يرجى المحاولة لاحقاً 🚫');
       return;
     }
 
@@ -210,7 +220,13 @@ export default function CartPage() {
                 </div>
               )}
 
-              {user ? (
+              {!acceptingOrders ? (
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl text-center space-y-2 font-semibold">
+                  <span className="text-2xl block">🚫</span>
+                  <p className="text-sm">نعتذر منك، استقبال الطلبات مغلق حالياً.</p>
+                  <p className="text-xs text-rose-600">يرجى الانتظار لحين إعادة التفعيل من قِبل الإدارة.</p>
+                </div>
+              ) : user ? (
                 <form onSubmit={handleCheckout} className="space-y-4">
                   <div>
                     <label className="block text-slate-700 text-sm font-semibold mb-1">رقم الهاتف</label>
