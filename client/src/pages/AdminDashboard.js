@@ -67,6 +67,10 @@ export default function AdminDashboard() {
   const [settingsSuccess, setSettingsSuccess] = useState('');
   const [settingsError, setSettingsError] = useState('');
 
+  // Stats Filter State
+  const [statsFilter, setStatsFilter] = useState('all');
+  const [allOrdersForStats, setAllOrdersForStats] = useState([]);
+
   useEffect(() => {
     fetchData();
   }, [activeTab]);
@@ -75,62 +79,57 @@ export default function AdminDashboard() {
     if (activeTab === 'settings') fetchAppSettings();
   }, [activeTab]);
 
+  // Recompute stats when filter changes (without re-fetching)
+  useEffect(() => {
+    if (allOrdersForStats.length >= 0 && activeTab === 'stats') {
+      computeStatsFromOrders(allOrdersForStats, statsFilter);
+    }
+  }, [statsFilter]); // eslint-disable-line
+
+  // ===== STATS COMPUTE =====
+  const computeStatsFromOrders = (orders, filter) => {
+    let filtered = orders;
+    const now = new Date();
+    if (filter === 'today') {
+      const todayStr = now.toISOString().split('T')[0];
+      filtered = orders.filter(o => o.created_at?.startsWith(todayStr));
+    } else if (filter === 'week') {
+      const cutoff = new Date(now); cutoff.setDate(now.getDate() - 7);
+      filtered = orders.filter(o => new Date(o.created_at) >= cutoff);
+    } else if (filter === 'month') {
+      const cutoff = new Date(now); cutoff.setDate(now.getDate() - 30);
+      filtered = orders.filter(o => new Date(o.created_at) >= cutoff);
+    }
+    const totalOrders = filtered.length;
+    const pendingOrders = filtered.filter(o => o.status === 'قيد الانتظار').length;
+    const completedOrders = filtered.filter(o => o.status === 'تم التوصيل').length;
+    const totalSales = filtered
+      .filter(o => o.status !== 'ملغي')
+      .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+    const dailyMap = {};
+    filtered.filter(o => o.status !== 'ملغي').forEach(o => {
+      const dateStr = new Date(o.created_at).toISOString().split('T')[0];
+      if (!dailyMap[dateStr]) dailyMap[dateStr] = { date: dateStr, sales: 0, orders: 0 };
+      dailyMap[dateStr].sales += Number(o.total_amount) || 0;
+      dailyMap[dateStr].orders += 1;
+    });
+    const salesByDate = Object.values(dailyMap)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    setStats({ totalOrders, pendingOrders, completedOrders, totalSales, salesByDate });
+  };
+
   const fetchData = async () => {
     setLoading(true);
     setError('');
     try {
       if (activeTab === 'stats') {
-        // 1. Fetch total orders
-        const { count: totalOrdersCount, error: totalErr } = await supabase
+        const { data: allOrders, error: ordErr } = await supabase
           .from('orders')
-          .select('*', { count: 'exact', head: true });
-        if (totalErr) throw totalErr;
-
-        // 2. Fetch pending orders
-        const { count: pendingCount, error: pendingErr } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'قيد الانتظار');
-        if (pendingErr) throw pendingErr;
-
-        // 3. Fetch completed orders
-        const { count: completedCount, error: completedErr } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'تم التوصيل');
-        if (completedErr) throw completedErr;
-
-        // 4. Fetch sales data for sales sum and chart
-        const { data: salesData, error: salesErr } = await supabase
-          .from('orders')
-          .select('total_amount, status, created_at')
-          .neq('status', 'ملغي');
-        if (salesErr) throw salesErr;
-
-        const totalSales = salesData.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-
-        // Group by date in Javascript
-        const dailyMap = {};
-        salesData.forEach(o => {
-          const dateStr = new Date(o.created_at).toISOString().split('T')[0];
-          if (!dailyMap[dateStr]) {
-            dailyMap[dateStr] = { date: dateStr, sales: 0, orders: 0 };
-          }
-          dailyMap[dateStr].sales += Number(o.total_amount) || 0;
-          dailyMap[dateStr].orders += 1;
-        });
-
-        const salesByDate = Object.values(dailyMap)
-          .sort((a, b) => a.date.localeCompare(b.date))
-          .slice(-7);
-
-        setStats({
-          totalOrders: totalOrdersCount || 0,
-          pendingOrders: pendingCount || 0,
-          completedOrders: completedCount || 0,
-          totalSales,
-          salesByDate
-        });
+          .select('id, total_amount, status, created_at')
+          .order('created_at', { ascending: false });
+        if (ordErr) throw ordErr;
+        setAllOrdersForStats(allOrders || []);
+        computeStatsFromOrders(allOrders || [], statsFilter);
 
       } else if (activeTab === 'orders') {
         // Fetch all orders with profiles relation join
@@ -592,7 +591,34 @@ export default function AdminDashboard() {
           <>
             {/* TAB 1: OVERVIEW / STATS */}
             {activeTab === 'stats' && (
-              <div className="space-y-8">
+              <div className="space-y-6">
+
+                {/* Period Filter Buttons */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-slate-600 font-bold text-sm">📅 عرض بيانات:</span>
+                  {[
+                    { key: 'today', label: 'اليوم', icon: '☀️' },
+                    { key: 'week',  label: 'هذا الأسبوع', icon: '📆' },
+                    { key: 'month', label: 'هذا الشهر', icon: '🗓️' },
+                    { key: 'all',   label: 'الكل', icon: '📊' },
+                  ].map(({ key, label, icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => setStatsFilter(key)}
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm border-2 transition-all duration-200 ${
+                        statsFilter === key
+                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-200 scale-105'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400'
+                      }`}
+                    >
+                      <span>{icon}</span> {label}
+                    </button>
+                  ))}
+                  <span className="text-xs text-slate-400 mr-auto">
+                    {statsFilter === 'today' ? 'اليوم فقط' : statsFilter === 'week' ? 'آخر 7 أيام' : statsFilter === 'month' ? 'آخر 30 يوم' : 'جميع البيانات'}
+                  </span>
+                </div>
+
                 {/* KPI Cards Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
