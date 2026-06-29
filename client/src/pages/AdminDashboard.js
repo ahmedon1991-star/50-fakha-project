@@ -43,6 +43,7 @@ export default function AdminDashboard() {
   // Modals and Forms State
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [productForm, setProductForm] = useState({
     name: '',
     price: '',
@@ -213,6 +214,41 @@ export default function AdminDashboard() {
       setCategories(prev => prev.filter(c => c.id !== catId));
     } catch (err) {
       setError(err.message || 'خطأ أثناء حذف القسم. قد يكون هناك منتجات مرتبطة به.');
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setError('');
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `products/${Date.now()}.${fileExt}`;
+
+      // Upload file to Supabase Storage bucket 'product-images'
+      const { data, error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+
+      setProductForm(prev => ({ ...prev, image: publicUrl }));
+    } catch (err) {
+      console.error('Image upload error:', err);
+      alert('خطأ أثناء رفع الصورة: ' + (err.message || 'تأكد من تفعيل باكت التخزين product-images في Supabase وجعلها عامة (Public).'));
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -844,17 +880,48 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-700 text-sm font-semibold mb-1">رابط صورة الصنف</label>
-                <input
-                  id="client-prod-image"
-                  type="url"
-                  value={productForm.image}
-                  onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
-                  placeholder="https://example.com/mango-juice.jpg"
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition text-left"
-                  dir="ltr"
-                />
+              <div className="space-y-2">
+                <label className="block text-slate-700 text-sm font-semibold mb-1">صورة الصنف</label>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* File Upload Option */}
+                  <div className="bg-slate-50 border border-dashed border-slate-200 p-4 rounded-xl flex flex-col items-center justify-center text-center space-y-2 relative hover:bg-slate-100/50 transition">
+                    <span className="text-2xl">📁</span>
+                    <span className="text-xs font-bold text-slate-700">رفع صورة من المعرض</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    {uploadingImage && (
+                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center rounded-xl text-white text-xs font-bold">
+                        جاري الرفع... ⏳
+                      </div>
+                    )}
+                  </div>
+
+                  {/* URL Text Option */}
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-slate-500 block">أو أدخل رابط صورة مباشرة:</span>
+                    <input
+                      id="client-prod-image"
+                      type="url"
+                      value={productForm.image}
+                      onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
+                      placeholder="https://example.com/image.jpg"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition text-left text-sm"
+                      dir="ltr"
+                    />
+                    {productForm.image && (
+                      <div className="mt-2 flex items-center gap-2 bg-emerald-50 p-1.5 rounded-lg border border-emerald-100">
+                        <img src={productForm.image} alt="معاينة" className="w-8 h-8 object-cover rounded-md border border-emerald-200" />
+                        <span className="text-[10px] text-emerald-800 font-bold truncate flex-1">{productForm.image}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div>
