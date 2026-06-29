@@ -44,9 +44,12 @@ export default function Navbar() {
                   لوحة التحكم ⚙️
                 </Link>
               )}
-              <span className="hidden sm:inline-block bg-emerald-700 text-emerald-100 text-sm font-medium px-3 py-1 rounded-full">
-                مرحباً، {user.name || 'عميلنا'}
-              </span>
+              <Link 
+                to="/profile" 
+                className="bg-emerald-700 hover:bg-emerald-800 text-emerald-100 text-sm font-bold px-4 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+              >
+                حسابي 👤
+              </Link>
               <button 
                 onClick={handleLogout} 
                 className="bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"

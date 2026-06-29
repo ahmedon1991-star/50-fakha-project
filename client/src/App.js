@@ -7,10 +7,16 @@ import CartPage from './pages/CartPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminDashboard from './pages/AdminDashboard';
+import MemberDashboard from './pages/MemberDashboard';
 
 function AdminRoute({ children }) {
   const { user } = useAuth();
   return user?.isAdmin ? children : <Navigate to="/login" />;
+}
+
+function ProtectedRoute({ children }) {
+  const { user } = useAuth();
+  return user ? children : <Navigate to="/login" />;
 }
 
 function App() {
@@ -25,6 +31,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><MemberDashboard /></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
       </CartProvider>
