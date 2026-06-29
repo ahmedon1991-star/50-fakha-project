@@ -9,6 +9,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
+  const [rememberMe, setRememberMe] = useState(true);
+  
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -18,6 +20,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
       await login(email, password);
       navigate('/');
     } catch (err) {
@@ -70,6 +73,18 @@ export default function LoginPage() {
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 text-right"
               dir="ltr"
             />
+          </div>
+
+          <div className="flex items-center justify-between text-sm mb-4">
+            <label className="flex items-center gap-2 text-slate-650 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded accent-emerald-650 cursor-pointer"
+              />
+              <span>تذكرني على هذا الجهاز 💾</span>
+            </label>
           </div>
 
           <button

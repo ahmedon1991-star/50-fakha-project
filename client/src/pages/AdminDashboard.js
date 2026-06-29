@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import {
   ResponsiveContainer,
@@ -15,7 +15,13 @@ import {
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('stats');
+
+  const handleLogoutClick = async () => {
+    await logout();
+    navigate('/login');
+  };
   const [stats, setStats] = useState({
     totalOrders: 0,
     pendingOrders: 0,
@@ -272,6 +278,12 @@ export default function AdminDashboard() {
             <div className="bg-slate-800 text-slate-200 text-sm px-4 py-2 rounded-xl border border-slate-700 font-semibold">
               المدير: {user?.name || 'أدمن'}
             </div>
+            <button 
+              onClick={handleLogoutClick}
+              className="bg-rose-600 hover:bg-rose-700 hover:scale-[1.02] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition duration-200"
+            >
+              تسجيل الخروج 🚪
+            </button>
           </div>
         </div>
       </div>

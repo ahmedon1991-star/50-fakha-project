@@ -7,4 +7,30 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase URL or Anon Key is missing! Please configure them in client/.env');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Custom storage wrapper to support "Remember Me" dynamically
+const customStorage = {
+  getItem: (key) => {
+    const remember = localStorage.getItem('rememberMe') === 'true';
+    return remember ? localStorage.getItem(key) : sessionStorage.getItem(key);
+  },
+  setItem: (key, value) => {
+    const remember = localStorage.getItem('rememberMe') === 'true';
+    if (remember) {
+      localStorage.setItem(key, value);
+    } else {
+      sessionStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  }
+};
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: customStorage,
+    autoRefreshToken: true,
+    persistSession: true
+  }
+});

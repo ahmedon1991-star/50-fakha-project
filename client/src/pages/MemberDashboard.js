@@ -1,15 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function MemberDashboard() {
   const { user, logout, verifyOtp } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('orders');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Delete Account State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   // Settings State
   const [name, setName] = useState(user?.name || '');
@@ -150,6 +157,26 @@ export default function MemberDashboard() {
       setOtpError(err.message || 'رمز التأكيد غير صحيح، حاول مرة أخرى');
     } finally {
       setOtpLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    if (deleteConfirmText !== 'حذف') {
+      setDeleteError('يرجى كتابة كلمة حذف بشكل صحيح');
+      return;
+    }
+    setDeleteError('');
+    setDeleteLoading(true);
+    try {
+      const { error } = await supabase.rpc('delete_user');
+      if (error) throw error;
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      setDeleteError(err.message || 'حدث خطأ أثناء محاولة حذف الحساب. يرجى التأكد من تشغيل SQL الخاص بالدالة في لوحة تحكم Supabase');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -466,6 +493,33 @@ export default function MemberDashboard() {
                   </div>
                 </div>
 
+                {/* Form 3: Danger Zone */}
+                <div className="bg-white p-6 rounded-3xl border border-rose-100 shadow-sm text-right space-y-5 md:col-span-2">
+                  <h3 className="text-lg font-black text-rose-800 border-b border-rose-100 pb-3 flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>منطقة الخطر (إجراء غير مسترد)</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">حذف الحساب سيؤدي إلى مسح كافة بياناتك، طلباتك السابقة، وعنوانك نهائياً من أنظمتنا دون إمكانية للاسترجاع.</p>
+                  
+                  <div className="flex justify-between items-center gap-4 flex-wrap bg-rose-50/50 p-4 rounded-2xl border border-rose-100/50">
+                    <div className="text-right">
+                      <p className="font-bold text-sm text-rose-955">حذف الحساب الشخصي</p>
+                      <p className="text-xs text-slate-500">سيتم مسح الحساب نهائياً من خوادم Supabase وقاعدة البيانات فوراً.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteConfirmText('');
+                        setDeleteError('');
+                        setShowDeleteModal(true);
+                      }}
+                      className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition duration-200 shadow-md text-xs sm:text-sm"
+                    >
+                      حذف الحساب نهائياً 🚨
+                    </button>
+                  </div>
+                </div>
+
               </div>
             )}
           </>
@@ -524,6 +578,68 @@ export default function MemberDashboard() {
                   className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow"
                 >
                   {otpLoading ? 'جاري التحقق...' : 'تأكيد وحفظ الهاتف 📱'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ACCOUNT CONFIRMATION MODAL */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-rose-100 max-w-md w-full overflow-hidden text-right transition-all">
+            <div className="bg-rose-900 text-white p-5 flex justify-between items-center">
+              <h3 className="text-lg font-bold">🚨 تأكيد حذف الحساب نهائياً</h3>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="text-slate-400 hover:text-white text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleDeleteAccount} className="p-6 space-y-5 text-right">
+              {deleteError && (
+                <div className="bg-rose-50 border-r-4 border-rose-500 text-rose-800 p-3 rounded-lg text-xs font-semibold">
+                  ⚠️ {deleteError}
+                </div>
+              )}
+              
+              <div className="space-y-2 text-slate-650 text-xs sm:text-sm">
+                <p>لتأكيد حذف الحساب، يرجى كتابة الكلمة <span className="font-black text-rose-600">حذف</span> في الحقل أدناه:</p>
+                <p className="font-semibold text-rose-800">تنبيه: هذا الإجراء سيقوم بإزالة حسابك كلياً ولا يمكن التراجع عنه!</p>
+              </div>
+
+              <div>
+                <input
+                  type="text"
+                  required
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder='اكتب "حذف" للتأكيد'
+                  className="w-full text-center px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500 focus:outline-none transition text-base font-bold text-slate-800"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-650 rounded-xl font-bold transition"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleteLoading || deleteConfirmText !== 'حذف'}
+                  className={`px-6 py-2 rounded-xl font-bold transition shadow text-white ${
+                    deleteConfirmText === 'حذف'
+                      ? 'bg-rose-600 hover:bg-rose-700'
+                      : 'bg-rose-300 cursor-not-allowed'
+                  }`}
+                >
+                  {deleteLoading ? 'جاري الحذف...' : 'حذف الحساب نهائياً 🚨'}
                 </button>
               </div>
             </form>
