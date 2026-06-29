@@ -36,6 +36,14 @@ export default function Navbar() {
           {/* User Account Actions */}
           {user ? (
             <div className="flex items-center gap-4">
+              {user.isAdmin && (
+                <Link 
+                  to="/admin" 
+                  className="bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-sm font-bold px-3 py-2 rounded-lg shadow hover:shadow-lg transition-all duration-200"
+                >
+                  لوحة التحكم ⚙️
+                </Link>
+              )}
               <span className="hidden sm:inline-block bg-emerald-700 text-emerald-100 text-sm font-medium px-3 py-1 rounded-full">
                 مرحباً، {user.name || 'عميلنا'}
               </span>
