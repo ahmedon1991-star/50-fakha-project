@@ -11,8 +11,9 @@ export const CartProvider = ({ children }) => {
   };
   const removeFromCart = (id) => setCartItems(prev => prev.filter(p => p._id !== id));
   const updateQuantity = (id, qty) => setCartItems(prev => prev.map(p => p._id === id ? { ...p, quantity: qty } : p));
+  const clearCart = () => setCartItems([]);
   const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  return <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, updateQuantity, totalAmount, totalItems }}>{children}</CartContext.Provider>;
+  return <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, updateQuantity, totalAmount, totalItems, clearCart }}>{children}</CartContext.Provider>;
 };
 export const useCart = () => useContext(CartContext);

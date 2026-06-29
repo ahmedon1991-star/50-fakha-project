@@ -12,6 +12,9 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/admin', require('./routes/admin'));
 
+// Global Error Handler Middleware
+app.use(require('./middleware/errorHandler'));
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.log(err));
