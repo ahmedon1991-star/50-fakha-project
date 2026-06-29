@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,10 +15,16 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!phone.startsWith('+')) {
+      setError('يرجى كتابة رقم الهاتف بصيغة دولية تبدأ بـ + (مثال: +201012345678)');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const data = await login(email, password);
+      const data = await login(phone, password);
       
       // Check profile to redirect
       const { data: profile, error: profileErr } = await supabase
@@ -59,15 +65,15 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-slate-700 font-semibold mb-2 text-sm">البريد الإلكتروني</label>
+            <label className="block text-slate-700 font-semibold mb-2 text-sm">رقم الهاتف (بصيغة دولية)</label>
             <input
-              id="login-email"
-              type="email"
+              id="login-phone"
+              type="tel"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 text-right"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+201234567890"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 text-left"
               dir="ltr"
             />
           </div>

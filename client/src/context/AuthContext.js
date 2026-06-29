@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
       
       return {
         id: sessionUser.id,
+        phone: sessionUser.phone,
         email: sessionUser.email,
         token: (await supabase.auth.getSession()).data.session?.access_token,
         name: data?.name || 'عميلنا',
@@ -28,6 +29,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Error fetching profile:', err.message);
       return {
         id: sessionUser.id,
+        phone: sessionUser.phone,
         email: sessionUser.email,
         name: sessionUser.user_metadata?.name || 'عميلنا',
         isAdmin: false
@@ -68,24 +70,35 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const login = async (phone, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ phone, password });
     if (error) throw error;
     return data;
   };
 
-  const register = async (name, email, password) => {
-    // 1. Sign up the user
+  const register = async (name, phone, password) => {
+    // Sign up with phone
     const { data, error } = await supabase.auth.signUp({
-      email,
+      phone,
       password,
       options: {
         data: { name }
       }
     });
     if (error) throw error;
+    return data;
+  };
 
-    // 2. Create the profile in profiles table
+  const verifyOtp = async (phone, token, name) => {
+    // Verify phone OTP
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone,
+      token,
+      type: 'signup'
+    });
+    if (error) throw error;
+
+    // Create the profile in profiles table
     if (data.user) {
       const { error: profileError } = await supabase
         .from('profiles')
@@ -106,7 +119,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, verifyOtp, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );
