@@ -136,6 +136,7 @@ export default function AdminDashboard() {
         const { data: allOrders, error: ordErr } = await supabase
           .from('orders')
           .select('id, total_amount, status, created_at')
+          .eq('admin_cleared', false)
           .order('created_at', { ascending: false });
         if (ordErr) throw ordErr;
         setAllOrdersForStats(allOrders || []);
@@ -149,13 +150,15 @@ export default function AdminDashboard() {
           .from('orders')
           .update({ archived: true })
           .lt('created_at', todayStart.toISOString())
-          .eq('archived', false);
+          .eq('archived', false)
+          .eq('admin_cleared', false);
 
-        // Fetch only today's non-archived orders
+        // Fetch only today's non-archived non-cleared orders
         const { data, error } = await supabase
           .from('orders')
           .select('*, profiles:user_id(name, id)')
           .eq('archived', false)
+          .eq('admin_cleared', false)
           .order('created_at', { ascending: false });
         if (error) throw error;
         const formattedOrders = (data || []).map(order => ({
@@ -202,6 +205,7 @@ export default function AdminDashboard() {
         .from('orders')
         .select('*, profiles:user_id(name, id)')
         .eq('archived', true)
+        .eq('admin_cleared', false)
         .order('created_at', { ascending: false });
       if (error) throw error;
       const formatted = (data || []).map(order => ({
@@ -538,13 +542,16 @@ export default function AdminDashboard() {
   const handleResetData = async () => {
     const c1 = window.confirm('⚠️ هل أنت متأكد من تصفير جميع الطلبات والتقارير؟ هذا الإجراء لا يمكن التراجع عنه!');
     if (!c1) return;
-    const c2 = window.confirm('⚠️ تأكيد أخير: سيتم حذف جميع بيانات الطلبات والمبيعات نهائياً. هل تريد المتابعة؟');
+    const c2 = window.confirm('⚠️ تأكيد أخير: سيتم إخفاء وتصفير جميع بيانات المبيعات الحالية من لوحة الأدمن نهائياً. هل تريد المتابعة؟');
     if (!c2) return;
     setSettingsLoading(true); setSettingsError(''); setSettingsSuccess('');
     try {
-      const { error } = await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const { error } = await supabase
+        .from('orders')
+        .update({ admin_cleared: true })
+        .eq('admin_cleared', false);
       if (error) throw error;
-      setSettingsSuccess('تم تصفير جميع الطلبات والتقارير بنجاح ✅');
+      setSettingsSuccess('تم تصفير لوحة التحكم والتقارير بنجاح ✅');
       setStats({ totalOrders: 0, pendingOrders: 0, completedOrders: 0, totalSales: 0, salesByDate: [] });
       setOrders([]);
     } catch (err) { setSettingsError(err.message || 'خطأ أثناء التصفير'); }
