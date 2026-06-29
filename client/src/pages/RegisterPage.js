@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [otpToken, setOtpToken] = useState('');
-  const [step, setStep] = useState(1); // 1 = Registration, 2 = OTP Verification
+  const [step, setStep] = useState(1); // 1 = Form, 2 = OTP
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -17,20 +18,18 @@ export default function RegisterPage() {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
-    // Simple validation for international format
+
     if (!phone.startsWith('+')) {
-      setError('يرجى كتابة رقم الهاتف بصيغة دولية صحيحة تبدأ بـ + (مثال: +201012345678)');
+      setError('يرجى كتابة رقم الهاتف بصيغة دولية تبدأ بـ + (مثال: +201012345678)');
       return;
     }
 
     setLoading(true);
     try {
-      await register(name, phone, password);
-      // Success - transition to OTP confirmation step
+      await register(name, email, phone, password);
       setStep(2);
     } catch (err) {
-      setError(err.message || 'حدث خطأ أثناء إنشاء الحساب، يرجى التحقق من الرقم');
+      setError(err.message || 'حدث خطأ أثناء إنشاء الحساب. تأكد من البيانات والبريد');
     } finally {
       setLoading(false);
     }
@@ -59,8 +58,8 @@ export default function RegisterPage() {
           <>
             <div className="text-center mb-8">
               <span className="text-5xl block mb-2">🍊</span>
-              <h2 className="text-3xl font-extrabold text-emerald-950">إنشاء حساب جديد</h2>
-              <p className="text-slate-500 mt-2 text-sm">سجل برقم هاتفك لتصلك رسالة التأكيد والطلب</p>
+              <h2 className="text-3xl font-extrabold text-emerald-950">إنشاء حساب</h2>
+              <p className="text-slate-500 mt-2 text-sm">سجل حساباً لتتمكن من الطلب وتتبع طلباتك</p>
             </div>
 
             {error && (
@@ -79,8 +78,22 @@ export default function RegisterPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="مثال: أحمد علي"
+                  placeholder="أحمد علي"
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-2 text-sm">البريد الإلكتروني</label>
+                <input
+                  id="register-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 text-right"
+                  dir="ltr"
                 />
               </div>
 
@@ -96,7 +109,7 @@ export default function RegisterPage() {
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 text-left"
                   dir="ltr"
                 />
-                <span className="text-xs text-slate-400 mt-1 block text-right">يجب كتابة رمز الدولة أولاً (مثال: +20 لمصر، +966 للسعودية)</span>
+                <span className="text-xs text-slate-400 mt-1 block text-right">يجب كتابة رمز الدولة أولاً (مثال: +20، +966)</span>
               </div>
 
               <div>
@@ -129,7 +142,7 @@ export default function RegisterPage() {
                     جاري إرسال الرمز...
                   </span>
                 ) : (
-                  'أرسل رمز التأكيد ✉️'
+                  'تسجيل الحساب 🚀'
                 )}
               </button>
             </form>
@@ -187,7 +200,7 @@ export default function RegisterPage() {
                     جاري التحقق...
                   </span>
                 ) : (
-                  'تأكيد وإنشاء الحساب 🚀'
+                  'تأكيد وتفعيل الحساب 🚀'
                 )}
               </button>
 
@@ -196,7 +209,7 @@ export default function RegisterPage() {
                 onClick={() => setStep(1)}
                 className="w-full text-center text-slate-500 hover:text-slate-800 text-sm font-semibold hover:underline mt-2"
               >
-                ← العودة لتعديل رقم الهاتف
+                ← العودة لتعديل البيانات
               </button>
             </form>
           </>

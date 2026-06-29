@@ -70,31 +70,36 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const login = async (phone, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ phone, password });
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data;
   };
 
-  const register = async (name, phone, password) => {
-    // Sign up with phone
-    const { data, error } = await supabase.auth.signUp({
-      phone,
+  const register = async (name, email, phone, password) => {
+    // 1. Sign up user with Email and Password
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
       password,
       options: {
         data: { name }
       }
     });
-    if (error) throw error;
-    return data;
+    if (signUpError) throw signUpError;
+
+    // 2. Immediately link and verify the phone number to trigger the SMS OTP
+    const { error: updateError } = await supabase.auth.updateUser({ phone });
+    if (updateError) throw updateError;
+
+    return signUpData;
   };
 
   const verifyOtp = async (phone, token, name) => {
-    // Verify phone OTP
+    // Verify phone OTP via type 'phone_change'
     const { data, error } = await supabase.auth.verifyOtp({
       phone,
       token,
-      type: 'signup'
+      type: 'phone_change'
     });
     if (error) throw error;
 
