@@ -18,10 +18,24 @@ export default function CartPage() {
   const [deliveryFee, setDeliveryFee] = useState(15);
   const [acceptingOrders, setAcceptingOrders] = useState(true);
 
+  // App Settings for WhatsApp and Bank info
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+
+  // Payment Options
+  const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' or 'bank'
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [lastOrderDetails, setLastOrderDetails] = useState(null);
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const { data } = await supabase.from('app_settings').select('delivery_fee, accepting_orders').single();
+        const { data } = await supabase
+          .from('app_settings')
+          .select('delivery_fee, accepting_orders, whatsapp_phone, bank_name, bank_account')
+          .single();
         if (data) {
           if (data.delivery_fee !== null && data.delivery_fee !== undefined) {
             setDeliveryFee(Number(data.delivery_fee));
@@ -29,6 +43,9 @@ export default function CartPage() {
           if (data.accepting_orders !== null && data.accepting_orders !== undefined) {
             setAcceptingOrders(data.accepting_orders);
           }
+          setWhatsappPhone(data.whatsapp_phone || '');
+          setBankName(data.bank_name || '');
+          setBankAccount(data.bank_account || '');
         }
       } catch (err) {
         console.error('Could not fetch app settings:', err);
@@ -54,26 +71,80 @@ export default function CartPage() {
       return;
     }
 
+    if (paymentMethod === 'bank' && !receiptFile) {
+      setError('يرجى إرفاق إشعار التحويل البنكي لإتمام الطلب');
+      return;
+    }
+
     setError('');
     setLoading(true);
+    setUploadingReceipt(false);
 
     try {
+      // 1. Generate 8-digit order number
+      const orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
+      let receiptUrl = '';
+
+      // 2. Upload Bank receipt if bank payment
+      if (paymentMethod === 'bank' && receiptFile) {
+        setUploadingReceipt(true);
+        const fileExt = receiptFile.name.split('.').pop();
+        const fileName = `receipts/${orderNumber}_receipt.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(fileName, receiptFile);
+        
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(fileName);
+
+        receiptUrl = publicUrlData?.publicUrl || '';
+        setUploadingReceipt(false);
+      }
+
+      // 3. Insert order
+      const orderPayload = {
+        user_id: user.id,
+        order_number: orderNumber,
+        payment_method: paymentMethod,
+        transfer_receipt: receiptUrl,
+        items: cartItems.map(item => ({
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          selectedSize: item.selectedSize || null
+        })),
+        total_amount: grandTotal,
+        shipping_address: address,
+        phone: phone,
+        status: 'قيد الانتظار'
+      };
+
       const { error: insertError } = await supabase
         .from('orders')
-        .insert({
-          user_id: user.id,
-          items: cartItems.map(item => ({
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity
-          })),
-          total_amount: grandTotal,
-          shipping_address: address,
-          phone: phone,
-          status: 'قيد الانتظار'
-        });
+        .insert(orderPayload);
 
       if (insertError) throw insertError;
+
+      // Save details for success screen invoice preview & WhatsApp link
+      const savedDetails = {
+        orderNumber,
+        items: cartItems,
+        totalAmount,
+        deliveryFee,
+        grandTotal,
+        address,
+        phone,
+        paymentMethod,
+        receiptUrl
+      };
+      setLastOrderDetails(savedDetails);
+
+      // Trigger automatic WhatsApp redirect if phone configured
+      sendToWhatsApp(savedDetails);
 
       setOrderSuccess(true);
       clearCart();
@@ -81,33 +152,117 @@ export default function CartPage() {
       setError(err.message || 'حدث خطأ أثناء إتمام الطلب، حاول مرة أخرى');
     } finally {
       setLoading(false);
+      setUploadingReceipt(false);
     }
   };
 
-  if (orderSuccess) {
+  const sendToWhatsApp = (details) => {
+    if (!whatsappPhone) return;
+
+    // Formatting beautiful Arabic invoice message
+    const formattedItems = details.items.map(item => 
+      `• ${item.name} ${item.selectedSize ? `(${item.selectedSize})` : ''} \n  *الكمية:* ${item.quantity} | *السعر:* ${item.price * item.quantity} ج.س`
+    ).join('\n\n');
+
+    const paymentText = details.paymentMethod === 'bank' 
+      ? '🏦 تحويل بنكي (مرفق إشعار التحويل)' 
+      : '💵 الدفع عند الاستلام (كاش)';
+
+    const message = `🧾 *فاتورة طلب جديدة - مطعم 50 فاكهة* 🧾\n` +
+      `------------------------------------------\n` +
+      `*رقم الطلب:* #${details.orderNumber}\n` +
+      `*اسم العميل:* ${user?.name || 'عميل المتجر'}\n` +
+      `*رقم الهاتف:* ${details.phone}\n` +
+      `*العنوان:* ${details.address}\n` +
+      `*طريقة الدفع:* ${paymentText}\n` +
+      `------------------------------------------\n\n` +
+      `📋 *الأصناف المطلوبة:*\n${formattedItems}\n\n` +
+      `------------------------------------------\n` +
+      `*المجموع الفرعي:* ${details.totalAmount} ج.س\n` +
+      `*تكلفة التوصيل:* ${details.deliveryFee} ج.س\n` +
+      `*الإجمالي الكلي:* *${details.grandTotal} ج.س*\n` +
+      `------------------------------------------\n` +
+      (details.paymentMethod === 'bank' ? `🔗 *رابط إشعار التحويل:* ${details.receiptUrl}\n` : '') +
+      `\nشكراً لطلبك من 50 فاكهة! 🍉🍹`;
+
+    const cleanPhone = whatsappPhone.replace('+', '').trim();
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  if (orderSuccess && lastOrderDetails) {
     return (
-      <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-br from-emerald-50 to-teal-100">
-        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-emerald-100 text-center space-y-6">
-          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mx-auto animate-bounce">
+      <div className="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 to-teal-100 min-h-screen">
+        <div className="max-w-xl w-full bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-emerald-100 text-center space-y-6">
+          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto animate-bounce">
             🎉
           </div>
-          <h2 className="text-3xl font-extrabold text-emerald-950">تم إرسال طلبك بنجاح!</h2>
-          <p className="text-slate-600">
-            نشكرك على طلبك من مطعم 50 فاكهة. نقوم الآن بتجهيز طلبك وتوصيله إليك في أسرع وقت.
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg transition duration-200"
-          >
-            العودة للقائمة الرئيسية 🍓
-          </button>
+          <div className="space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-black text-emerald-950">تم إرسال طلبك بنجاح!</h2>
+            <p className="text-slate-500 text-sm">تم توليد فاتورة الطلب وإرسالها إلى الواتساب تلقائياً.</p>
+          </div>
+
+          {/* Invoice card preview */}
+          <div className="bg-slate-50 rounded-2xl p-5 text-right border border-slate-200/80 space-y-4">
+            <div className="flex justify-between items-center border-b pb-2">
+              <span className="font-bold text-slate-800 text-lg">🧾 فاتورة الطلب</span>
+              <span className="font-mono text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold">
+                رقم الطلب: #{lastOrderDetails.orderNumber}
+              </span>
+            </div>
+            
+            <div className="space-y-1.5 text-sm text-slate-600">
+              <p>👤 *العميل:* {user?.name}</p>
+              <p>📞 *الهاتف:* {lastOrderDetails.phone}</p>
+              <p>📍 *العنوان:* {lastOrderDetails.address}</p>
+              <p>💳 *طريقة الدفع:* {lastOrderDetails.paymentMethod === 'bank' ? 'تحويل بنكي 🏦' : 'الدفع عند الاستلام 💵'}</p>
+            </div>
+
+            <div className="border-t pt-3 space-y-2">
+              {lastOrderDetails.items.map((it, idx) => (
+                <div key={idx} className="flex justify-between text-sm text-slate-700">
+                  <span>{it.quantity}x {it.name} {it.selectedSize ? `(${it.selectedSize})` : ''}</span>
+                  <span className="font-semibold">{it.price * it.quantity} ج.س</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-dashed pt-3 space-y-1 text-sm">
+              <div className="flex justify-between text-slate-500">
+                <span>المجموع الفرعي:</span>
+                <span>{lastOrderDetails.totalAmount} ج.س</span>
+              </div>
+              <div className="flex justify-between text-slate-500">
+                <span>تكلفة التوصيل:</span>
+                <span>{lastOrderDetails.deliveryFee} ج.س</span>
+              </div>
+              <div className="flex justify-between text-slate-900 font-black text-base pt-1">
+                <span>الإجمالي الكلي:</span>
+                <span className="text-emerald-700">{lastOrderDetails.grandTotal} ج.س</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => sendToWhatsApp(lastOrderDetails)}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2"
+            >
+              <span>💬</span> إعادة إرسال الفاتورة عبر واتساب
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition duration-200"
+            >
+              العودة للمتجر 🍉
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 max-w-6xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Title */}
       <div className="lg:col-span-3">
         <h1 className="text-3xl font-extrabold text-slate-900 border-b pb-4 flex items-center gap-2">
@@ -206,7 +361,7 @@ export default function CartPage() {
               </div>
               <div className="flex justify-between text-slate-900 font-extrabold text-lg border-t pt-3">
                 <span>الإجمالي الكلي:</span>
-                <span className="text-emerald-700">{grandTotal} ج.س</span>
+                <span className="text-emerald-700">{grandTotal} gl.s</span>
               </div>
             </div>
 
@@ -227,7 +382,7 @@ export default function CartPage() {
                   <p className="text-xs text-rose-600">يرجى الانتظار لحين إعادة التفعيل من قِبل الإدارة.</p>
                 </div>
               ) : user ? (
-                <form onSubmit={handleCheckout} className="space-y-4">
+                <form onSubmit={handleCheckout} className="space-y-5">
                   <div>
                     <label className="block text-slate-700 text-sm font-semibold mb-1">رقم الهاتف</label>
                     <input
@@ -248,10 +403,63 @@ export default function CartPage() {
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="اسم الشارع، رقم العمارة، الشقة..."
-                      rows="3"
+                      rows="2"
                       className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition"
                     />
                   </div>
+
+                  {/* Payment Method Selector */}
+                  <div className="space-y-2">
+                    <label className="block text-slate-700 text-sm font-semibold">💳 طريقة الدفع</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cash')}
+                        className={`py-3 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center gap-1 ${
+                          paymentMethod === 'cash'
+                            ? 'bg-emerald-50 border-emerald-600 text-emerald-800'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-200'
+                        }`}
+                      >
+                        <span className="text-lg">💵</span>
+                        <span>الدفع عند الاستلام</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('bank')}
+                        className={`py-3 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center gap-1 ${
+                          paymentMethod === 'bank'
+                            ? 'bg-emerald-50 border-emerald-600 text-emerald-800'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-200'
+                        }`}
+                      >
+                        <span className="text-lg">🏦</span>
+                        <span>تحويل بنكي</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Bank Details & Receipt File Upload */}
+                  {paymentMethod === 'bank' && (
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                      <div className="text-xs text-slate-600 space-y-1">
+                        <p className="font-bold text-slate-700">بيانات الحساب للتحويل البنكي:</p>
+                        <p>🏦 البنك: <span className="font-bold">{bankName || 'غير محدد'}</span></p>
+                        <p>💳 رقم الحساب: <span className="font-mono font-bold">{bankAccount || 'غير محدد'}</span></p>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-rose-700">📸 إرفاق صورة إشعار التحويل (إجباري):</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          required
+                          onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                          className="w-full text-xs text-slate-650 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <button
                     id="checkout-submit"
@@ -261,7 +469,9 @@ export default function CartPage() {
                       loading ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'
                     }`}
                   >
-                    {loading ? 'جاري إرسال الطلب...' : 'تأكيد الطلب وشحن 🚚'}
+                    {loading 
+                      ? (uploadingReceipt ? 'جاري رفع إشعار التحويل...' : 'جاري إرسال الطلب...') 
+                      : 'تأكيد الطلب وشحن 🚚'}
                   </button>
                 </form>
               ) : (

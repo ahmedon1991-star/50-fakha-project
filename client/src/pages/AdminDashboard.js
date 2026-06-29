@@ -813,6 +813,7 @@ export default function AdminDashboard() {
                               <th className="p-4">العميل</th>
                               <th className="p-4">رقم الهاتف</th>
                               <th className="p-4">العنوان</th>
+                              <th className="p-4">الدفع</th>
                               <th className="p-4">الطلب</th>
                               <th className="p-4">المبلغ</th>
                               <th className="p-4 text-center">الحالة</th>
@@ -822,12 +823,33 @@ export default function AdminDashboard() {
                           <tbody>
                             {orders.map((order) => (
                               <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
-                                <td className="p-4 font-mono text-xs text-slate-400">{order.id?.slice(0,8)}...</td>
+                                <td className="p-4 font-mono text-sm text-slate-800 font-bold">
+                                  #{order.order_number || order.id?.slice(0, 8)}
+                                </td>
                                 <td className="p-4">
                                   <span className="font-bold text-slate-800">{order.user?.name || 'مجهول'}</span>
                                 </td>
                                 <td className="p-4 font-mono text-slate-600 text-sm">{order.phone || '-'}</td>
                                 <td className="p-4 text-slate-600 text-sm max-w-[150px] truncate" title={order.shipping_address}>{order.shipping_address}</td>
+                                <td className="p-4 text-xs font-bold">
+                                  {order.payment_method === 'bank' ? (
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="text-amber-800">🏦 تحويل بنكي</span>
+                                      {order.transfer_receipt && (
+                                        <a
+                                          href={order.transfer_receipt}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-[10px] text-blue-600 underline hover:text-blue-800 flex items-center gap-0.5"
+                                        >
+                                          🖼️ عرض الإشعار
+                                        </a>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-600">💵 عند الاستلام</span>
+                                  )}
+                                </td>
                                 <td className="p-4">
                                   <div className="text-sm space-y-1">
                                     {order.items?.map((it, idx) => (
@@ -895,7 +917,9 @@ export default function AdminDashboard() {
                       const filtered = archiveOrders.filter(o => {
                         if (!archiveSearch.trim()) return true;
                         const q = archiveSearch.trim().toLowerCase();
-                        return o.id?.toLowerCase().includes(q) || o.phone?.toLowerCase().includes(q);
+                        return o.id?.toLowerCase().includes(q) || 
+                               o.order_number?.toLowerCase().includes(q) || 
+                               o.phone?.toLowerCase().includes(q);
                       });
                       return filtered.length === 0 ? (
                         <div className="p-16 text-center text-slate-400 space-y-3">
@@ -911,6 +935,7 @@ export default function AdminDashboard() {
                                 <th className="p-4">التاريخ</th>
                                 <th className="p-4">العميل</th>
                                 <th className="p-4">رقم الهاتف</th>
+                                <th className="p-4">الدفع</th>
                                 <th className="p-4">الطلب</th>
                                 <th className="p-4">المبلغ</th>
                                 <th className="p-4 text-center">الحالة</th>
@@ -920,11 +945,32 @@ export default function AdminDashboard() {
                               {filtered.map((order) => (
                                 <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/40 transition">
                                   <td className="p-4">
-                                    <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded-lg text-slate-600">{order.id?.slice(0,8)}...</span>
+                                    <span className="font-mono text-sm bg-slate-100 px-2 py-1 rounded-lg text-slate-700 font-bold">
+                                      #{order.order_number || order.id?.slice(0, 8)}
+                                    </span>
                                   </td>
                                   <td className="p-4 text-slate-500 text-xs">{new Date(order.created_at).toLocaleDateString('ar-SD')}</td>
                                   <td className="p-4 font-bold text-slate-800">{order.user?.name || 'مجهول'}</td>
                                   <td className="p-4 font-mono text-slate-600 text-sm">{order.phone || '-'}</td>
+                                  <td className="p-4 text-xs font-bold">
+                                    {order.payment_method === 'bank' ? (
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="text-amber-800">🏦 تحويل بنكي</span>
+                                        {order.transfer_receipt && (
+                                          <a
+                                            href={order.transfer_receipt}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[10px] text-blue-600 underline hover:text-blue-800"
+                                          >
+                                            🖼️ عرض الإشعار
+                                          </a>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-600">💵 عند الاستلام</span>
+                                    )}
+                                  </td>
                                   <td className="p-4">
                                     <div className="text-sm space-y-1">
                                       {order.items?.map((it, idx) => (
