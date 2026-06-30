@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -7,25 +7,13 @@ export default function Navbar() {
   const { totalItems } = useCart();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleLogout = () => {
-    setDropdownOpen(false);
+    setDrawerOpen(false);
     logout();
     navigate('/login');
   };
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Get initials for avatar
   const getInitials = (name = '') => {
@@ -73,12 +61,12 @@ export default function Navbar() {
             )}
           </Link>
 
-          {/* User Account Dropdown */}
+          {/* User Account / Drawer Trigger */}
           {user ? (
-            <div className="relative" ref={dropdownRef}>
+            <div>
               <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 py-2 px-3 rounded-2xl font-bold text-sm transition-all duration-200 border"
+                onClick={() => setDrawerOpen(true)}
+                className="flex items-center gap-2 py-2 px-3 rounded-2xl font-bold text-sm transition-all duration-200 border hover:scale-[1.02] active:scale-95"
                 style={{ background: '#FFF7EC', borderColor: '#F0E1CC', color: '#1B130D' }}
               >
                 {/* Avatar circle with initials */}
@@ -98,53 +86,6 @@ export default function Navbar() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                 </svg>
               </button>
-
-              {/* Floating Dropdown Menu */}
-              {dropdownOpen && (
-                <div
-                  className="absolute left-0 mt-2 w-52 rounded-2xl shadow-xl border text-right py-2 overflow-hidden z-50"
-                  style={{ background: '#FFF7EC', borderColor: '#F0E1CC' }}
-                >
-                  {/* User info header */}
-                  <div className="px-4 py-3 border-b" style={{ borderColor: '#F0E1CC' }}>
-                    <div className="font-black text-sm" style={{ fontFamily: "'Cairo', sans-serif", color: '#1B130D' }}>{user.name}</div>
-                    <div className="text-xs mt-0.5" style={{ color: '#6B5C4F' }}>حسابي الشخصي</div>
-                  </div>
-
-                  {user.isAdmin && (
-                    <Link
-                      to="/admin"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold transition-colors hover:bg-orange-50"
-                      style={{ color: '#1B130D' }}
-                    >
-                      <span className="w-7 h-7 rounded-xl flex items-center justify-center text-sm" style={{ background: '#FFE3C2', color: '#C95A06' }}>⚙️</span>
-                      لوحة التحكم
-                      <span className="mr-auto text-xs" style={{ color: '#6B5C4F' }}>‹</span>
-                    </Link>
-                  )}
-
-                  <Link
-                    to="/profile"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-orange-50"
-                    style={{ color: '#1B130D' }}
-                  >
-                    <span className="w-7 h-7 rounded-xl flex items-center justify-center text-sm" style={{ background: '#FFE3C2', color: '#C95A06' }}>👤</span>
-                    ملفي الشخصي
-                    <span className="mr-auto text-xs" style={{ color: '#6B5C4F' }}>‹</span>
-                  </Link>
-
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-bold transition-colors hover:bg-red-50 border-t"
-                    style={{ color: '#E14133', borderColor: '#F0E1CC' }}
-                  >
-                    <span className="w-7 h-7 rounded-xl flex items-center justify-center text-sm" style={{ background: '#FBE0DC', color: '#E14133' }}>🚪</span>
-                    تسجيل الخروج
-                  </button>
-                </div>
-              )}
             </div>
           ) : (
             <Link
@@ -157,6 +98,137 @@ export default function Navbar() {
           )}
         </div>
       </div>
+
+      {/* ─── SLIDING DRAWER MENU ─── */}
+      {drawerOpen && user && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[250] flex justify-end"
+          onClick={() => setDrawerOpen(false)}
+        >
+          {/* Drawer Panel */}
+          <div 
+            className="w-72 sm:w-80 h-full bg-[#FFF7EC] p-6 shadow-2xl flex flex-col text-right overflow-y-auto animate-slide-left relative"
+            style={{ fontFamily: "'Tajawal', sans-serif" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Style tag for animations */}
+            <style>{`
+              @keyframes slideLeft {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+              }
+              .animate-slide-left {
+                animation: slideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+              }
+              .drawer-link {
+                font-family: 'Cairo', sans-serif;
+                font-size: 15px;
+                font-weight: 800;
+                color: #C95A06;
+                padding: 10px 0;
+                display: block;
+                transition: color 0.15s ease, transform 0.15s ease;
+                text-decoration: none;
+                border-bottom: 1px solid #F0E1CC/30;
+              }
+              .drawer-link:hover {
+                color: #1B130D;
+                transform: translateX(-4px);
+              }
+            `}</style>
+
+            {/* Close Button */}
+            <div className="flex justify-between items-center mb-6">
+              <button 
+                onClick={() => setDrawerOpen(false)}
+                className="text-slate-400 hover:text-[#1B130D] text-xl font-bold transition"
+              >
+                ✕
+              </button>
+              <span className="font-black text-sm text-[#1B130D]" style={{ fontFamily: "'Cairo', sans-serif" }}>قائمة المستخدم</span>
+            </div>
+
+            {/* User Info Header Block */}
+            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#F0E1CC]">
+              {/* Initials Avatar */}
+              <div 
+                className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-black shadow-md flex-shrink-0"
+                style={{ background: 'radial-gradient(circle, #F3760C 0%, #C95A06 100%)' }}
+              >
+                {getInitials(user.name)}
+              </div>
+              {/* Text Info */}
+              <div className="flex-grow min-w-0">
+                <div className="font-black text-base text-[#1B130D] truncate" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                  مرحبا {user.name}
+                </div>
+                {user.phone && (
+                  <div className="text-xs text-[#9C7A5A] font-mono mt-0.5" dir="ltr" style={{ textAlign: 'right' }}>
+                    {user.phone}
+                  </div>
+                )}
+                <div className="text-xs text-[#6B5C4F] truncate font-mono mt-0.5" dir="ltr" style={{ textAlign: 'right' }}>
+                  {user.email}
+                </div>
+              </div>
+            </div>
+
+            {/* Menu Links */}
+            <div className="flex-grow flex flex-col justify-between">
+              <div className="flex flex-col gap-1">
+                {/* 1. ملفي الشخصي */}
+                <Link to="/profile" onClick={() => setDrawerOpen(false)} className="drawer-link">
+                  ملفي الشخصي
+                </Link>
+
+                {/* 2. قائمتي المفضلة */}
+                <Link to="/products" onClick={() => setDrawerOpen(false)} className="drawer-link">
+                  قائمتي المفضلة
+                </Link>
+
+                {/* 3. طلباتي السابقة */}
+                <Link to="/profile" onClick={() => setDrawerOpen(false)} className="drawer-link">
+                  طلباتي السابقة
+                </Link>
+
+                {/* 4. الإعدادات */}
+                <Link to="/profile" onClick={() => setDrawerOpen(false)} className="drawer-link">
+                  الإعدادات
+                </Link>
+
+                {/* 5. حذف الحساب */}
+                <Link to="/profile" onClick={() => setDrawerOpen(false)} className="drawer-link">
+                  حذف الحساب
+                </Link>
+
+                {/* 6. دخول الإدارة (Admins only) */}
+                {user.isAdmin && (
+                  <Link 
+                    to="/admin" 
+                    onClick={() => setDrawerOpen(false)} 
+                    className="drawer-link"
+                    style={{ color: '#E14133' }}
+                  >
+                    🔐 دخول الإدارة
+                  </Link>
+                )}
+              </div>
+
+              {/* Logout Button (Bottom of drawer) */}
+              <div className="border-t border-[#F0E1CC] pt-4 mt-6">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2.5 py-3 bg-[#E14133] hover:bg-[#c93024] text-white rounded-xl font-bold transition shadow-sm"
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
+                >
+                  <span>🚪</span> تسجيل الخروج
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
