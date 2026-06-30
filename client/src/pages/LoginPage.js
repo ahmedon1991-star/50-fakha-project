@@ -69,7 +69,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="flex-1 flex items-center justify-center p-6"
+      className="flex-1 flex items-center justify-center p-6 pb-36 lg:pb-6"
       style={STYLE.bg}
     >
       <style>{`

@@ -280,7 +280,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 pb-36 lg:pb-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Title */}
       <div className="lg:col-span-3">
         <h1 className="text-3xl font-extrabold text-slate-900 border-b pb-4 flex items-center gap-2">

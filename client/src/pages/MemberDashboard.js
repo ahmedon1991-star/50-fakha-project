@@ -211,7 +211,7 @@ export default function MemberDashboard() {
   ];
 
   return (
-    <div className="flex-1 min-h-screen bg-slate-50 pb-16">
+    <div className="flex-1 min-h-screen bg-slate-50 pb-36 lg:pb-16">
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-800 text-white p-8 shadow-md">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-right">
