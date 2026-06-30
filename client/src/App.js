@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import BottomNav from './components/BottomNav';
 import HomePage from './pages/HomePage';
 import CartPage from './pages/CartPage';
 import LoginPage from './pages/LoginPage';
@@ -42,7 +43,10 @@ function App() {
       <CartProvider>
         <BrowserRouter>
           <div className="min-h-screen flex flex-col" style={{ background: '#EFE3CF' }}>
-            <Navbar />
+            {/* Navbar — visible on desktop only */}
+            <div className="hidden md:block">
+              <Navbar />
+            </div>
             <div className="flex-grow flex flex-col">
               <Routes>
                 <Route path="/" element={<HomePage />} />
@@ -55,7 +59,12 @@ function App() {
                 <Route path="/terms" element={<TermsConditions />} />
               </Routes>
             </div>
-            <Footer />
+            {/* Footer — desktop only */}
+            <div className="hidden md:block">
+              <Footer />
+            </div>
+            {/* Bottom Nav — mobile only */}
+            <BottomNav />
           </div>
         </BrowserRouter>
       </CartProvider>
