@@ -51,16 +51,38 @@ export default function HomePage() {
   const [error, setError] = useState('');
   const { addToCart } = useCart();
 
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const stored = localStorage.getItem('favorites');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleFavorite = (productId, e) => {
+    e.stopPropagation();
+    setFavorites(prev => {
+      const updated = prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId];
+      localStorage.setItem('favorites', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSizeIdx, setSelectedSizeIdx] = useState(0);
 
   useEffect(() => {
     if (activeCategory === 'الكل') {
       setFilteredProducts(products);
+    } else if (activeCategory === '❤️ المفضلة') {
+      setFilteredProducts(products.filter(p => favorites.includes(p.id || p._id)));
     } else {
       setFilteredProducts(products.filter(p => p.category === activeCategory));
     }
-  }, [products, activeCategory]);
+  }, [products, activeCategory, favorites]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -223,27 +245,30 @@ export default function HomePage() {
 
         {/* ─── CATEGORY CHIPS ─── */}
         <div className="chip-scroll" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '20px' }}>
-          {categories.map((cat) => (
-            <div
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              style={{
-                flexShrink: 0,
-                padding: '7px 16px',
-                borderRadius: '999px',
-                fontSize: '12.5px', fontWeight: 700,
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                fontFamily: "'Cairo', sans-serif",
-                background: activeCategory === cat ? '#1B130D' : '#FFFFFF',
-                color: activeCategory === cat ? '#FFF7EC' : '#6B5C4F',
-                border: activeCategory === cat ? '1px solid #1B130D' : '1px solid #F0E1CC',
-                transition: 'all 0.18s ease',
-              }}
-            >
-              {cat}
-            </div>
-          ))}
+          {(() => {
+            const allCats = categories.includes('❤️ المفضلة') ? categories : ['الكل', '❤️ المفضلة', ...categories.filter(c => c !== 'الكل')];
+            return allCats.map((cat) => (
+              <div
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                style={{
+                  flexShrink: 0,
+                  padding: '7px 16px',
+                  borderRadius: '999px',
+                  fontSize: '12.5px', fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  fontFamily: "'Cairo', sans-serif",
+                  background: activeCategory === cat ? '#1B130D' : '#FFFFFF',
+                  color: activeCategory === cat ? '#FFF7EC' : '#6B5C4F',
+                  border: activeCategory === cat ? '1px solid #1B130D' : '1px solid #F0E1CC',
+                  transition: 'all 0.18s ease',
+                }}
+              >
+                {cat}
+              </div>
+            ));
+          })()}
         </div>
 
         {/* ─── SECTION HEADER ─── */}
@@ -338,6 +363,26 @@ export default function HomePage() {
                       <span style={{ fontSize: '52px', lineHeight: 1 }}>{emoji}</span>
                     )}
 
+                    {/* Favorite Button */}
+                    <button
+                      onClick={(e) => toggleFavorite(p.id || p._id, e)}
+                      style={{
+                        position: 'absolute', top: '8px', left: '8px',
+                        width: '28px', height: '28px', borderRadius: '50%',
+                        background: 'rgba(255, 255, 255, 0.85)',
+                        backdropFilter: 'blur(2px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        border: 'none', cursor: 'pointer', zIndex: 10,
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                        transition: 'transform 0.1s ease',
+                      }}
+                      className="fav-btn"
+                    >
+                      <span style={{ fontSize: '14px', lineHeight: 1 }}>
+                        {favorites.includes(p.id || p._id) ? '❤️' : '🤍'}
+                      </span>
+                    </button>
+
                     {/* Tags */}
                     {isFamous && (
                       <span style={{
@@ -359,7 +404,7 @@ export default function HomePage() {
                     )}
                     {hasSizes && !isFamous && !isNew && (
                       <span style={{
-                        position: 'absolute', top: '8px', left: '8px',
+                        position: 'absolute', bottom: '8px', left: '8px',
                         background: '#F3760C', color: 'white',
                         fontSize: '9px', fontWeight: 800,
                         padding: '3px 8px', borderRadius: '999px',

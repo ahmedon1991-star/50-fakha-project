@@ -48,6 +48,26 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSizeIdx, setSelectedSizeIdx] = useState(0);
 
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const stored = localStorage.getItem('favorites');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleFavorite = (productId, e) => {
+    e.stopPropagation();
+    setFavorites(prev => {
+      const updated = prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId];
+      localStorage.setItem('favorites', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -137,6 +157,27 @@ export default function ProductsPage() {
           ) : (
             <span style={{ fontSize: '50px', lineHeight: 1 }}>{emoji}</span>
           )}
+
+          {/* Favorite Button */}
+          <button
+            onClick={(e) => toggleFavorite(p.id || p._id, e)}
+            style={{
+              position: 'absolute', top: '8px', left: '8px',
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.85)',
+              backdropFilter: 'blur(2px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: 'none', cursor: 'pointer', zIndex: 10,
+              boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+              transition: 'transform 0.1s ease',
+            }}
+            className="fav-btn"
+          >
+            <span style={{ fontSize: '14px', lineHeight: 1 }}>
+              {favorites.includes(p.id || p._id) ? '❤️' : '🤍'}
+            </span>
+          </button>
+
           {(p.is_famous || p.tag === 'الأشهر') && (
             <span style={{
               position: 'absolute', top: '8px', right: '8px',
@@ -152,6 +193,14 @@ export default function ProductsPage() {
               fontSize: '9px', fontWeight: 800,
               padding: '3px 8px', borderRadius: '999px',
             }}>جديد</span>
+          )}
+          {hasSizes && !(p.is_famous || p.tag === 'الأشهر') && !(p.is_new || p.tag === 'جديد') && (
+            <span style={{
+              position: 'absolute', bottom: '8px', left: '8px',
+              background: '#F3760C', color: 'white',
+              fontSize: '9px', fontWeight: 800,
+              padding: '3px 8px', borderRadius: '999px',
+            }}>{p.sizes.length} أحجام</span>
           )}
           {!p.available && (
             <div style={{
@@ -285,9 +334,46 @@ export default function ProductsPage() {
           </div>
         )}
 
-        {/* Products grouped by category */}
         {!loading && !error && (
           <>
+            {/* Favourites Section */}
+            {(() => {
+              const favProducts = products.filter(p => favorites.includes(p.id || p._id));
+              if (favProducts.length === 0) return null;
+              return (
+                <div style={{ marginBottom: '28px' }}>
+                  {/* Category Header */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    marginBottom: '12px',
+                  }}>
+                    <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      background: '#C95A06', color: '#FFF7EC',
+                      padding: '6px 16px', borderRadius: '999px',
+                      fontFamily: "'Cairo', sans-serif",
+                      fontSize: '13px', fontWeight: 800,
+                    }}>
+                      <span>❤️</span>
+                      <span>قائمتي المفضلة</span>
+                      <span style={{
+                        background: '#1B130D', color: 'white',
+                        fontSize: '9px', fontWeight: 800,
+                        padding: '1px 6px', borderRadius: '999px',
+                      }}>{favProducts.length}</span>
+                    </div>
+                    <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
+                  </div>
+
+                  {/* Favorite Products Grid */}
+                  <div className="product-grid">
+                    {favProducts.map(p => <ProductCard key={p.id || p._id} p={p} />)}
+                  </div>
+                </div>
+              );
+            })()}
+
             {hasGrouped ? (
               Object.entries(grouped).map(([catName, catProducts]) => (
                 <div key={catName} style={{ marginBottom: '28px' }}>
