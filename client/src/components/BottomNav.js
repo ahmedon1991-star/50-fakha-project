@@ -23,14 +23,12 @@ export default function BottomNav() {
     },
     {
       label: 'منتجاتنا',
-      to: '/?cat=all',
+      to: '/',
       isActive: false,
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 2a5 5 0 0 1 5 5c0 2-1 3.5-3 4.5S12 14 12 16" />
-          <path d="M8 7c0-1 .8-2 2-2.5" />
-          <circle cx="12" cy="20" r="1" fill="currentColor" />
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.35-4.35" />
         </svg>
       ),
     },
@@ -65,41 +63,85 @@ export default function BottomNav() {
         position: 'fixed', bottom: 0, right: 0, left: 0,
         background: '#FFF7EC',
         borderTop: '1px solid #F0E1CC',
-        display: 'flex', justifyContent: 'space-around',
-        padding: '10px 8px 20px',
         zIndex: 100,
         fontFamily: "'Tajawal', sans-serif",
       }}
       className="md:hidden"
     >
-      {tabs.map((tab) => (
-        <Link
-          key={tab.label}
-          to={tab.to}
-          style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
-            color: tab.isActive ? active : inactive,
-            fontSize: '10px', fontWeight: 700,
-            textDecoration: 'none',
-            position: 'relative',
-          }}
-        >
-          {tab.badge && (
-            <span style={{
-              position: 'absolute', top: '-4px', right: '-2px',
-              background: '#E14133', color: 'white',
-              fontSize: '8.5px', fontWeight: 800,
-              width: '15px', height: '15px', borderRadius: '50%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '2px solid #FFF7EC',
-            }}>
-              {tab.badge}
-            </span>
-          )}
-          <span>{tab.icon}</span>
-          <span>{tab.label}</span>
-        </Link>
-      ))}
+      {/* ── Tab Row ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-around',
+        padding: '10px 8px 6px',
+      }}>
+        {tabs.map((tab) => (
+          <Link
+            key={tab.label}
+            to={tab.to}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+              color: tab.isActive ? active : inactive,
+              fontSize: '10px', fontWeight: 700,
+              textDecoration: 'none',
+              position: 'relative',
+            }}
+          >
+            {tab.badge && (
+              <span style={{
+                position: 'absolute', top: '-4px', right: '-2px',
+                background: '#E14133', color: 'white',
+                fontSize: '8.5px', fontWeight: 800,
+                width: '15px', height: '15px', borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '2px solid #FFF7EC',
+              }}>
+                {tab.badge}
+              </span>
+            )}
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── Footer Strip: Address + Legal Links ── */}
+      <div style={{
+        borderTop: '1px solid #F0E1CC',
+        padding: '6px 16px 14px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '4px',
+      }}>
+        {/* Address */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '4px',
+          fontSize: '10px', color: '#9C7A5A', fontWeight: 600,
+        }}>
+          <span>📍</span>
+          <span>السودان — الولاية الشمالية — دنقلا</span>
+        </div>
+
+        {/* Legal Links */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          fontSize: '10px',
+        }}>
+          <Link
+            to="/privacy"
+            style={{ color: '#C95A06', fontWeight: 700, textDecoration: 'none' }}
+          >
+            سياسة الخصوصية
+          </Link>
+          <span style={{ color: '#F0E1CC' }}>•</span>
+          <Link
+            to="/terms"
+            style={{ color: '#C95A06', fontWeight: 700, textDecoration: 'none' }}
+          >
+            الشروط والأحكام
+          </Link>
+        </div>
+      </div>
     </nav>
   );
 }

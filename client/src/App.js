@@ -43,10 +43,8 @@ function App() {
       <CartProvider>
         <BrowserRouter>
           <div className="min-h-screen flex flex-col" style={{ background: '#EFE3CF' }}>
-            {/* Navbar — visible on desktop only */}
-            <div className="hidden md:block">
-              <Navbar />
-            </div>
+            {/* Navbar — visible on all screens */}
+            <Navbar />
             <div className="flex-grow flex flex-col">
               <Routes>
                 <Route path="/" element={<HomePage />} />

@@ -122,7 +122,7 @@ export default function HomePage() {
         background: '#EFE3CF',
         fontFamily: "'Tajawal', sans-serif",
         minHeight: '100%',
-        paddingBottom: '90px', // space for bottom nav on mobile
+        paddingBottom: '130px', // space for bottom nav (tabs + address strip) on mobile
       }}
     >
       <style>{`
