@@ -128,6 +128,14 @@ export default function RegisterPage() {
           </button>
         </form>
 
+        <p className="text-center text-[11px] text-slate-400 mt-4 leading-normal">
+          بالتسجيل، أنت توافق على{' '}
+          <Link to="/terms" className="underline hover:text-emerald-600 transition">الشروط والأحكام</Link>
+          {' '}و{' '}
+          <Link to="/privacy" className="underline hover:text-emerald-600 transition">سياسة الخصوصية</Link>
+          {' '}الخاصة بنا.
+        </p>
+
         <div className="text-center mt-6 text-slate-500 text-sm">
           لديك حساب بالفعل؟{' '}
           <Link to="/login" className="text-emerald-600 font-bold hover:underline">

@@ -22,6 +22,13 @@ export default function Footer() {
         {/* Divider */}
         <div className="w-16 h-0.5 bg-slate-800 mx-auto rounded-full"></div>
 
+        {/* Links */}
+        <div className="flex justify-center items-center gap-4 text-xs font-semibold text-slate-500">
+          <Link to="/privacy" className="hover:text-emerald-400 transition">سياسة الخصوصية</Link>
+          <span>•</span>
+          <Link to="/terms" className="hover:text-emerald-400 transition">الشروط والأحكام</Link>
+        </div>
+
         {/* Copyright */}
         <p className="text-slate-500 text-xs font-medium">
           &copy; {new Date().getFullYear()} جميع الحقوق محفوظة لمتجر 50 فاكهة
