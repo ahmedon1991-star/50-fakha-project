@@ -129,26 +129,7 @@ export default function MemberOrdersPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Top Cards / Shortcuts */}
-            <div className="grid grid-cols-2 gap-2.5 mb-6">
-              {/* ملفي الشخصي */}
-              <Link 
-                to="/profile"
-                className="bg-[#3A3029] hover:bg-[#4d4037] text-[#FFF7EC] p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10 flex justify-center"
-              >
-                <span className="text-xl">👤</span>
-                <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">ملفي الشخصي</span>
-              </Link>
-              
-              {/* قائمتي المفضلة */}
-              <Link 
-                to="/products?favorites=true"
-                className="bg-[#3A3029] hover:bg-[#4d4037] text-white p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10 flex justify-center"
-              >
-                <span className="text-xl">⭐</span>
-                <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">قائمتي المفضلة</span>
-              </Link>
-            </div>
+
 
             {/* Orders sub-tab switcher */}
             <div className="grid grid-cols-2 gap-3 mb-6">
