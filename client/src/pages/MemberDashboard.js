@@ -318,8 +318,8 @@ export default function MemberDashboard() {
             {activeTab === 'orders' && (
               <div className="space-y-6">
                 
-                {/* 3 Top Cards / Shortcuts */}
-                <div className="grid grid-cols-3 gap-2.5 mb-6">
+                {/* Top Cards / Shortcuts */}
+                <div className="grid grid-cols-2 gap-2.5 mb-6">
                   {/* ملفي الشخصي */}
                   <button 
                     onClick={() => setActiveTab('settings')}
@@ -337,15 +337,6 @@ export default function MemberDashboard() {
                     <span className="text-xl">⭐</span>
                     <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">قائمتي المفضلة</span>
                   </Link>
-                  
-                  {/* شاركنا مع أصدقائك */}
-                  <button 
-                    onClick={handleShare}
-                    className="bg-[#3A3029] hover:bg-[#4d4037] text-white p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10"
-                  >
-                    <span className="text-xl">🤝</span>
-                    <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">شاركنا مع أصدقائك</span>
-                  </button>
                 </div>
 
                 {/* Orders sub-tab switcher */}
