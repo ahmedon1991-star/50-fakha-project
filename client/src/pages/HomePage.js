@@ -74,15 +74,35 @@ export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSizeIdx, setSelectedSizeIdx] = useState(0);
 
+  const [searchQuery, setSearchQuery] = useState('');
+
   useEffect(() => {
-    if (activeCategory === 'الكل') {
-      setFilteredProducts(products);
-    } else if (activeCategory === '❤️ المفضلة') {
-      setFilteredProducts(products.filter(p => favorites.includes(p.id || p._id)));
-    } else {
-      setFilteredProducts(products.filter(p => p.category === activeCategory));
+    const normQuery = searchQuery.trim().toLowerCase()
+      .replace(/[أإآا]/g, 'ا')
+      .replace(/[ة]/g, 'ه')
+      .replace(/[ىي]/g, 'ي')
+      .replace(/[\u064B-\u0652]/g, '');
+
+    let filtered = products;
+    if (activeCategory === '❤️ المفضلة') {
+      filtered = products.filter(p => favorites.includes(p.id || p._id));
+    } else if (activeCategory !== 'الكل') {
+      filtered = products.filter(p => p.category === activeCategory);
     }
-  }, [products, activeCategory, favorites]);
+
+    if (normQuery !== '') {
+      filtered = filtered.filter(p => {
+        const normName = (p.name || '').toLowerCase()
+          .replace(/[أإآا]/g, 'ا')
+          .replace(/[ة]/g, 'ه')
+          .replace(/[ىي]/g, 'ي')
+          .replace(/[\u064B-\u0652]/g, '');
+        return normName.includes(normQuery);
+      });
+    }
+
+    setFilteredProducts(filtered);
+  }, [products, activeCategory, favorites, searchQuery]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -202,6 +222,10 @@ export default function HomePage() {
           .product-thumb { height: 140px; }
           .product-thumb-emoji { font-size: 60px !important; }
         }
+        .search-input:focus {
+          border-color: #F3760C !important;
+          box-shadow: 0 0 0 3px rgba(243,118,12,0.12);
+        }
       `}</style>
 
       {/* ─── MAIN CONTENT WRAPPER ─── */}
@@ -241,6 +265,50 @@ export default function HomePage() {
             <rect x="18" y="22" width="64" height="12" rx="6" fill="white" fillOpacity=".25"/>
             <path d="M60 8 L78 0 M78 0 a6 6 0 0 1 6 6 L84 28" stroke="white" strokeOpacity=".5" strokeWidth="6" strokeLinecap="round" fill="none"/>
           </svg>
+        </div>
+
+        {/* ─── SEARCH BAR ─── */}
+        <div style={{ position: 'relative', marginBottom: '16px' }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ابحث عن عصير، وجبة، بيتزا... 🔍"
+            style={{
+              width: '100%',
+              padding: '12px 16px 12px 42px',
+              borderRadius: '16px',
+              border: '1.5px solid #F0E1CC',
+              background: '#FFFFFF',
+              fontSize: '13px',
+              color: '#1B130D',
+              outline: 'none',
+              boxSizing: 'border-box',
+              fontFamily: "'Cairo', sans-serif",
+              textAlign: 'right',
+              transition: 'all 0.2s ease',
+            }}
+            className="search-input"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                left: '14px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                color: '#9C7A5A',
+                fontSize: '16px',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* ─── CATEGORY CHIPS ─── */}

@@ -117,20 +117,39 @@ export default function ProductsPage() {
     return hasSizes ? (selectedProduct.sizes[selectedSizeIdx]?.price ?? 0) : selectedProduct.price;
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const normQuery = searchQuery.trim().toLowerCase()
+    .replace(/[أإآا]/g, 'ا')
+    .replace(/[ة]/g, 'ه')
+    .replace(/[ىي]/g, 'ي')
+    .replace(/[\u064B-\u0652]/g, '');
+
+  const searchedProducts = normQuery === '' 
+    ? products 
+    : products.filter(p => {
+        const normName = (p.name || '').toLowerCase()
+          .replace(/[أإآا]/g, 'ا')
+          .replace(/[ة]/g, 'ه')
+          .replace(/[ىي]/g, 'ي')
+          .replace(/[\u064B-\u0652]/g, '');
+        return normName.includes(normQuery);
+      });
+
   // Group products by category
   const grouped = {};
   // "الكل" group first
-  const uncategorized = products.filter(p => !p.category || p.category.trim() === '');
+  const uncategorized = searchedProducts.filter(p => !p.category || p.category.trim() === '');
   if (uncategorized.length > 0) grouped['أخرى'] = uncategorized;
 
   categories.forEach(cat => {
-    const catProds = products.filter(p => p.category === cat);
+    const catProds = searchedProducts.filter(p => p.category === cat);
     if (catProds.length > 0) grouped[cat] = catProds;
   });
 
   // If no categories from DB, just show all
   const hasGrouped = Object.keys(grouped).length > 0;
-  const allProds = hasGrouped ? [] : products; // fallback
+  const allProds = hasGrouped ? [] : searchedProducts; // fallback
 
   const ProductCard = ({ p }) => {
     const hasSizes = p.sizes && p.sizes.length > 0;
@@ -287,6 +306,10 @@ export default function ProductsPage() {
         .modal-sheet { animation: sheetUp 0.3s cubic-bezier(.22,1,.36,1); }
         @keyframes sheetUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes pulse-load { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .search-input:focus {
+          border-color: #F3760C !important;
+          box-shadow: 0 0 0 3px rgba(243,118,12,0.12);
+        }
       `}</style>
 
       {/* Page Header */}
@@ -304,6 +327,50 @@ export default function ProductsPage() {
           }}>
             🍹 كل منتجاتنا
           </h1>
+        </div>
+
+        {/* ─── SEARCH BAR ─── */}
+        <div style={{ position: 'relative', marginBottom: '16px' }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ابحث عن عصير، وجبة، بيتزا... 🔍"
+            style={{
+              width: '100%',
+              padding: '12px 16px 12px 42px',
+              borderRadius: '16px',
+              border: '1.5px solid #F0E1CC',
+              background: '#FFFFFF',
+              fontSize: '13px',
+              color: '#1B130D',
+              outline: 'none',
+              boxSizing: 'border-box',
+              fontFamily: "'Cairo', sans-serif",
+              textAlign: 'right',
+              transition: 'all 0.2s ease',
+            }}
+            className="search-input"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                left: '14px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                color: '#9C7A5A',
+                fontSize: '16px',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Error */}
@@ -338,7 +405,7 @@ export default function ProductsPage() {
           <>
             {/* Favourites Section */}
             {(() => {
-              const favProducts = products.filter(p => favorites.includes(p.id || p._id));
+              const favProducts = searchedProducts.filter(p => favorites.includes(p.id || p._id));
               if (favProducts.length === 0) return null;
               return (
                 <div style={{ marginBottom: '28px' }}>
