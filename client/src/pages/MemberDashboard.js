@@ -1,16 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { supabase } from '../supabaseClient';
 import { Link, useNavigate } from 'react-router-dom';
 
 export default function MemberDashboard() {
   const { user, logout, verifyOtp } = useAuth();
+  const { addToCart } = useCart();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('orders');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Collapsible orders detail view
+  const [expandedOrders, setExpandedOrders] = useState({});
+  const toggleOrderDetails = (orderId) => {
+    setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
+  };
 
   // Sub-tab for orders ('active' or 'history')
   const [ordersSubTab, setOrdersSubTab] = useState('active');
@@ -183,6 +191,29 @@ export default function MemberDashboard() {
     }
   };
 
+  const handleReorder = (order) => {
+    if (!order.items || order.items.length === 0) return;
+    order.items.forEach(item => {
+      const productObj = {
+        id: item.productId || item.id,
+        name: item.name,
+        price: item.price,
+        image: item.image || ''
+      };
+      for (let i = 0; i < (item.quantity || 1); i++) {
+        addToCart(productObj, item.selectedSize || null, item.price);
+      }
+    });
+    setSuccessMsg('تمت إعادة إضافة جميع الأصناف إلى السلة بنجاح! 🛒✨');
+    setTimeout(() => setSuccessMsg(''), 4000);
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.origin);
+    setSuccessMsg('تم نسخ رابط المتجر! شاركه مع أصدقائك وعائلتك 🍉✨');
+    setTimeout(() => setSuccessMsg(''), 4000);
+  };
+
   const getStepIndex = (status) => {
     switch (status) {
       case 'قيد الانتظار': return 0;
@@ -287,32 +318,57 @@ export default function MemberDashboard() {
             {activeTab === 'orders' && (
               <div className="space-y-6">
                 
+                {/* 3 Top Cards / Shortcuts */}
+                <div className="grid grid-cols-3 gap-2.5 mb-6">
+                  {/* ملفي الشخصي */}
+                  <button 
+                    onClick={() => setActiveTab('settings')}
+                    className="bg-[#3A3029] hover:bg-[#4d4037] text-white p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10"
+                  >
+                    <span className="text-xl">🕶️</span>
+                    <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">ملفي الشخصي</span>
+                  </button>
+                  
+                  {/* قائمتي المفضلة */}
+                  <Link 
+                    to="/products"
+                    className="bg-[#3A3029] hover:bg-[#4d4037] text-white p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10 flex justify-center"
+                  >
+                    <span className="text-xl">⭐</span>
+                    <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">قائمتي المفضلة</span>
+                  </Link>
+                  
+                  {/* شاركنا مع أصدقائك */}
+                  <button 
+                    onClick={handleShare}
+                    className="bg-[#3A3029] hover:bg-[#4d4037] text-white p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10"
+                  >
+                    <span className="text-xl">🤝</span>
+                    <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">شاركنا مع أصدقائك</span>
+                  </button>
+                </div>
+
                 {/* Orders sub-tab switcher */}
-                <div className="flex gap-3 items-center bg-white p-2.5 rounded-2xl border border-slate-100 shadow-xs">
+                <div className="grid grid-cols-2 gap-3 mb-6">
                   <button
                     onClick={() => setOrdersSubTab('active')}
-                    className={`flex items-center gap-1.5 px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 ${
+                    className={`py-3 rounded-2xl font-black text-center text-xs sm:text-sm border-2 transition-all duration-200 ${
                       ordersSubTab === 'active'
-                        ? 'bg-emerald-600 text-white shadow'
-                        : 'bg-slate-50 text-slate-650 hover:bg-slate-100'
+                        ? 'bg-[#b8295b] border-[#b8295b] text-white shadow-md'
+                        : 'bg-white border-[#b8295b] text-[#b8295b] hover:bg-[#b8295b]/5'
                     }`}
                   >
-                    <span>⏳</span> الطلبات النشطة
-                    {orders.filter(o => o.status !== 'تم التوصيل' && o.status !== 'ملغي').length > 0 && (
-                      <span className="bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full font-black">
-                        {orders.filter(o => o.status !== 'تم التوصيل' && o.status !== 'ملغي').length}
-                      </span>
-                    )}
+                    الطلبات الحالية
                   </button>
                   <button
                     onClick={() => setOrdersSubTab('history')}
-                    className={`flex items-center gap-1.5 px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 ${
+                    className={`py-3 rounded-2xl font-black text-center text-xs sm:text-sm border-2 transition-all duration-200 ${
                       ordersSubTab === 'history'
-                        ? 'bg-slate-700 text-white shadow'
-                        : 'bg-slate-50 text-slate-650 hover:bg-slate-100'
+                        ? 'bg-[#b8295b] border-[#b8295b] text-white shadow-md'
+                        : 'bg-white border-[#b8295b] text-[#b8295b] hover:bg-[#b8295b]/5'
                     }`}
                   >
-                    <span>📜</span> سجل الطلبات السابقة
+                    الطلبات السابقة
                   </button>
                 </div>
 
@@ -324,7 +380,7 @@ export default function MemberDashboard() {
 
                   if (filteredOrders.length === 0) {
                     return (
-                      <div className="bg-white p-16 rounded-3xl border border-slate-100 shadow-sm text-center text-slate-500 space-y-3">
+                      <div className="bg-white p-12 rounded-3xl border border-slate-100 shadow-sm text-center text-slate-500 space-y-3">
                         <span className="text-5xl block">🍍</span>
                         <p className="font-extrabold text-lg">
                           {ordersSubTab === 'active' ? 'لا توجد طلبات نشطة حالياً' : 'سجل طلباتك السابقة فارغ'}
@@ -342,117 +398,120 @@ export default function MemberDashboard() {
                     const currentStep = getStepIndex(order.status);
                     const isCanceled = order.status === 'ملغي';
                     const isDelivered = order.status === 'تم التوصيل';
+                    const firstItem = order.items?.[0] || {};
+                    const itemsCount = order.items?.reduce((sum, it) => sum + (it.quantity || 1), 0) || 0;
+                    const isExpanded = !!expandedOrders[order.id];
                     
                     return (
-                      <div key={order.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden text-right transition hover:shadow-md">
-                        {/* Order Header Info */}
-                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono text-sm bg-slate-200 text-slate-800 px-3 py-1 rounded-xl font-bold">
-                              طلب رقم: #{order.order_number || order.id?.slice(0, 8)}
-                            </span>
-                            <span className="text-slate-400 text-xs font-semibold">| {new Date(order.created_at).toLocaleDateString('ar-EG', { dateStyle: 'long' })}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-slate-500 text-xs font-semibold">المبلغ الكلي: </span>
-                            <span className="font-black text-emerald-600 text-base">{order.total_amount} ج.س</span>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusBadgeColor(order.status)}`}>
-                              {order.status}
-                            </span>
+                      <div key={order.id} className="border border-[#F0E1CC] bg-white rounded-3xl p-5 mb-5 relative text-right flex flex-col gap-3.5 shadow-sm transition hover:shadow-md">
+                        {/* Top Row: Order Number + Star */}
+                        <div className="flex justify-between items-center">
+                          <span style={{ fontSize: '20px', color: '#b8295b', cursor: 'pointer' }}>☆</span>
+                          <div className="font-black text-[#F3760C] text-sm sm:text-base">
+                            رقم الطلب: {order.order_number || order.id?.slice(0, 8)}
                           </div>
                         </div>
 
-                        {/* Order Stepper / Status Banner */}
-                        <div className="p-6 border-b border-slate-100">
-                          {isCanceled ? (
-                            <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-center text-rose-700 font-bold flex items-center justify-center gap-2">
-                              <span>🚫</span>
-                              <span>تم إلغاء هذا الطلب ولا يمكن تتبعه.</span>
-                            </div>
-                          ) : isDelivered ? (
-                            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center text-emerald-700 font-bold flex items-center justify-center gap-2">
-                              <span>✅</span>
-                              <span>تم توصيل وتسليم هذا الطلب بنجاح. شكراً لطلبك من 50 فاكهة!</span>
-                            </div>
-                          ) : (
-                            <div className="relative flex flex-col md:flex-row justify-between items-center gap-8 md:gap-4 py-4 max-w-2xl mx-auto">
-                              
-                              {/* Horizontal connecting line for MD and above */}
-                              <div className="absolute top-[28px] left-0 right-0 h-1 bg-slate-200 hidden md:block z-0">
-                                <div 
-                                  className="h-full bg-emerald-500 transition-all duration-500" 
-                                  style={{ width: `${(currentStep / 3) * 100}%` }}
-                                ></div>
-                              </div>
-
-                              {/* Vertical connecting line for mobile (RTL right-aligned circles) */}
-                              <div className="absolute top-[28px] bottom-[28px] right-[28px] w-1 bg-slate-200 md:hidden z-0">
-                                <div 
-                                  className="w-full bg-emerald-500 transition-all duration-500" 
-                                  style={{ height: `${(currentStep / 3) * 100}%` }}
-                                ></div>
-                              </div>
-
-                              {/* Stepper Nodes */}
-                              {steps.map((step, idx) => {
-                                const isCompleted = idx <= currentStep;
-                                const isActive = idx === currentStep;
-
-                                return (
-                                  <div key={idx} className="flex flex-row md:flex-col items-center gap-4 md:gap-2 z-10 w-full md:w-auto">
-                                    {/* Circle Icon Container */}
-                                    <div 
-                                      className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shadow-md border-2 transition-all duration-300 ${
-                                        isActive 
-                                          ? 'bg-emerald-500 text-white border-emerald-400 scale-110 ring-4 ring-emerald-100 animate-pulse'
-                                          : isCompleted 
-                                            ? 'bg-emerald-100 text-emerald-700 border-emerald-300' 
-                                            : 'bg-white text-slate-400 border-slate-200'
-                                      }`}
-                                    >
-                                      {step.icon}
-                                    </div>
-                                    
-                                    {/* Step Label */}
-                                    <div className="text-right md:text-center">
-                                      <p className={`font-bold text-xs ${isCompleted ? 'text-slate-800' : 'text-slate-400'}`}>
-                                        {step.label}
-                                      </p>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Order Details Body */}
-                        <div className="p-6 bg-slate-50/30 grid grid-cols-1 md:grid-cols-2 gap-6 text-right">
-                          <div className="space-y-2">
-                            <h4 className="font-extrabold text-slate-800 text-sm">🚚 تفاصيل التوصيل:</h4>
-                            <p className="text-slate-600 text-xs"><span className="font-bold">العنوان:</span> {order.shipping_address}</p>
-                            <p className="text-slate-600 text-xs"><span className="font-bold">رقم الهاتف للطلب:</span> {order.phone}</p>
-                            {order.payment_method && (
-                              <p className="text-slate-600 text-xs">
-                                <span className="font-bold">طريقة الدفع:</span> {
-                                  order.payment_method === 'bank' ? 'تحويل بنكي 🏦' : 'الدفع عند الاستلام 💵'
-                                }
-                              </p>
+                        {/* Info Row: Count, Date, Status + Image */}
+                        <div className="flex justify-between items-center gap-4">
+                          {/* First Item Image (Left Side) */}
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#FFE3C2] flex items-center justify-center flex-shrink-0 border border-[#F0E1CC]/40">
+                            {firstItem.image ? (
+                              <img src={firstItem.image} alt={firstItem.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-3xl">🍹</span>
                             )}
                           </div>
-                          <div className="space-y-2">
-                            <h4 className="font-extrabold text-slate-800 text-sm">📋 الأصناف المطلوبة:</h4>
-                            <div className="text-xs space-y-1.5">
-                              {order.items?.map((it, idx) => (
-                                <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-100">
-                                  <span className="text-slate-800 font-bold">
-                                    {it.name} {it.selectedSize ? `(${it.selectedSize})` : ''}
-                                  </span>
-                                  <span className="text-slate-500 font-semibold"><span className="text-emerald-600 font-bold">{it.quantity}x</span> {it.price} ج.س</span>
-                                </div>
-                              ))}
+
+                          {/* Text Info (Right Side) */}
+                          <div className="flex-grow flex flex-col gap-0.5">
+                            <div className="font-extrabold text-sm text-[#1B130D]">
+                              {itemsCount} {itemsCount === 1 ? 'عنصر' : 'عناصر'}
+                            </div>
+                            <div className="text-[11px] text-[#9C7A5A] font-semibold">
+                              موعد الطلب: {new Date(order.created_at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                            </div>
+                            <div className="mt-1">
+                              <span className={`inline-block px-3 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadgeColor(order.status)}`}>
+                                {order.status}
+                              </span>
                             </div>
                           </div>
+                        </div>
+
+                        {/* Delivery Method / Address */}
+                        <div className="text-[11px] text-[#9C7A5A] font-semibold">
+                          {order.shipping_address ? `📍 التوصيل إلى: ${order.shipping_address}` : '🏪 الاستلام من الفرع'}
+                        </div>
+
+                        {/* Collapsible Details */}
+                        {isExpanded && (
+                          <div className="mt-2 pt-4 border-t border-dashed border-[#F0E1CC] flex flex-col gap-3">
+                            {/* Stepper Status (Only for active orders) */}
+                            {!isCanceled && !isDelivered && (
+                              <div className="py-2 border-b border-[#F0E1CC] overflow-x-auto">
+                                <div className="relative flex justify-between items-center gap-4 py-2 min-w-[280px] max-w-xl mx-auto">
+                                  {/* Horizontal line for MD */}
+                                  <div className="absolute top-[20px] left-0 right-0 h-1 bg-slate-200 z-0">
+                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(currentStep / 3) * 100}%` }}></div>
+                                  </div>
+                                  {/* Stepper Nodes */}
+                                  {steps.map((step, idx) => {
+                                    const isCompleted = idx <= currentStep;
+                                    const isActive = idx === currentStep;
+                                    return (
+                                      <div key={idx} className="flex flex-col items-center gap-1.5 z-10">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow border-2 transition-all duration-300 ${
+                                          isActive ? 'bg-emerald-500 text-white border-emerald-400 scale-105 ring-2 ring-emerald-100' : isCompleted ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-white text-slate-400 border-slate-200'
+                                        }`}>
+                                          {step.icon}
+                                        </div>
+                                        <p className={`font-bold text-[10px] ${isCompleted ? 'text-slate-800' : 'text-slate-400'}`}>{step.label}</p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Detailed Items list */}
+                            <div className="flex flex-col gap-2">
+                              <div className="font-extrabold text-[12px] text-[#1B130D]">📋 الأصناف بالتفصيل:</div>
+                              <div className="flex flex-col gap-1.5">
+                                {order.items?.map((it, idx) => (
+                                  <div key={idx} className="flex justify-between items-center bg-[#FFF7EC] p-2.5 rounded-xl border border-[#F0E1CC]">
+                                    <span className="font-bold text-[12px] text-[#1B130D]">
+                                      {it.name} {it.selectedSize ? `(${it.selectedSize})` : ''}
+                                    </span>
+                                    <span className="text-[11px] text-[#9C7A5A] font-bold">
+                                      <span className="text-[#F3760C] font-extrabold">{it.quantity}x</span> {it.price} ج.س
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Phone number */}
+                            <div className="text-[11px] text-[#6B5C4F] font-semibold">
+                              📞 رقم هاتف الطلب: <span className="font-mono font-bold text-slate-800">{order.phone}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Bottom Buttons Row */}
+                        <div className="flex gap-3 mt-1.5">
+                          <button
+                            onClick={() => toggleOrderDetails(order.id)}
+                            className="flex-1 py-2.5 rounded-xl bg-[#b8295b] hover:bg-[#a0224f] text-white border-none font-bold text-xs sm:text-sm cursor-pointer transition shadow-sm text-center"
+                          >
+                            {isExpanded ? 'إخفاء التفاصيل' : 'عرض التفاصيل'}
+                          </button>
+                          <button
+                            onClick={() => handleReorder(order)}
+                            className="flex-1 py-2.5 rounded-xl bg-white text-[#b8295b] border border-[#b8295b] hover:bg-[#b8295b]/5 font-bold text-xs sm:text-sm cursor-pointer transition text-center"
+                          >
+                            إعادة الطلب
+                          </button>
                         </div>
                       </div>
                     );
