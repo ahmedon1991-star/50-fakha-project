@@ -55,6 +55,58 @@ export default function CartPage() {
     fetchSettings();
   }, []);
 
+  const compressImage = (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                });
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Canvas compression error'));
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const grandTotal = totalAmount + deliveryFee;
 
   const handleCheckout = async (e) => {
@@ -89,12 +141,22 @@ export default function CartPage() {
       // 2. Upload Bank receipt if bank payment
       if (paymentMethod === 'bank' && receiptFile) {
         setUploadingReceipt(true);
-        const fileExt = receiptFile.name.split('.').pop();
+        let finalReceiptFile = receiptFile;
+        try {
+          finalReceiptFile = await compressImage(receiptFile, 1000, 1000, 0.7);
+        } catch (err) {
+          console.warn('Receipt compression failed, uploading original:', err);
+        }
+
+        const fileExt = finalReceiptFile.name.split('.').pop();
         const fileName = `receipts/${orderNumber}_receipt.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('product-images')
-          .upload(fileName, receiptFile);
+          .upload(fileName, finalReceiptFile, {
+            contentType: finalReceiptFile.type,
+            cacheControl: '31536000'
+          });
         
         if (uploadError) throw uploadError;
 
