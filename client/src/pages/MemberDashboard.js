@@ -1,27 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
 import { supabase } from '../supabaseClient';
 import { Link, useNavigate } from 'react-router-dom';
 
 export default function MemberDashboard() {
   const { user, logout, verifyOtp } = useAuth();
-  const { addToCart } = useCart();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('orders');
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-
-  // Collapsible orders detail view
-  const [expandedOrders, setExpandedOrders] = useState({});
-  const toggleOrderDetails = (orderId) => {
-    setExpandedOrders(prev => ({ ...prev, [orderId]: !prev[orderId] }));
-  };
-
-  // Sub-tab for orders ('active' or 'history')
-  const [ordersSubTab, setOrdersSubTab] = useState('active');
 
   // Delete Account State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -38,6 +25,13 @@ export default function MemberDashboard() {
   const [gender, setGender] = useState(user?.gender || '');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
+  // Phone OTP Update Modal State
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpToken, setOtpToken] = useState('');
+  const [tempPhone, setTempPhone] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+
   useEffect(() => {
     if (user) {
       setName(user.name || '');
@@ -47,39 +41,6 @@ export default function MemberDashboard() {
       setGender(user.gender || '');
     }
   }, [user]);
-  
-  // Phone OTP Update Modal State
-  const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpToken, setOtpToken] = useState('');
-  const [tempPhone, setTempPhone] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [otpLoading, setOtpLoading] = useState(false);
-
-  useEffect(() => {
-    if (activeTab === 'orders') {
-      fetchOrders();
-    }
-  }, [activeTab]);
-
-  const fetchOrders = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const { data, error: ordersErr } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (ordersErr) throw ordersErr;
-      setOrders(data || []);
-    } catch (err) {
-      console.error(err);
-      setError('تعذر تحميل طلباتك، يرجى المحاولة لاحقاً');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -138,23 +99,26 @@ export default function MemberDashboard() {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
-    setOtpError('');
-    
-    if (!phone.startsWith('+')) {
-      setError('يرجى كتابة الهاتف بالصيغة الدولية التي تبدأ بـ + (مثال: +201012345678)');
-      return;
-    }
-
     setLoading(true);
-    try {
-      // Trigger phone change OTP
-      const { error: phoneErr } = await supabase.auth.updateUser({ phone });
-      if (phoneErr) throw phoneErr;
 
-      setTempPhone(phone);
+    try {
+      const cleanPhone = phone.trim();
+      if (!cleanPhone.startsWith('+')) {
+        throw new Error('يجب كتابة رقم الهاتف بصيغة دولية تبدأ بعلامة + (مثال: +966558735605)');
+      }
+
+      const { error: authErr } = await supabase.auth.updateUser({
+        phone: cleanPhone
+      });
+      
+      if (authErr) throw authErr;
+
+      setTempPhone(cleanPhone);
+      setOtpError('');
+      setOtpToken('');
       setShowOtpModal(true);
     } catch (err) {
-      setError(err.message || 'خطأ أثناء طلب تغيير الهاتف، تأكد من صحة الرقم');
+      setError(err.message || 'فشل إرسال رمز تأكيد الهاتف');
     } finally {
       setLoading(false);
     }
@@ -166,10 +130,8 @@ export default function MemberDashboard() {
     setOtpLoading(true);
 
     try {
-      // Verify OTP (type 'phone_change' matches what is sent on updateUser({ phone }))
       await verifyOtp(tempPhone, otpToken, name);
       
-      // Update phone in profiles table as well
       const { error: dbErr } = await supabase
         .from('profiles')
         .update({ phone: tempPhone })
@@ -195,75 +157,38 @@ export default function MemberDashboard() {
     setDeleteError('');
     setDeleteLoading(true);
     try {
-      const { error } = await supabase.rpc('delete_user');
-      if (error) throw error;
-      await logout();
-      navigate('/login');
+      const { error: deleteErr } = await supabase.rpc('delete_user');
+      if (deleteErr) throw deleteErr;
+
+      setShowDeleteModal(false);
+      logout();
+      navigate('/register');
     } catch (err) {
-      setDeleteError(err.message || 'حدث خطأ أثناء محاولة حذف الحساب. يرجى التأكد من تشغيل SQL الخاص بالدالة في لوحة تحكم Supabase');
+      setDeleteError(err.message || 'حدث خطأ أثناء حذف الحساب، اتصل بالدعم.');
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  const handleReorder = (order) => {
-    if (!order.items || order.items.length === 0) return;
-    order.items.forEach(item => {
-      const productObj = {
-        id: item.productId || item.id,
-        name: item.name,
-        price: item.price,
-        image: item.image || ''
-      };
-      for (let i = 0; i < (item.quantity || 1); i++) {
-        addToCart(productObj, item.selectedSize || null, item.price);
-      }
-    });
-    setSuccessMsg('تمت إعادة إضافة جميع الأصناف إلى السلة بنجاح! 🛒✨');
-    setTimeout(() => setSuccessMsg(''), 4000);
+  const handleLogoutClick = () => {
+    logout();
+    navigate('/login');
   };
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.origin);
-    setSuccessMsg('تم نسخ رابط المتجر! شاركه مع أصدقائك وعائلتك 🍉✨');
-    setTimeout(() => setSuccessMsg(''), 4000);
+  // Get initials for avatar
+  const getInitials = (nameStr = '') => {
+    const parts = nameStr.trim().split(' ');
+    return parts.slice(0, 2).map(p => p[0]).join('');
   };
-
-  const getStepIndex = (status) => {
-    switch (status) {
-      case 'قيد الانتظار': return 0;
-      case 'تم التأكيد': return 1;
-      case 'قيد التوصيل': return 2;
-      case 'تم التوصيل': return 3;
-      default: return -1; // Canceled
-    }
-  };
-
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case 'قيد الانتظار': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'تم التأكيد': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'قيد التوصيل': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'تم التوصيل': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      default: return 'bg-rose-100 text-rose-800 border-rose-200';
-    }
-  };
-
-  const steps = [
-    { label: 'قيد الانتظار', icon: '⏳' },
-    { label: 'تم التأكيد', icon: '📋' },
-    { label: 'قيد التوصيل', icon: '🛵' },
-    { label: 'تم التوصيل', icon: '📦' }
-  ];
 
   return (
-    <div className="flex-1 min-h-screen bg-slate-50 pb-36 lg:pb-16">
+    <div className="flex-1 min-h-screen bg-slate-50 pb-36 lg:pb-16 text-right">
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-800 text-white p-8 shadow-md">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-right">
+        <div className="max-w-md mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-right">
           <div>
-            <h1 className="text-3xl font-black">حسابي الشخصي</h1>
-            <p className="text-emerald-100 text-sm mt-1">تتبع طلباتك وقم بإدارة إعدادات أمان حسابك</p>
+            <h1 className="text-3xl font-black" style={{ fontFamily: "'Cairo', sans-serif" }}>ملفي الشخصي</h1>
+            <p className="text-emerald-100 text-sm mt-1">تصفح بيانات حسابك الشخصي وقم بتحديثها بسهولة</p>
           </div>
           <div className="flex items-center gap-4">
             <Link 
@@ -272,45 +197,12 @@ export default function MemberDashboard() {
             >
               العودة للمتجر 🏪
             </Link>
-            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20">
-              <span className="text-2xl">👤</span>
-              <div className="text-right">
-                <p className="font-bold text-sm">{user?.name}</p>
-                <p className="text-xs text-emerald-200 font-mono">{user?.phone || user?.email}</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs Menu */}
-      <div className="bg-white border-b border-slate-200 sticky top-[60px] z-30 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 flex gap-2 sm:gap-6 overflow-x-auto whitespace-nowrap scrollbar-none">
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`py-4 px-3 font-extrabold text-sm border-b-4 transition-all duration-200 ${
-              activeTab === 'orders' 
-                ? 'border-[#b8295b] text-[#b8295b]' 
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            📦 تتبع طلباتي
-          </button>
-          <button
-            onClick={() => { setActiveTab('profile'); setIsEditingProfile(false); }}
-            className={`py-4 px-3 font-extrabold text-sm border-b-4 transition-all duration-200 ${
-              activeTab === 'profile' 
-                ? 'border-[#b8295b] text-[#b8295b]' 
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            👤 ملفي الشخصي
-          </button>
-        </div>
-      </div>
-
       {/* Main Container */}
-      <div className="max-w-4xl mx-auto p-4 md:p-6 mt-4">
+      <div className="max-w-md mx-auto p-4 md:p-6 mt-4">
         {error && (
           <div className="bg-rose-50 border-r-4 border-rose-500 text-rose-800 p-4 rounded-xl shadow-sm mb-6 font-semibold text-sm">
             ⚠️ {error}
@@ -322,466 +214,275 @@ export default function MemberDashboard() {
           </div>
         )}
 
-        {loading && activeTab === 'orders' ? (
-          <div className="flex flex-col items-center justify-center py-24 space-y-4">
-            <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-slate-500 font-medium">جاري تحميل طلباتك...</p>
-          </div>
-        ) : (
-          <>
-            {/* TAB 1: ORDER TRACKING */}
-            {activeTab === 'orders' && (
-              <div className="space-y-6">
-                
-                {/* Top Cards / Shortcuts */}
-                <div className="grid grid-cols-2 gap-2.5 mb-6">
-                  <button 
-                    onClick={() => { setActiveTab('profile'); setIsEditingProfile(false); }}
-                    className="bg-[#3A3029] hover:bg-[#4d4037] text-[#FFF7EC] p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10"
-                  >
-                    <span className="text-xl">👤</span>
-                    <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">ملفي الشخصي</span>
-                  </button>
-                  
-                  {/* قائمتي المفضلة */}
-                  <Link 
-                    to="/products?favorites=true"
-                    className="bg-[#3A3029] hover:bg-[#4d4037] text-white p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10 flex justify-center"
-                  >
-                    <span className="text-xl">⭐</span>
-                    <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">قائمتي المفضلة</span>
-                  </Link>
+        <div className="space-y-6">
+          {/* Profile Clean Summary Mode */}
+          {!isEditingProfile ? (
+            <div className="space-y-6">
+              {/* Top Avatar Card */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center space-y-4">
+                {/* Avatar Initials Circle */}
+                <div 
+                  className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-md"
+                  style={{ background: 'radial-gradient(circle, #F3760C 0%, #C95A06 100%)' }}
+                >
+                  {getInitials(user?.name)}
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                    {user?.name}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1 font-mono">{user?.email}</p>
+                </div>
+              </div>
+
+              {/* Profile Details List */}
+              <div className="space-y-3">
+                {/* 1. الاسم */}
+                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                  <div></div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-xs text-slate-400 font-bold block">الاسم</span>
+                      <span className="text-sm font-black text-slate-800 mt-1 block">{user?.name || '-'}</span>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                      👤
+                    </div>
+                  </div>
                 </div>
 
-                {/* Orders sub-tab switcher */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <button
-                    onClick={() => setOrdersSubTab('active')}
-                    className={`py-3 rounded-2xl font-black text-center text-xs sm:text-sm border-2 transition-all duration-200 ${
-                      ordersSubTab === 'active'
-                        ? 'bg-[#b8295b] border-[#b8295b] text-white shadow-md'
-                        : 'bg-white border-[#b8295b] text-[#b8295b] hover:bg-[#b8295b]/5'
-                    }`}
-                  >
-                    الطلبات الحالية
-                  </button>
-                  <button
-                    onClick={() => setOrdersSubTab('history')}
-                    className={`py-3 rounded-2xl font-black text-center text-xs sm:text-sm border-2 transition-all duration-200 ${
-                      ordersSubTab === 'history'
-                        ? 'bg-[#b8295b] border-[#b8295b] text-white shadow-md'
-                        : 'bg-white border-[#b8295b] text-[#b8295b] hover:bg-[#b8295b]/5'
-                    }`}
-                  >
-                    الطلبات السابقة
-                  </button>
+                {/* 2. رقم الهاتف */}
+                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                  <div>
+                    {user?.phone && (
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-xs text-slate-400 font-bold block">رقم الهاتف</span>
+                      <span className="text-sm font-black text-slate-800 mt-1 block font-mono" dir="ltr">{user?.phone || 'غير محدد'}</span>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                      📱
+                    </div>
+                  </div>
                 </div>
 
-                {(() => {
-                  const filteredOrders = orders.filter(o => {
-                    const isClosed = o.status === 'تم التوصيل' || o.status === 'ملغي';
-                    return ordersSubTab === 'history' ? isClosed : !isClosed;
-                  });
-
-                  if (filteredOrders.length === 0) {
-                    return (
-                      <div className="bg-white p-12 rounded-3xl border border-slate-100 shadow-sm text-center text-slate-500 space-y-3">
-                        <span className="text-5xl block">🍍</span>
-                        <p className="font-extrabold text-lg">
-                          {ordersSubTab === 'active' ? 'لا توجد طلبات نشطة حالياً' : 'سجل طلباتك السابقة فارغ'}
-                        </p>
-                        <p className="text-sm text-slate-400">
-                          {ordersSubTab === 'active' 
-                            ? 'توجه للمتجر واطلب ألذ المشروبات لتبدأ التتبع!'
-                            : 'كافة الطلبات التي تكتمل أو تُلغى ستظهر هنا كأرشيف لبياناتك.'}
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  return filteredOrders.map((order) => {
-                    const currentStep = getStepIndex(order.status);
-                    const isCanceled = order.status === 'ملغي';
-                    const isDelivered = order.status === 'تم التوصيل';
-                    const firstItem = order.items?.[0] || {};
-                    const itemsCount = order.items?.reduce((sum, it) => sum + (it.quantity || 1), 0) || 0;
-                    const isExpanded = !!expandedOrders[order.id];
-                    
-                    return (
-                      <div key={order.id} className="border border-[#F0E1CC] bg-white rounded-3xl p-5 mb-5 relative text-right flex flex-col gap-3.5 shadow-sm transition hover:shadow-md">
-                        {/* Top Row: Order Number + Star */}
-                        <div className="flex justify-between items-center">
-                          <span style={{ fontSize: '20px', color: '#b8295b', cursor: 'pointer' }}>☆</span>
-                          <div className="font-black text-[#F3760C] text-sm sm:text-base">
-                            رقم الطلب: {order.order_number || order.id?.slice(0, 8)}
-                          </div>
-                        </div>
-
-                        {/* Info Row: Count, Date, Status + Image */}
-                        <div className="flex justify-between items-center gap-4">
-                          {/* First Item Image (Left Side) */}
-                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[#FFE3C2] flex items-center justify-center flex-shrink-0 border border-[#F0E1CC]/40">
-                            {firstItem.image ? (
-                              <img src={firstItem.image} alt={firstItem.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-3xl">🍹</span>
-                            )}
-                          </div>
-
-                          {/* Text Info (Right Side) */}
-                          <div className="flex-grow flex flex-col gap-0.5">
-                            <div className="font-extrabold text-sm text-[#1B130D]">
-                              {itemsCount} {itemsCount === 1 ? 'عنصر' : 'عناصر'}
-                            </div>
-                            <div className="text-[11px] text-[#9C7A5A] font-semibold">
-                              موعد الطلب: {new Date(order.created_at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
-                            </div>
-                            <div className="mt-1">
-                              <span className={`inline-block px-3 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadgeColor(order.status)}`}>
-                                {order.status}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Delivery Method / Address */}
-                        <div className="text-[11px] text-[#9C7A5A] font-semibold">
-                          {order.shipping_address ? `📍 التوصيل إلى: ${order.shipping_address}` : '🏪 الاستلام من الفرع'}
-                        </div>
-
-                        {/* Collapsible Details */}
-                        {isExpanded && (
-                          <div className="mt-2 pt-4 border-t border-dashed border-[#F0E1CC] flex flex-col gap-3">
-                            {/* Stepper Status (Only for active orders) */}
-                            {!isCanceled && !isDelivered && (
-                              <div className="py-2 border-b border-[#F0E1CC] overflow-x-auto">
-                                <div className="relative flex justify-between items-center gap-4 py-2 min-w-[280px] max-w-xl mx-auto">
-                                  {/* Horizontal line for MD */}
-                                  <div className="absolute top-[20px] left-0 right-0 h-1 bg-slate-200 z-0">
-                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(currentStep / 3) * 100}%` }}></div>
-                                  </div>
-                                  {/* Stepper Nodes */}
-                                  {steps.map((step, idx) => {
-                                    const isCompleted = idx <= currentStep;
-                                    const isActive = idx === currentStep;
-                                    return (
-                                      <div key={idx} className="flex flex-col items-center gap-1.5 z-10">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow border-2 transition-all duration-300 ${
-                                          isActive ? 'bg-emerald-500 text-white border-emerald-400 scale-105 ring-2 ring-emerald-100' : isCompleted ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-white text-slate-400 border-slate-200'
-                                        }`}>
-                                          {step.icon}
-                                        </div>
-                                        <p className={`font-bold text-[10px] ${isCompleted ? 'text-slate-800' : 'text-slate-400'}`}>{step.label}</p>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Detailed Items list */}
-                            <div className="flex flex-col gap-2">
-                              <div className="font-extrabold text-[12px] text-[#1B130D]">📋 الأصناف بالتفصيل:</div>
-                              <div className="flex flex-col gap-1.5">
-                                {order.items?.map((it, idx) => (
-                                  <div key={idx} className="flex justify-between items-center bg-[#FFF7EC] p-2.5 rounded-xl border border-[#F0E1CC]">
-                                    <span className="font-bold text-[12px] text-[#1B130D]">
-                                      {it.name} {it.selectedSize ? `(${it.selectedSize})` : ''}
-                                    </span>
-                                    <span className="text-[11px] text-[#9C7A5A] font-bold">
-                                      <span className="text-[#F3760C] font-extrabold">{it.quantity}x</span> {it.price} ج.س
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Phone number */}
-                            <div className="text-[11px] text-[#6B5C4F] font-semibold">
-                              📞 رقم هاتف الطلب: <span className="font-mono font-bold text-slate-800">{order.phone}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Bottom Buttons Row */}
-                        <div className="flex gap-3 mt-1.5">
-                          <button
-                            onClick={() => toggleOrderDetails(order.id)}
-                            className="flex-1 py-2.5 rounded-xl bg-[#b8295b] hover:bg-[#a0224f] text-white border-none font-bold text-xs sm:text-sm cursor-pointer transition shadow-sm text-center"
-                          >
-                            {isExpanded ? 'إخفاء التفاصيل' : 'عرض التفاصيل'}
-                          </button>
-                          <button
-                            onClick={() => handleReorder(order)}
-                            className="flex-1 py-2.5 rounded-xl bg-white text-[#b8295b] border border-[#b8295b] hover:bg-[#b8295b]/5 font-bold text-xs sm:text-sm cursor-pointer transition text-center"
-                          >
-                            إعادة الطلب
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            )}
-
-            {/* TAB 2: PROFILE SUMMARY & EDITING */}
-            {activeTab === 'profile' && (
-              <div className="max-w-md mx-auto space-y-6">
-                
-                {/* Profile Clean Summary Mode */}
-                {!isEditingProfile ? (
-                  <div className="space-y-6">
-                    {/* Top Avatar Card */}
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center space-y-4">
-                      {/* Avatar Initials Circle */}
-                      <div 
-                        className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-md"
-                        style={{ background: 'radial-gradient(circle, #F3760C 0%, #C95A06 100%)' }}
-                      >
-                        {getInitials(user?.name)}
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-black text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                          {user?.name}
-                        </h2>
-                        <p className="text-xs text-slate-400 mt-1 font-mono">{user?.email}</p>
-                      </div>
+                {/* 3. تاريخ الميلاد */}
+                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                  <div></div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-xs text-slate-400 font-bold block">تاريخ الميلاد</span>
+                      <span className="text-sm font-black text-slate-800 mt-1 block font-mono">{user?.birthdate || 'غير محدد'}</span>
                     </div>
-
-                    {/* Profile Details List */}
-                    <div className="space-y-3">
-                      {/* 1. الاسم */}
-                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
-                        <div></div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="text-xs text-slate-400 font-bold block">الاسم</span>
-                            <span className="text-sm font-black text-slate-800 mt-1 block">{user?.name || '-'}</span>
-                          </div>
-                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
-                            👤
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 2. رقم الهاتف */}
-                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
-                        <div>
-                          {user?.phone && (
-                            <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="text-xs text-slate-400 font-bold block">رقم الهاتف</span>
-                            <span className="text-sm font-black text-slate-800 mt-1 block font-mono" dir="ltr">{user?.phone || 'غير محدد'}</span>
-                          </div>
-                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
-                            📱
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 3. تاريخ الميلاد */}
-                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
-                        <div></div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="text-xs text-slate-400 font-bold block">تاريخ الميلاد</span>
-                            <span className="text-sm font-black text-slate-800 mt-1 block font-mono">{user?.birthdate || 'غير محدد'}</span>
-                          </div>
-                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
-                            📅
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 4. البريد الإلكتروني */}
-                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
-                        <div>
-                          {user?.email && (
-                            <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="text-xs text-slate-400 font-bold block">البريد الإلكتروني</span>
-                            <span className="text-sm font-black text-slate-800 mt-1 block font-mono">{user?.email || '-'}</span>
-                          </div>
-                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
-                            ✉️
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 5. الجنس */}
-                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
-                        <div></div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="text-xs text-slate-400 font-bold block">الجنس</span>
-                            <span className="text-sm font-black text-slate-800 mt-1 block">{user?.gender || 'غير محدد'}</span>
-                          </div>
-                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
-                            🚻
-                          </div>
-                        </div>
-                      </div>
+                    <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                      📅
                     </div>
-
-                    {/* Action Button: Edit My Profile */}
-                    <button
-                      onClick={() => setIsEditingProfile(true)}
-                      className="w-full py-4 rounded-2xl text-white font-bold text-base cursor-pointer transition shadow-md duration-150 flex items-center justify-center gap-2"
-                      style={{ background: '#b8295b' }}
-                    >
-                      <span>✏️</span> تعديل ملفي الشخصي
-                    </button>
                   </div>
-                ) : (
-                  /* Profile Edit Form Mode */
-                  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-md text-right space-y-5">
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                      <button
-                        onClick={() => setIsEditingProfile(false)}
-                        className="text-xs font-bold text-slate-400 hover:text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl transition"
-                      >
-                        إلغاء ✕
-                      </button>
-                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                        <span>✏️</span>
-                        <span>تعديل ملفي الشخصي</span>
-                      </h3>
-                    </div>
+                </div>
 
-                    <form onSubmit={handleUpdateProfile} className="space-y-4">
-                      {/* Name */}
-                      <div>
-                        <label className="block text-slate-700 text-sm font-semibold mb-2">الاسم الكامل</label>
-                        <input
-                          type="text"
-                          required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium"
-                        />
-                      </div>
-
-                      {/* Email */}
-                      <div>
-                        <label className="block text-slate-700 text-sm font-semibold mb-2">البريد الإلكتروني</label>
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-left font-medium"
-                          dir="ltr"
-                        />
-                      </div>
-
-                      {/* Birth Date */}
-                      <div>
-                        <label className="block text-slate-700 text-sm font-semibold mb-2">تاريخ الميلاد</label>
-                        <input
-                          type="text"
-                          placeholder="مثال: 18/01/1991"
-                          value={birthdate}
-                          onChange={(e) => setBirthdate(e.target.value)}
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium"
-                        />
-                      </div>
-
-                      {/* Gender */}
-                      <div>
-                        <label className="block text-slate-700 text-sm font-semibold mb-2">الجنس</label>
-                        <select
-                          value={gender}
-                          onChange={(e) => setGender(e.target.value)}
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium bg-white"
-                        >
-                          <option value="">اختر الجنس</option>
-                          <option value="ذكر">ذكر</option>
-                          <option value="أنثى">أنثى</option>
-                        </select>
-                      </div>
-
-                      {/* New Password */}
-                      <div>
-                        <label className="block text-slate-700 text-sm font-semibold mb-2">كلمة المرور الجديدة (اختياري)</label>
-                        <input
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="اتركها فارغة إذا لم ترغب في التغيير"
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium"
-                          dir="ltr"
-                        />
-                      </div>
-
-                      {/* Save Changes Button */}
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-3 text-white font-bold rounded-2xl transition duration-200 shadow-md cursor-pointer flex items-center justify-center gap-2"
-                        style={{ background: '#b8295b' }}
-                      >
-                        💾 حفظ التغييرات
-                      </button>
-                    </form>
-
-                    {/* Phone settings form inline inside edit mode */}
-                    <div className="border-t border-slate-100 pt-5 mt-5 space-y-4">
-                      <h4 className="font-black text-slate-800 text-sm flex items-center gap-1.5">
-                        <span>📱</span> تحديث رقم الهاتف المؤكد
-                      </h4>
-                      <form onSubmit={handlePhoneUpdateSubmit} className="space-y-3">
-                        <input
-                          type="tel"
-                          required
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="+966 558735605"
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-left font-medium"
-                          dir="ltr"
-                        />
-                        <button
-                          type="submit"
-                          disabled={loading}
-                          className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition duration-200 shadow-sm text-xs"
-                        >
-                          طلب رمز تأكيد الهاتف الجديد ✉️
-                        </button>
-                      </form>
-                    </div>
-
-                    {/* Danger Zone: Delete Account */}
-                    <div className="border-t border-rose-100 pt-5 mt-5 space-y-3">
-                      <h4 className="font-black text-rose-800 text-sm flex items-center gap-1.5">
-                        <span>⚠️</span> منطقة الخطر
-                      </h4>
-                      <p className="text-[11px] text-slate-400">سيتم مسح حسابك وكافة بيانات الطلبات نهائياً.</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDeleteConfirmText('');
-                          setDeleteError('');
-                          setShowDeleteModal(true);
-                        }}
-                        className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 transition text-xs"
-                      >
-                        حذف الحساب نهائياً 🚨
-                      </button>
-                    </div>
-
+                {/* 4. البريد الإلكتروني */}
+                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                  <div>
+                    {user?.email && (
+                      <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span>
+                    )}
                   </div>
-                )}
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-xs text-slate-400 font-bold block">البريد الإلكتروني</span>
+                      <span className="text-sm font-black text-slate-800 mt-1 block font-mono">{user?.email || '-'}</span>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                      ✉️
+                    </div>
+                  </div>
+                </div>
 
+                {/* 5. الجنس */}
+                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                  <div></div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-xs text-slate-400 font-bold block">الجنس</span>
+                      <span className="text-sm font-black text-slate-800 mt-1 block">{user?.gender || 'غير محدد'}</span>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                      🚻
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. تسجيل الخروج كخيار في القائمة */}
+                <div 
+                  onClick={handleLogoutClick}
+                  className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right cursor-pointer hover:bg-rose-50/50 transition duration-150"
+                >
+                  <div>
+                    <span className="text-xs text-rose-500 font-bold font-mono">←</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-xs text-slate-400 font-bold block">خيارات الحساب</span>
+                      <span className="text-sm font-black text-rose-600 mt-1 block">تسجيل الخروج</span>
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 text-lg flex-shrink-0 animate-pulse">
+                      🚪
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-          </>
-        )}
+
+              {/* Action Button: Edit My Profile */}
+              <button
+                onClick={() => setIsEditingProfile(true)}
+                className="w-full py-4 rounded-2xl text-white font-bold text-base cursor-pointer transition shadow-md duration-150 flex items-center justify-center gap-2"
+                style={{ background: '#b8295b' }}
+              >
+                <span>✏️</span> تعديل ملفي الشخصي
+              </button>
+            </div>
+          ) : (
+            /* Profile Edit Form Mode */
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-md text-right space-y-5">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <button
+                  onClick={() => setIsEditingProfile(false)}
+                  className="text-xs font-bold text-slate-400 hover:text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl transition"
+                >
+                  إلغاء ✕
+                </button>
+                <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                  <span>✏️</span>
+                  <span>تعديل ملفي الشخصي</span>
+                </h3>
+              </div>
+
+              <form onSubmit={handleUpdateProfile} className="space-y-4">
+                {/* Name */}
+                <div>
+                  <label className="block text-slate-700 text-sm font-semibold mb-2">الاسم الكامل</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium"
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-slate-700 text-sm font-semibold mb-2">البريد الإلكتروني</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-left font-medium"
+                    dir="ltr"
+                  />
+                </div>
+
+                {/* Birth Date */}
+                <div>
+                  <label className="block text-slate-700 text-sm font-semibold mb-2">تاريخ الميلاد</label>
+                  <input
+                    type="text"
+                    placeholder="مثال: 18/01/1991"
+                    value={birthdate}
+                    onChange={(e) => setBirthdate(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium"
+                  />
+                </div>
+
+                {/* Gender */}
+                <div>
+                  <label className="block text-slate-700 text-sm font-semibold mb-2">الجنس</label>
+                  <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium bg-white"
+                  >
+                    <option value="">اختر الجنس</option>
+                    <option value="ذكر">ذكر</option>
+                    <option value="أنثى">أنثى</option>
+                  </select>
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label className="block text-slate-700 text-sm font-semibold mb-2">كلمة المرور الجديدة (اختياري)</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="اتركها فارغة إذا لم ترغب في التغيير"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium"
+                    dir="ltr"
+                  />
+                </div>
+
+                {/* Save Changes Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 text-white font-bold rounded-2xl transition duration-200 shadow-md cursor-pointer flex items-center justify-center gap-2"
+                  style={{ background: '#b8295b' }}
+                >
+                  💾 حفظ التغييرات
+                </button>
+              </form>
+
+              {/* Phone settings form inline inside edit mode */}
+              <div className="border-t border-slate-100 pt-5 mt-5 space-y-4">
+                <h4 className="font-black text-slate-800 text-sm flex items-center gap-1.5">
+                  <span>📱</span> تحديث رقم الهاتف المؤكد
+                </h4>
+                <form onSubmit={handlePhoneUpdateSubmit} className="space-y-3">
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+966 558735605"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-left font-medium"
+                    dir="ltr"
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition duration-200 shadow-sm text-xs"
+                  >
+                    طلب رمز تأكيد الهاتف الجديد ✉️
+                  </button>
+                </form>
+              </div>
+
+              {/* Danger Zone: Delete Account */}
+              <div className="border-t border-rose-100 pt-5 mt-5 space-y-3">
+                <h4 className="font-black text-rose-800 text-sm flex items-center gap-1.5">
+                  <span>⚠️</span> منطقة الخطر
+                </h4>
+                <p className="text-[11px] text-slate-400">سيتم مسح حسابك وكافة بيانات الطلبات نهائياً.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteConfirmText('');
+                    setDeleteError('');
+                    setShowDeleteModal(true);
+                  }}
+                  className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 transition text-xs"
+                >
+                  حذف الحساب نهائياً 🚨
+                </button>
+              </div>
+
+            </div>
+          )}
+        </div>
       </div>
 
       {/* PHONE OTP VERIFICATION MODAL */}
@@ -833,7 +534,7 @@ export default function MemberDashboard() {
                 <button
                   type="submit"
                   disabled={otpLoading}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow"
+                  className="px-6 py-2 bg-[#b8295b] hover:bg-[#c93024] text-white rounded-xl font-bold transition shadow"
                 >
                   {otpLoading ? 'جاري التحقق...' : 'تأكيد وحفظ الهاتف 📱'}
                 </button>

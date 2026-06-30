@@ -187,7 +187,7 @@ export default function Navbar() {
                 </Link>
 
                 {/* 3. طلباتي السابقة */}
-                <Link to="/profile" onClick={() => setDrawerOpen(false)} className="drawer-link">
+                <Link to="/orders" onClick={() => setDrawerOpen(false)} className="drawer-link">
                   طلباتي السابقة
                 </Link>
 
