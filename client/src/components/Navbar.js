@@ -1,13 +1,37 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
 
 export default function Navbar() {
   const { totalItems } = useCart();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactInfo, setContactInfo] = useState({ phone: '', email: '' });
+
+  useEffect(() => {
+    const fetchContactInfo = async () => {
+      try {
+        const { data } = await supabase
+          .from('app_settings')
+          .select('whatsapp_phone, bank_name')
+          .eq('id', 2)
+          .maybeSingle();
+        if (data) {
+          setContactInfo({
+            phone: data.whatsapp_phone || '',
+            email: data.bank_name || ''
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching contact info:', err);
+      }
+    };
+    fetchContactInfo();
+  }, [showContactModal]);
 
   const handleLogout = () => {
     setDrawerOpen(false);
@@ -201,6 +225,17 @@ export default function Navbar() {
                   حذف الحساب
                 </Link>
 
+                {/* 6. تواصل معنا */}
+                <button
+                  onClick={() => {
+                    setDrawerOpen(false);
+                    setShowContactModal(true);
+                  }}
+                  className="drawer-link text-right w-full flex items-center justify-between"
+                >
+                  <span>📞 تواصل معنا</span>
+                </button>
+
                 {/* 6. دخول الإدارة (Admins only) */}
                 {user.isAdmin && (
                   <Link 
@@ -226,6 +261,117 @@ export default function Navbar() {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ─── CONTACT US MODAL ─── */}
+      {showContactModal && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" 
+          style={{ zIndex: 300 }}
+          onClick={() => setShowContactModal(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-sm w-full overflow-hidden text-right transform scale-100 transition-all duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-800 text-white p-5 flex justify-between items-center">
+              <h3 className="text-lg font-black" style={{ fontFamily: "'Cairo', sans-serif" }}>📞 تواصل معنا</h3>
+              <button 
+                onClick={() => setShowContactModal(false)}
+                className="text-emerald-100 hover:text-white text-xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              <p className="text-xs text-slate-400 font-bold text-center">
+                يسعدنا دائماً تواصلكم معنا والإجابة على استفساراتكم
+              </p>
+
+              <div className="space-y-4">
+                {/* Phone Card */}
+                {contactInfo.phone && (
+                  <a 
+                    href={`tel:${contactInfo.phone}`}
+                    className="flex items-center justify-between p-4 bg-slate-50 hover:bg-emerald-50/50 rounded-2xl border border-slate-100 transition duration-150 text-right text-decoration-none block"
+                  >
+                    <span className="text-xs text-emerald-600 font-bold">اتصال 📞</span>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 font-bold block">رقم الهاتف</span>
+                        <span className="text-sm font-black text-slate-800 mt-0.5 block font-mono" dir="ltr">
+                          {contactInfo.phone}
+                        </span>
+                      </div>
+                      <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 text-base">
+                        📞
+                      </div>
+                    </div>
+                  </a>
+                )}
+
+                {/* Email Card */}
+                {contactInfo.email && (
+                  <a 
+                    href={`mailto:${contactInfo.email}`}
+                    className="flex items-center justify-between p-4 bg-slate-50 hover:bg-blue-50/50 rounded-2xl border border-slate-100 transition duration-150 text-right text-decoration-none block"
+                  >
+                    <span className="text-xs text-blue-600 font-bold">إرسال ✉️</span>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 font-bold block">البريد الإلكتروني</span>
+                        <span className="text-sm font-black text-slate-800 mt-0.5 block font-mono">
+                          {contactInfo.email}
+                        </span>
+                      </div>
+                      <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center text-blue-650 text-base">
+                        ✉️
+                      </div>
+                    </div>
+                  </a>
+                )}
+
+                {/* WhatsApp Chat Option */}
+                {contactInfo.phone && (
+                  <a 
+                    href={`https://wa.me/${contactInfo.phone.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-4 bg-slate-50 hover:bg-green-50/50 rounded-2xl border border-slate-100 transition duration-150 text-right text-decoration-none block"
+                  >
+                    <span className="text-xs text-green-600 font-bold">دردشة 💬</span>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 font-bold block">واتساب</span>
+                        <span className="text-sm font-black text-slate-800 mt-0.5 block">المحادثة الفورية</span>
+                      </div>
+                      <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center text-green-600 text-base">
+                        💬
+                      </div>
+                    </div>
+                  </a>
+                )}
+
+                {!contactInfo.phone && !contactInfo.email && (
+                  <div className="text-center py-6 text-slate-400">
+                    <span className="text-3xl block mb-2">📭</span>
+                    <p className="text-xs font-bold">لم تقم الإدارة بإضافة معلومات التواصل بعد</p>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={() => setShowContactModal(false)}
+                className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-2xl transition duration-150 text-xs text-center"
+              >
+                إغلاق النافذة
+              </button>
+            </div>
           </div>
         </div>
       )}

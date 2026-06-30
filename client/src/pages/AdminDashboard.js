@@ -63,6 +63,8 @@ export default function AdminDashboard() {
 
   // Settings State
   const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [bankHolderName, setBankHolderName] = useState('');
@@ -572,7 +574,7 @@ export default function AdminDashboard() {
   // ===== SETTINGS HANDLERS =====
   const fetchAppSettings = async () => {
     try {
-      const { data } = await supabase.from('app_settings').select('*').single();
+      const { data } = await supabase.from('app_settings').select('*').eq('id', 1).maybeSingle();
       if (data) {
         setWhatsappPhone(data.whatsapp_phone || '');
         setBankName(data.bank_name || '');
@@ -580,6 +582,12 @@ export default function AdminDashboard() {
         setBankHolderName(data.bank_holder_name || '');
         setDeliveryFee(data.delivery_fee !== undefined && data.delivery_fee !== null ? String(data.delivery_fee) : '15');
         setAcceptingOrders(data.accepting_orders ?? true);
+      }
+
+      const { data: contactData } = await supabase.from('app_settings').select('*').eq('id', 2).maybeSingle();
+      if (contactData) {
+        setContactPhone(contactData.whatsapp_phone || '');
+        setContactEmail(contactData.bank_name || '');
       }
     } catch (err) { console.error('Settings fetch error:', err); }
   };
@@ -645,7 +653,16 @@ export default function AdminDashboard() {
         updated_at: new Date().toISOString()
       });
       if (error) throw error;
-      setSettingsSuccess('تم حفظ الإعدادات بنجاح ✅');
+
+      const { error: contactErr } = await supabase.from('app_settings').upsert({
+        id: 2,
+        whatsapp_phone: contactPhone,
+        bank_name: contactEmail,
+        updated_at: new Date().toISOString()
+      });
+      if (contactErr) throw contactErr;
+
+      setSettingsSuccess('تم حفظ الإعدادات ومعلومات التواصل بنجاح ✅');
     } catch (err) { setSettingsError(err.message || 'خطأ أثناء حفظ الإعدادات'); }
     finally { setSettingsLoading(false); }
   };
@@ -1538,6 +1555,34 @@ export default function AdminDashboard() {
                           value={whatsappPhone}
                           onChange={e => setWhatsappPhone(e.target.value)}
                           placeholder="249912345678"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-left"
+                          dir="ltr"
+                        />
+                      </div>
+
+                      {/* Customer Contact Phone */}
+                      <div className="space-y-1">
+                        <label className="block text-sm font-bold text-slate-700">📞 رقم هاتف تواصل العملاء</label>
+                        <p className="text-xs text-slate-400">مثال: +966558735605</p>
+                        <input
+                          type="text"
+                          value={contactPhone}
+                          onChange={e => setContactPhone(e.target.value)}
+                          placeholder="+966558735605"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-left"
+                          dir="ltr"
+                        />
+                      </div>
+
+                      {/* Customer Contact Email */}
+                      <div className="space-y-1">
+                        <label className="block text-sm font-bold text-slate-700">✉️ البريد الإلكتروني للتواصل</label>
+                        <p className="text-xs text-slate-400">مثال: info@50fakha.com</p>
+                        <input
+                          type="email"
+                          value={contactEmail}
+                          onChange={e => setContactEmail(e.target.value)}
+                          placeholder="info@50fakha.com"
                           className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-left"
                           dir="ltr"
                         />
