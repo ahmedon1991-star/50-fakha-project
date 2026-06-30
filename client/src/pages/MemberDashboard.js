@@ -345,7 +345,7 @@ export default function MemberDashboard() {
                   
                   {/* قائمتي المفضلة */}
                   <Link 
-                    to="/products"
+                    to="/products?favorites=true"
                     className="bg-[#3A3029] hover:bg-[#4d4037] text-white p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10 flex justify-center"
                   >
                     <span className="text-xl">⭐</span>

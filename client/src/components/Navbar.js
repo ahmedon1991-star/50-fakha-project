@@ -182,7 +182,7 @@ export default function Navbar() {
                 </Link>
 
                 {/* 2. قائمتي المفضلة */}
-                <Link to="/products" onClick={() => setDrawerOpen(false)} className="drawer-link">
+                <Link to="/products?favorites=true" onClick={() => setDrawerOpen(false)} className="drawer-link">
                   قائمتي المفضلة
                 </Link>
 

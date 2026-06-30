@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCart } from '../context/CartContext';
+import { useLocation, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 const CATEGORY_EMOJI = {
@@ -45,6 +46,8 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(() => products.length === 0);
   const [error, setError] = useState('');
   const { addToCart } = useCart();
+  const location = useLocation();
+  const showOnlyFavorites = new URLSearchParams(location.search).get('favorites') === 'true';
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSizeIdx, setSelectedSizeIdx] = useState(0);
 
@@ -318,14 +321,20 @@ export default function ProductsPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           marginBottom: '20px',
         }}>
-          <span style={{ fontSize: '13px', color: '#9C7A5A' }}>
-            {products.length} منتج
-          </span>
+          {showOnlyFavorites ? (
+            <Link to="/products" style={{ fontSize: '13px', color: '#b8295b', fontWeight: 700, textDecoration: 'none' }} className="hover:underline">
+              ← عرض كل المنتجات
+            </Link>
+          ) : (
+            <span style={{ fontSize: '13px', color: '#9C7A5A' }}>
+              {products.length} منتج
+            </span>
+          )}
           <h1 style={{
             fontFamily: "'Cairo', sans-serif",
             fontSize: '20px', fontWeight: 900, color: '#1B130D',
           }}>
-            🍹 كل منتجاتنا
+            {showOnlyFavorites ? '❤️ قائمتي المفضلة' : '🍹 كل منتجاتنا'}
           </h1>
         </div>
 
@@ -403,85 +412,127 @@ export default function ProductsPage() {
 
         {!loading && !error && (
           <>
-            {/* Favourites Section */}
-            {(() => {
-              const favProducts = searchedProducts.filter(p => favorites.includes(p.id || p._id));
-              if (favProducts.length === 0) return null;
-              return (
-                <div style={{ marginBottom: '28px' }}>
-                  {/* Category Header */}
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    marginBottom: '12px',
-                  }}>
-                    <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
+            {showOnlyFavorites ? (
+              (() => {
+                const favProducts = searchedProducts.filter(p => favorites.includes(p.id || p._id));
+                if (favProducts.length === 0) {
+                  return (
                     <div style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      background: '#C95A06', color: '#FFF7EC',
-                      padding: '6px 16px', borderRadius: '999px',
-                      fontFamily: "'Cairo', sans-serif",
-                      fontSize: '13px', fontWeight: 800,
+                      background: '#FFFFFF', borderRadius: '20px',
+                      border: '1px solid #F0E1CC', padding: '40px',
+                      textAlign: 'center',
                     }}>
-                      <span>❤️</span>
-                      <span>قائمتي المفضلة</span>
-                      <span style={{
-                        background: '#1B130D', color: 'white',
-                        fontSize: '9px', fontWeight: 800,
-                        padding: '1px 6px', borderRadius: '999px',
-                      }}>{favProducts.length}</span>
+                      <div style={{ fontSize: '48px', marginBottom: '10px' }}>🤍</div>
+                      <div style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, color: '#1B130D', fontSize: '15px' }}>
+                        لم تقم بإضافة أي منتجات للمفضلة بعد
+                      </div>
+                      <p style={{ fontSize: '12px', color: '#9C7A5A', marginTop: '4px', marginBottom: '20px' }}>
+                        استكشف قائمتنا المميزة وأضف أفضل المشروبات والوجبات إلى مفضلتك
+                      </p>
+                      <Link
+                        to="/products"
+                        style={{
+                          display: 'inline-block',
+                          background: '#b8295b', color: 'white',
+                          padding: '10px 24px', borderRadius: '14px',
+                          fontWeight: 700, textDecoration: 'none',
+                          fontSize: '13px',
+                        }}
+                      >
+                        استكشف المنتجات 🍹
+                      </Link>
                     </div>
-                    <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
-                  </div>
-
-                  {/* Favorite Products Grid */}
+                  );
+                }
+                return (
                   <div className="product-grid">
                     {favProducts.map(p => <ProductCard key={p.id || p._id} p={p} />)}
                   </div>
-                </div>
-              );
-            })()}
-
-            {hasGrouped ? (
-              Object.entries(grouped).map(([catName, catProducts]) => (
-                <div key={catName} style={{ marginBottom: '28px' }}>
-                  {/* Category Header */}
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    marginBottom: '12px',
-                  }}>
-                    <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      background: '#1B130D', color: '#FFF7EC',
-                      padding: '6px 16px', borderRadius: '999px',
-                      fontFamily: "'Cairo', sans-serif",
-                      fontSize: '13px', fontWeight: 800,
-                    }}>
-                      <span>{CATEGORY_EMOJI[catName] || '🍹'}</span>
-                      <span>{catName}</span>
-                      <span style={{
-                        background: '#F3760C', color: 'white',
-                        fontSize: '9px', fontWeight: 800,
-                        padding: '1px 6px', borderRadius: '999px',
-                      }}>{catProducts.length}</span>
-                    </div>
-                    <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
-                  </div>
-
-                  {/* Category Products */}
-                  <div className="product-grid">
-                    {catProducts.map(p => <ProductCard key={p.id || p._id} p={p} />)}
-                  </div>
-                </div>
-              ))
+                );
+              })()
             ) : (
-              // Fallback: no categories in DB, show all flat
-              <div className="product-grid">
-                {allProds.map(p => <ProductCard key={p.id || p._id} p={p} />)}
-              </div>
+              <>
+                {/* Favourites Section */}
+                {(() => {
+                  const favProducts = searchedProducts.filter(p => favorites.includes(p.id || p._id));
+                  if (favProducts.length === 0) return null;
+                  return (
+                    <div style={{ marginBottom: '28px' }}>
+                      {/* Category Header */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        marginBottom: '12px',
+                      }}>
+                        <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          background: '#C95A06', color: '#FFF7EC',
+                          padding: '6px 16px', borderRadius: '999px',
+                          fontFamily: "'Cairo', sans-serif",
+                          fontSize: '13px', fontWeight: 800,
+                        }}>
+                          <span>❤️</span>
+                          <span>قائمتي المفضلة</span>
+                          <span style={{
+                            background: '#1B130D', color: 'white',
+                            fontSize: '9px', fontWeight: 800,
+                            padding: '1px 6px', borderRadius: '999px',
+                          }}>{favProducts.length}</span>
+                        </div>
+                        <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
+                      </div>
+
+                      {/* Favorite Products Grid */}
+                      <div className="product-grid">
+                        {favProducts.map(p => <ProductCard key={p.id || p._id} p={p} />)}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {hasGrouped ? (
+                  Object.entries(grouped).map(([catName, catProducts]) => (
+                    <div key={catName} style={{ marginBottom: '28px' }}>
+                      {/* Category Header */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        marginBottom: '12px',
+                      }}>
+                        <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          background: '#1B130D', color: '#FFF7EC',
+                          padding: '6px 16px', borderRadius: '999px',
+                          fontFamily: "'Cairo', sans-serif",
+                          fontSize: '13px', fontWeight: 800,
+                        }}>
+                          <span>{CATEGORY_EMOJI[catName] || '🍹'}</span>
+                          <span>{catName}</span>
+                          <span style={{
+                            background: '#F3760C', color: 'white',
+                            fontSize: '9px', fontWeight: 800,
+                            padding: '1px 6px', borderRadius: '999px',
+                          }}>{catProducts.length}</span>
+                        </div>
+                        <div style={{ flex: 1, height: '1px', background: '#F0E1CC' }} />
+                      </div>
+
+                      {/* Category Products */}
+                      <div className="product-grid">
+                        {catProducts.map(p => <ProductCard key={p.id || p._id} p={p} />)}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  // Fallback: no categories in DB, show all flat
+                  <div className="product-grid">
+                    {allProds.map(p => <ProductCard key={p.id || p._id} p={p} />)}
+                  </div>
+                )}
+              </>
             )}
 
-            {products.length === 0 && (
+            {!showOnlyFavorites && products.length === 0 && (
               <div style={{
                 background: '#FFFFFF', borderRadius: '20px',
                 border: '1px solid #F0E1CC', padding: '40px',
