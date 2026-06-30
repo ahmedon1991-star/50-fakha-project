@@ -402,7 +402,7 @@ export default function HomePage() {
               const hasSizes = p.sizes && p.sizes.length > 0;
               const minPrice = hasSizes ? Math.min(...p.sizes.map(s => s.price)) : p.price;
               const emoji = getProductEmoji(p);
-              const isNew = p.is_new || (p.tag === 'جديد');
+              const isNew = p.is_new || p.tag === 'جديد' || p.category === 'أصناف جديدة' || p.category === 'اصناف جديده';
               const isFamous = p.is_famous || (p.tag === 'الأشهر');
 
               return (

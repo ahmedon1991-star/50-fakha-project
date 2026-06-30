@@ -158,6 +158,8 @@ export default function ProductsPage() {
     const hasSizes = p.sizes && p.sizes.length > 0;
     const minPrice = hasSizes ? Math.min(...p.sizes.map(s => s.price)) : p.price;
     const emoji = getProductEmoji(p);
+    const isFamous = p.is_famous || p.tag === 'الأشهر';
+    const isNew = p.is_new || p.tag === 'جديد' || p.category === 'أصناف جديدة' || p.category === 'اصناف جديده';
 
     return (
       <div
@@ -200,7 +202,7 @@ export default function ProductsPage() {
             </span>
           </button>
 
-          {(p.is_famous || p.tag === 'الأشهر') && (
+          {isFamous && (
             <span style={{
               position: 'absolute', top: '8px', right: '8px',
               background: '#3B7A3E', color: 'white',
@@ -208,7 +210,7 @@ export default function ProductsPage() {
               padding: '3px 8px', borderRadius: '999px',
             }}>الأشهر</span>
           )}
-          {(p.is_new || p.tag === 'جديد') && !(p.is_famous || p.tag === 'الأشهر') && (
+          {isNew && !isFamous && (
             <span style={{
               position: 'absolute', top: '8px', right: '8px',
               background: '#3B7A3E', color: 'white',
@@ -216,7 +218,7 @@ export default function ProductsPage() {
               padding: '3px 8px', borderRadius: '999px',
             }}>جديد</span>
           )}
-          {hasSizes && !(p.is_famous || p.tag === 'الأشهر') && !(p.is_new || p.tag === 'جديد') && (
+          {hasSizes && !isFamous && !isNew && (
             <span style={{
               position: 'absolute', bottom: '8px', left: '8px',
               background: '#F3760C', color: 'white',
