@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 
 export default function HomePage() {
+  const { user } = useAuth();
   const [products, setProducts] = useState(() => {
     try {
       const cached = localStorage.getItem('cached_products');
@@ -15,9 +17,9 @@ export default function HomePage() {
   const [categories, setCategories] = useState(() => {
     try {
       const cached = localStorage.getItem('cached_categories');
-      return cached ? JSON.parse(cached) : ['الكل', 'عصائر طازجة', 'سلطات فواكه', 'حلويات', 'أخرى'];
+      return cached ? JSON.parse(cached) : ['الكل'];
     } catch (e) {
-      return ['الكل', 'عصائر طازجة', 'سلطات فواكه', 'حلويات', 'أخرى'];
+      return ['الكل'];
     }
   });
   const [activeCategory, setActiveCategory] = useState('الكل');
@@ -29,7 +31,6 @@ export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSizeIdx, setSelectedSizeIdx] = useState(0);
 
-  // Sync filtered products dynamically whenever products list or active category changes
   useEffect(() => {
     if (activeCategory === 'الكل') {
       setFilteredProducts(products);
@@ -41,49 +42,42 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Fetch products from Supabase
         const { data: prodData, error: prodErr } = await supabase
           .from('products')
           .select('*')
           .eq('available', true)
           .order('created_at', { ascending: false });
-        
+
         if (prodErr) throw prodErr;
-        
+
         const freshProducts = prodData || [];
         setProducts(freshProducts);
         localStorage.setItem('cached_products', JSON.stringify(freshProducts));
 
-        // 2. Fetch categories from Supabase
         const { data: catData, error: catErr } = await supabase
           .from('categories')
           .select('name')
           .order('name', { ascending: true });
-        
+
         if (!catErr && catData && catData.length > 0) {
           const freshCategories = ['الكل', ...catData.map(c => c.name)];
           setCategories(freshCategories);
           localStorage.setItem('cached_categories', JSON.stringify(freshCategories));
         }
-        
+
         setError('');
       } catch (err) {
         console.error(err);
-        // Only show error if we have no cached data at all (prevent breaking offline experience)
         if (products.length === 0) {
-          setError('تعذر تحميل البيانات حالياً. يرجى التأكد من الاتصال بالإنترنت.');
+          setError('تعذر تحميل البيانات. يرجى التأكد من الاتصال بالإنترنت.');
         }
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, []); // eslint-disable-line
-
-  const handleCategoryChange = (category) => {
-    setActiveCategory(category);
-  };
 
   const openProductModal = (product) => {
     setSelectedProduct(product);
@@ -104,178 +98,320 @@ export default function HomePage() {
     closeModal();
   };
 
-  // Get the current displayed price in the modal
   const getModalPrice = () => {
     if (!selectedProduct) return 0;
     const hasSizes = selectedProduct.sizes && selectedProduct.sizes.length > 0;
-    if (hasSizes) {
-      return selectedProduct.sizes[selectedSizeIdx]?.price ?? 0;
-    }
+    if (hasSizes) return selectedProduct.sizes[selectedSizeIdx]?.price ?? 0;
     return selectedProduct.price;
   };
 
+  // Get initials for user avatar
+  const getInitials = (name = '') => {
+    const parts = name.trim().split(' ');
+    return parts.slice(0, 2).map(p => p[0]).join('');
+  };
+
   return (
-    <div className="flex-1 pb-16">
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-emerald-600 to-teal-800 text-white overflow-hidden py-16 px-6 sm:px-12 text-center sm:text-right shadow-lg">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
-        <div className="max-w-6xl mx-auto relative z-10 flex flex-col sm:flex-row items-center justify-between gap-8">
-          <div className="max-w-xl space-y-4">
-            <span className="bg-yellow-400 text-emerald-950 font-bold text-xs uppercase px-3 py-1 rounded-full tracking-wider shadow">
-              طبيعي 100% 🍊
-            </span>
-            <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight">
-              جرعتك اليومية من <br />
-              <span className="text-yellow-300">السعادة والانتعاش!</span>
-            </h1>
-            <p className="text-emerald-100 text-base sm:text-lg">
-              اختر من تشكيلتنا الواسعة من العصائر الاستوائية الطازجة، سلطات الفواكه المبتكرة، والحلويات الصحية المحضرة بحب وعناية.
-            </p>
+    <div
+      className="flex-1 pb-12"
+      style={{ background: '#EFE3CF', fontFamily: "'Tajawal', sans-serif" }}
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=Tajawal:wght@400;500;700&display=swap');
+
+        .fakha-card {
+          background: #FFFFFF;
+          border-radius: 20px;
+          border: 1px solid #F0E1CC;
+          overflow: hidden;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          cursor: pointer;
+        }
+        .fakha-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 30px -10px rgba(27,19,13,.22);
+        }
+        .fakha-chip {
+          flex: 0 0 auto;
+          padding: 8px 18px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 700;
+          white-space: nowrap;
+          background: #FFFFFF;
+          border: 1px solid #F0E1CC;
+          color: #6B5C4F;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-family: 'Cairo', sans-serif;
+        }
+        .fakha-chip.active {
+          background: #1B130D;
+          color: #FFF7EC;
+          border-color: #1B130D;
+        }
+        .fakha-chip:hover:not(.active) {
+          background: #FFE3C2;
+          border-color: #F3760C;
+          color: #C95A06;
+        }
+        .chips-scroll::-webkit-scrollbar { display: none; }
+        .modal-slide-up {
+          animation: modalSlideUp 0.28s cubic-bezier(.22,1,.36,1);
+        }
+        @keyframes modalSlideUp {
+          from { opacity: 0; transform: translateY(40px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .add-btn-small {
+          width: 30px; height: 30px;
+          border-radius: 10px;
+          background: #1B130D;
+          color: white;
+          border: none;
+          font-size: 18px;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer;
+          transition: transform 0.15s ease;
+        }
+        .add-btn-small:hover { transform: scale(1.08); }
+      `}</style>
+
+      {/* ===== HERO ===== */}
+      <div className="px-4 sm:px-6 pt-5 max-w-6xl mx-auto">
+        <div
+          style={{
+            background: 'radial-gradient(120% 140% at 100% 0%, #FF9A3D 0%, #F3760C 55%, #C95A06 100%)',
+            borderRadius: '26px',
+            padding: '24px 22px',
+            color: 'white',
+            position: 'relative',
+            overflow: 'hidden',
+            marginBottom: '24px',
+          }}
+        >
+          {/* Deco circle */}
+          <div style={{
+            position: 'absolute', left: '-30px', bottom: '-40px',
+            width: '140px', height: '140px', borderRadius: '50%',
+            background: 'rgba(255,255,255,.1)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* User greeting or brand tagline */}
+          <div style={{ fontSize: '11px', letterSpacing: '0.5px', opacity: 0.9, fontWeight: 700, marginBottom: '6px' }}>
+            {user ? `أهلاً بك 👋  ${user.name.split(' ')[0]}` : 'عروض اليوم 🔥'}
           </div>
-          <div className="text-8xl select-none animate-bounce hidden md:block">
-            🍹🍉🍍
+
+          <h1 style={{
+            fontFamily: "'Cairo', sans-serif",
+            fontSize: 'clamp(18px, 5vw, 24px)',
+            fontWeight: 800,
+            lineHeight: 1.4,
+            maxWidth: '260px',
+            marginBottom: '18px',
+          }}>
+            اعصر يومك بطعم ٥٠ فاكهة الأصلي
+          </h1>
+
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            background: '#1B130D', color: '#FFF7EC',
+            fontSize: '12px', fontWeight: 700,
+            padding: '9px 18px', borderRadius: '999px',
+          }}>
+            اطلب الآن ←
           </div>
+
+          {/* SVG cup decoration */}
+          <svg
+            viewBox="0 0 100 130"
+            fill="none"
+            style={{ position: 'absolute', left: '14px', bottom: '10px', width: '72px', opacity: 0.9, pointerEvents: 'none' }}
+          >
+            <path d="M22 30h56l-6 80a8 8 0 0 1-8 7H36a8 8 0 0 1-8-7L22 30Z" fill="white" fillOpacity=".18"/>
+            <rect x="18" y="22" width="64" height="12" rx="6" fill="white" fillOpacity=".25"/>
+            <path d="M60 8 L78 0 M78 0 a6 6 0 0 1 6 6 L84 28" stroke="white" strokeOpacity=".5" strokeWidth="6" strokeLinecap="round" fill="none"/>
+          </svg>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-4 mt-12">
-        {/* Section Title */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-b pb-6 mb-8">
-          <div>
-            <h2 className="text-3xl font-extrabold text-slate-900">🍉 منيو 50 فاكهة</h2>
-            <p className="text-slate-500 mt-1 text-sm">اختر ما تشتهيه وسنقوم بالتوصيل فوراً</p>
-          </div>
-
-          {/* Category Tabs */}
-          <div className="flex flex-wrap gap-2 justify-center">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => handleCategoryChange(cat)}
-                className={`px-5 py-2 rounded-full font-bold text-sm transition-all duration-200 ${
-                  activeCategory === cat
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+        {/* ===== CATEGORY CHIPS ===== */}
+        <div
+          className="chips-scroll"
+          style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '20px' }}
+        >
+          {categories.map((cat) => (
+            <div
+              key={cat}
+              className={`fakha-chip${activeCategory === cat ? ' active' : ''}`}
+              onClick={() => setActiveCategory(cat)}
+            >
+              {cat}
+            </div>
+          ))}
         </div>
 
-        {/* Error Handling */}
+        {/* ===== SECTION HEADER ===== */}
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <h2 style={{ fontFamily: "'Cairo', sans-serif", fontSize: '16px', fontWeight: 800, color: '#1B130D' }}>
+            الأكثر طلبًا
+          </h2>
+          <span style={{ fontSize: '11px', color: '#C95A06', fontWeight: 700 }}>
+            {filteredProducts.length} منتج
+          </span>
+        </div>
+
+        {/* ===== ERROR ===== */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 p-6 rounded-2xl text-center space-y-4 shadow-sm">
-            <span className="text-4xl block">🔌</span>
-            <p className="font-semibold text-lg">{error}</p>
-            <button 
-              onClick={() => window.location.reload()} 
-              className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-6 py-2 rounded-xl text-sm transition duration-200 shadow"
+          <div style={{
+            background: '#FBE0DC', border: '1px solid #F3BDB8',
+            borderRadius: '18px', padding: '20px', textAlign: 'center',
+            marginBottom: '20px', color: '#C95A06',
+          }}>
+            <div style={{ fontSize: '36px', marginBottom: '8px' }}>🔌</div>
+            <div style={{ fontWeight: 700, marginBottom: '12px' }}>{error}</div>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                background: '#E14133', color: 'white',
+                border: 'none', borderRadius: '12px',
+                padding: '8px 20px', fontWeight: 700, cursor: 'pointer',
+              }}
             >
               إعادة المحاولة
             </button>
           </div>
         )}
 
-        {/* Loading State */}
+        {/* ===== LOADING SKELETON ===== */}
         {loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3].map((n) => (
-              <div key={n} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm animate-pulse space-y-4 p-4">
-                <div className="w-full h-48 bg-slate-200 rounded-xl"></div>
-                <div className="h-6 bg-slate-200 rounded-md w-3/4"></div>
-                <div className="h-4 bg-slate-200 rounded-md w-1/2"></div>
-                <div className="h-10 bg-slate-200 rounded-xl w-full mt-4"></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} style={{
+                background: '#FFFFFF', borderRadius: '20px',
+                border: '1px solid #F0E1CC', padding: '10px',
+                animation: 'pulse 1.5s ease-in-out infinite',
+              }}>
+                <div style={{ height: '96px', borderRadius: '14px', background: '#F0E1CC', marginBottom: '8px' }} />
+                <div style={{ height: '14px', background: '#F0E1CC', borderRadius: '8px', marginBottom: '6px', width: '70%' }} />
+                <div style={{ height: '11px', background: '#F0E1CC', borderRadius: '8px', width: '50%' }} />
               </div>
             ))}
           </div>
         )}
 
-        {/* Empty List State */}
+        {/* ===== EMPTY STATE ===== */}
         {!loading && !error && filteredProducts.length === 0 && (
-          <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-slate-100 space-y-4">
-            <span className="text-5xl block">🥣</span>
-            <h3 className="text-xl font-bold text-slate-800">لا توجد منتجات متوفرة</h3>
-            <p className="text-slate-500">جرب البحث في فئة أخرى أو عد لاحقاً.</p>
+          <div style={{
+            background: '#FFFFFF', borderRadius: '20px',
+            border: '1px solid #F0E1CC', padding: '40px',
+            textAlign: 'center', color: '#6B5C4F',
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🥣</div>
+            <div style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 800, fontSize: '16px', color: '#1B130D', marginBottom: '6px' }}>
+              لا توجد منتجات متوفرة
+            </div>
+            <div style={{ fontSize: '13px' }}>جرب تصفح فئة أخرى أو عد لاحقاً.</div>
           </div>
         )}
 
-        {/* Product Cards Grid */}
+        {/* ===== PRODUCT GRID ===== */}
         {!loading && !error && filteredProducts.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 lg:gap-8">
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '12px',
+          }}>
             {filteredProducts.map((p) => {
               const hasSizes = p.sizes && p.sizes.length > 0;
+              const minPrice = hasSizes ? Math.min(...p.sizes.map(s => s.price)) : p.price;
               return (
                 <div
                   key={p.id || p._id}
+                  className="fakha-card"
                   onClick={() => p.available && openProductModal(p)}
-                  className={`bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group ${p.available ? 'cursor-pointer' : ''}`}
                 >
-                  {/* Product Image */}
-                  <div className="relative h-32 sm:h-52 overflow-hidden bg-slate-100">
-                    <img
-                      src={p.image || 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400'}
-                      alt={p.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                  {/* Thumb */}
+                  <div style={{ position: 'relative', height: '100px', overflow: 'hidden', background: 'linear-gradient(160deg, #FFE3C2, #FFD39A)' }}>
+                    {p.image ? (
+                      <img
+                        src={p.image}
+                        alt={p.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px' }}>
+                        🍹
+                      </div>
+                    )}
                     {!p.available && (
-                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center">
-                        <span className="bg-slate-800 text-white font-bold px-2 py-1 sm:px-4 sm:py-2 rounded-full text-[10px] sm:text-sm">
-                          غير متوفر 🚫
-                        </span>
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        background: 'rgba(27,19,13,0.6)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <span style={{
+                          background: '#1B130D', color: '#FFF7EC',
+                          padding: '4px 12px', borderRadius: '999px',
+                          fontSize: '11px', fontWeight: 700,
+                        }}>غير متوفر 🚫</span>
                       </div>
                     )}
                     {p.category && (
-                      <span className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-emerald-500/90 text-white font-bold text-[9px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow backdrop-blur-xs">
+                      <span style={{
+                        position: 'absolute', top: '6px', right: '6px',
+                        background: '#3B7A3E', color: 'white',
+                        fontSize: '9px', fontWeight: 700,
+                        padding: '3px 8px', borderRadius: '999px',
+                      }}>
                         {p.category}
                       </span>
                     )}
                     {hasSizes && (
-                      <span className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-amber-500/90 text-white font-bold text-[9px] sm:text-xs px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow backdrop-blur-xs">
+                      <span style={{
+                        position: 'absolute', top: '6px', left: '6px',
+                        background: '#F3760C', color: 'white',
+                        fontSize: '9px', fontWeight: 700,
+                        padding: '3px 8px', borderRadius: '999px',
+                      }}>
                         {p.sizes.length} أحجام
                       </span>
                     )}
                   </div>
 
-                  {/* Product Info */}
-                  <div className="p-3 sm:p-5 flex flex-col flex-1 justify-between gap-3 sm:gap-4 text-right">
-                    <div>
-                      <h3 className="text-sm sm:text-xl font-extrabold text-slate-900 group-hover:text-emerald-600 transition-colors">
-                        {p.name}
-                      </h3>
-                      <p className="hidden sm:block text-slate-500 text-sm mt-1.5 line-clamp-2 h-10">
-                        {p.description || 'فواكه طازجة وصحية محضرة يومياً خصيصاً لك.'}
-                      </p>
+                  {/* Info */}
+                  <div style={{ padding: '10px' }}>
+                    <div style={{
+                      fontFamily: "'Cairo', sans-serif",
+                      fontSize: '13px', fontWeight: 700,
+                      color: '#1B130D', marginBottom: '2px',
+                    }}>
+                      {p.name}
                     </div>
-
-                    <div className="flex items-center justify-between pt-2 sm:pt-4 border-t border-slate-50">
-                      <div>
-                        {hasSizes ? (
-                          <div>
-                            <span className="text-[10px] text-slate-400 block">يبدأ من</span>
-                            <span className="text-base sm:text-2xl font-black text-emerald-700">
-                              {Math.min(...p.sizes.map(s => s.price))} <span className="text-[10px] sm:text-xs font-semibold text-slate-500">ج.س</span>
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-base sm:text-2xl font-black text-emerald-700">
-                            {p.price} <span className="text-[10px] sm:text-xs font-semibold text-slate-500">ج.س</span>
-                          </span>
-                        )}
+                    {p.description && (
+                      <div style={{ fontSize: '10.5px', color: '#6B5C4F', marginBottom: '8px', lineHeight: 1.4 }}>
+                        {p.description.length > 40 ? p.description.slice(0, 40) + '…' : p.description}
                       </div>
-                      
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
+                      <div>
+                        {hasSizes && (
+                          <div style={{ fontSize: '9px', color: '#6B5C4F' }}>يبدأ من</div>
+                        )}
+                        <span style={{
+                          fontFamily: "'Cairo', sans-serif",
+                          fontWeight: 800, fontSize: '13px', color: '#C95A06',
+                        }}>
+                          {minPrice} <span style={{ fontSize: '10px', color: '#6B5C4F', fontWeight: 600 }}>ج.س</span>
+                        </span>
+                      </div>
                       <button
+                        className="add-btn-small"
                         onClick={(e) => { e.stopPropagation(); if (p.available) openProductModal(p); }}
                         disabled={!p.available}
-                        className={`font-bold px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-xl shadow transition duration-200 text-xs sm:text-sm flex items-center gap-1 ${
-                          p.available
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-105 active:scale-95'
-                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                        }`}
+                        style={!p.available ? { background: '#F0E1CC', cursor: 'not-allowed' } : {}}
                       >
-                        <span>{hasSizes ? 'اختر' : 'أضف'}</span>
-                        <span className="hidden sm:inline">🛒</span>
+                        +
                       </button>
                     </div>
                   </div>
@@ -286,62 +422,109 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Product Detail Modal */}
+      {/* ===== PRODUCT MODAL ===== */}
       {selectedProduct && (
         <div
-          className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(27,19,13,0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            zIndex: 1000, padding: '0',
+          }}
           onClick={closeModal}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            className="modal-slide-up"
+            style={{
+              background: '#FFF7EC',
+              borderRadius: '26px 26px 0 0',
+              width: '100%',
+              maxWidth: '520px',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
             onClick={(e) => e.stopPropagation()}
-            style={{ animation: 'slideUp 0.25s ease-out' }}
           >
-            {/* Product Image */}
-            <div className="relative h-56 overflow-hidden bg-slate-100">
-              <img
-                src={selectedProduct.image || 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=400'}
-                alt={selectedProduct.name}
-                className="w-full h-full object-cover"
-              />
+            {/* Product image */}
+            <div style={{ position: 'relative', height: '220px', flexShrink: 0, overflow: 'hidden', background: 'linear-gradient(160deg, #FFE3C2, #FFD39A)' }}>
+              {selectedProduct.image ? (
+                <img
+                  src={selectedProduct.image}
+                  alt={selectedProduct.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '64px' }}>
+                  🍹
+                </div>
+              )}
               <button
                 onClick={closeModal}
-                className="absolute top-3 left-3 bg-white/90 text-slate-700 p-2 rounded-full hover:bg-white transition shadow text-sm font-bold"
+                style={{
+                  position: 'absolute', top: '12px', left: '12px',
+                  background: 'rgba(255,247,236,0.9)', border: 'none',
+                  width: '34px', height: '34px', borderRadius: '50%',
+                  fontSize: '16px', cursor: 'pointer', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  color: '#1B130D', fontWeight: 800,
+                }}
               >
                 ✕
               </button>
               {selectedProduct.category && (
-                <span className="absolute top-3 right-3 bg-emerald-500/90 text-white font-bold text-xs px-2.5 py-1 rounded-full shadow">
+                <span style={{
+                  position: 'absolute', top: '12px', right: '12px',
+                  background: '#3B7A3E', color: 'white',
+                  fontSize: '10px', fontWeight: 700,
+                  padding: '4px 10px', borderRadius: '999px',
+                }}>
                   {selectedProduct.category}
                 </span>
               )}
             </div>
 
-            <div className="p-6 space-y-5 text-right">
-              <div>
-                <h2 className="text-2xl font-extrabold text-slate-900">{selectedProduct.name}</h2>
-                <p className="text-slate-500 text-sm mt-1">
-                  {selectedProduct.description || 'فواكه طازجة وصحية محضرة يومياً خصيصاً لك.'}
-                </p>
+            {/* Details */}
+            <div style={{ padding: '20px 22px', overflowY: 'auto', textAlign: 'right' }}>
+              <div style={{
+                fontFamily: "'Cairo', sans-serif",
+                fontSize: '20px', fontWeight: 800, color: '#1B130D', marginBottom: '6px',
+              }}>
+                {selectedProduct.name}
+              </div>
+              <div style={{ fontSize: '13px', color: '#6B5C4F', marginBottom: '16px', lineHeight: 1.6 }}>
+                {selectedProduct.description || 'فواكه طازجة وصحية محضرة يومياً خصيصاً لك.'}
               </div>
 
               {/* Size Selection */}
               {selectedProduct.sizes && selectedProduct.sizes.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-sm font-bold text-slate-700">اختر الحجم:</p>
-                  <div className="flex flex-wrap gap-2">
+                <div style={{ marginBottom: '18px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#1B130D', marginBottom: '10px' }}>
+                    اختر الحجم:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {selectedProduct.sizes.map((sz, idx) => (
                       <button
                         key={idx}
                         onClick={() => setSelectedSizeIdx(idx)}
-                        className={`px-4 py-2.5 rounded-xl font-bold text-sm border-2 transition-all duration-200 ${
-                          selectedSizeIdx === idx
-                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-200 scale-105'
-                            : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-400 hover:bg-emerald-50'
-                        }`}
+                        style={{
+                          padding: '10px 16px', borderRadius: '14px',
+                          fontWeight: 700, fontSize: '13px',
+                          border: selectedSizeIdx === idx ? '2px solid #F3760C' : '2px solid #F0E1CC',
+                          background: selectedSizeIdx === idx ? '#F3760C' : '#FFFFFF',
+                          color: selectedSizeIdx === idx ? 'white' : '#1B130D',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          fontFamily: "'Cairo', sans-serif",
+                        }}
                       >
-                        <span>{sz.name}</span>
-                        <span className={`block text-xs mt-0.5 ${selectedSizeIdx === idx ? 'text-emerald-100' : 'text-slate-400'}`}>
+                        {sz.name}
+                        <span style={{
+                          display: 'block', fontSize: '11px', marginTop: '2px',
+                          opacity: 0.85,
+                        }}>
                           {sz.price} ج.س
                         </span>
                       </button>
@@ -350,18 +533,32 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Price and Add to Cart */}
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+              {/* Price + CTA */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                paddingTop: '16px', borderTop: '1px solid #F0E1CC',
+              }}>
                 <div>
-                  <span className="text-xs text-slate-400 block">السعر</span>
-                  <span className="text-3xl font-extrabold text-emerald-700">
-                    {getModalPrice()}{' '}
-                    <span className="text-sm font-semibold text-slate-500">ج.س</span>
-                  </span>
+                  <div style={{ fontSize: '11px', color: '#6B5C4F' }}>السعر</div>
+                  <div style={{
+                    fontFamily: "'Cairo', sans-serif",
+                    fontSize: '26px', fontWeight: 800, color: '#C95A06',
+                  }}>
+                    {getModalPrice()} <span style={{ fontSize: '13px', color: '#6B5C4F', fontWeight: 600 }}>ج.س</span>
+                  </div>
                 </div>
                 <button
                   onClick={handleAddToCart}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-7 py-3 rounded-xl shadow-md shadow-emerald-200 transition duration-200 flex items-center gap-2 hover:scale-105 active:scale-95 text-base"
+                  style={{
+                    background: '#F3760C', color: 'white',
+                    border: 'none', borderRadius: '18px',
+                    padding: '14px 28px', fontWeight: 800, fontSize: '14px',
+                    cursor: 'pointer', transition: 'transform 0.15s ease',
+                    fontFamily: "'Cairo', sans-serif",
+                    boxShadow: '0 8px 20px -8px rgba(243, 118, 12, 0.6)',
+                  }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.04)'}
+                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
                 >
                   إضافة للسلة 🛒
                 </button>
@@ -370,13 +567,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

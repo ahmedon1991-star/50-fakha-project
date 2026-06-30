@@ -41,7 +41,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <BrowserRouter>
-          <div className="min-h-screen flex flex-col bg-slate-50">
+          <div className="min-h-screen flex flex-col" style={{ background: '#EFE3CF' }}>
             <Navbar />
             <div className="flex-grow flex flex-col">
               <Routes>

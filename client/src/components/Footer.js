@@ -2,35 +2,62 @@ import { Link } from 'react-router-dom';
 
 export default function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-400 py-8 border-t border-slate-800 text-center text-sm mt-auto">
-      <div className="max-w-6xl mx-auto px-4 space-y-4">
-        {/* Brand/Icons */}
-        <div className="flex justify-center items-center gap-2 text-white font-black text-lg">
-          <span>🍉</span>
-          <span className="bg-gradient-to-r from-yellow-300 to-amber-300 bg-clip-text text-transparent">50 فاكهة</span>
+    <footer
+      style={{
+        background: '#1B130D',
+        borderTop: '1px solid #2D1E14',
+        padding: '32px 16px 24px',
+        textAlign: 'center',
+        fontFamily: "'Tajawal', sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+        {/* Logo area */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
+          <img
+            src="/logo.png"
+            alt="50 فاكهة"
+            style={{ height: '50px', width: 'auto', objectFit: 'contain', opacity: 0.92 }}
+          />
         </div>
 
-        {/* Address & Details */}
-        <div className="space-y-1.5 text-xs sm:text-sm">
-          <p className="flex items-center justify-center gap-1.5 text-slate-300 font-semibold">
-            <span>📍</span>
-            <span>العنوان: السودان - الولاية الشمالية - دنقلا</span>
-          </p>
-          <p className="text-slate-500 text-xs">أجود أنواع العصائر الطبيعية وسلطات الفواكه الطازجة يومياً</p>
+        {/* Tagline */}
+        <p style={{ color: '#C8A87A', fontSize: '12px', marginBottom: '16px', lineHeight: 1.6 }}>
+          أجود أنواع العصائر الطبيعية وسلطات الفواكه الطازجة يومياً
+        </p>
+
+        {/* Address */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#9C7A5A', fontSize: '12px', marginBottom: '20px' }}>
+          <span>📍</span>
+          <span>السودان — الولاية الشمالية — دنقلا</span>
         </div>
 
         {/* Divider */}
-        <div className="w-16 h-0.5 bg-slate-800 mx-auto rounded-full"></div>
+        <div style={{ width: '40px', height: '2px', background: '#2D1E14', borderRadius: '999px', margin: '0 auto 16px' }} />
 
-        {/* Links */}
-        <div className="flex justify-center items-center gap-4 text-xs font-semibold text-slate-500">
-          <Link to="/privacy" className="hover:text-emerald-400 transition">سياسة الخصوصية</Link>
-          <span>•</span>
-          <Link to="/terms" className="hover:text-emerald-400 transition">الشروط والأحكام</Link>
+        {/* Legal Links */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
+          <Link
+            to="/privacy"
+            style={{ color: '#9C7A5A', fontSize: '11px', fontWeight: 700, textDecoration: 'none', transition: 'color 0.2s' }}
+            onMouseOver={e => e.currentTarget.style.color = '#F3760C'}
+            onMouseOut={e => e.currentTarget.style.color = '#9C7A5A'}
+          >
+            سياسة الخصوصية
+          </Link>
+          <span style={{ color: '#2D1E14', fontSize: '10px' }}>•</span>
+          <Link
+            to="/terms"
+            style={{ color: '#9C7A5A', fontSize: '11px', fontWeight: 700, textDecoration: 'none', transition: 'color 0.2s' }}
+            onMouseOver={e => e.currentTarget.style.color = '#F3760C'}
+            onMouseOut={e => e.currentTarget.style.color = '#9C7A5A'}
+          >
+            الشروط والأحكام
+          </Link>
         </div>
 
         {/* Copyright */}
-        <p className="text-slate-500 text-xs font-medium">
+        <p style={{ color: '#4A3020', fontSize: '11px', fontWeight: 600 }}>
           &copy; {new Date().getFullYear()} جميع الحقوق محفوظة لمتجر 50 فاكهة
         </p>
       </div>
