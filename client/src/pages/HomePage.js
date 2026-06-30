@@ -162,10 +162,28 @@ export default function HomePage() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
         }
+        /* Responsive product grid */
+        .product-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+        }
+        @media (min-width: 640px) {
+          .product-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        }
+        @media (min-width: 1024px) {
+          .product-grid { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        }
+        /* Responsive thumb height */
+        .product-thumb { height: 120px; }
+        @media (min-width: 640px) {
+          .product-thumb { height: 140px; }
+          .product-thumb-emoji { font-size: 60px !important; }
+        }
       `}</style>
 
-      {/* ─── HERO BANNER ─── */}
-      <div style={{ padding: '16px 16px 0' }}>
+      {/* ─── MAIN CONTENT WRAPPER ─── */}
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 16px 0' }}>
         <div style={{
           background: 'radial-gradient(120% 140% at 100% 0%, #FF9A3D 0%, #F3760C 55%, #C95A06 100%)',
           borderRadius: '22px',
@@ -255,7 +273,7 @@ export default function HomePage() {
 
         {/* ─── SKELETON LOADING ─── */}
         {loading && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="product-grid">
             {[1, 2, 3, 4].map(n => (
               <div key={n} style={{
                 background: '#FFFFFF', borderRadius: '20px',
@@ -286,7 +304,7 @@ export default function HomePage() {
 
         {/* ─── PRODUCT GRID ─── */}
         {!loading && !error && filteredProducts.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="product-grid">
             {filteredProducts.map((p) => {
               const hasSizes = p.sizes && p.sizes.length > 0;
               const minPrice = hasSizes ? Math.min(...p.sizes.map(s => s.price)) : p.price;
@@ -301,13 +319,15 @@ export default function HomePage() {
                   onClick={() => p.available && openProductModal(p)}
                 >
                   {/* ── Thumbnail ── */}
-                  <div style={{
-                    position: 'relative',
-                    height: '120px',
-                    background: 'linear-gradient(160deg, #FFE3C2 0%, #FFD09A 100%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    overflow: 'hidden',
-                  }}>
+                  <div
+                    className="product-thumb"
+                    style={{
+                      position: 'relative',
+                      background: 'linear-gradient(160deg, #FFE3C2 0%, #FFD09A 100%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      overflow: 'hidden',
+                    }}
+                  >
                     {p.image ? (
                       <img
                         src={p.image}
