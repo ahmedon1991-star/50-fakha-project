@@ -30,7 +30,9 @@ export const AuthProvider = ({ children }) => {
         email: sessionUser.email,
         token: (await supabase.auth.getSession()).data.session?.access_token,
         name: data?.name || 'عميلنا',
-        isAdmin: data?.is_admin || false
+        isAdmin: data?.is_admin || false,
+        birthdate: sessionUser.user_metadata?.birthdate || '',
+        gender: sessionUser.user_metadata?.gender || ''
       };
       
       localStorage.setItem('cached_user', JSON.stringify(fullUser));
@@ -42,7 +44,9 @@ export const AuthProvider = ({ children }) => {
         phone: sessionUser.phone,
         email: sessionUser.email,
         name: sessionUser.user_metadata?.name || 'عميلنا',
-        isAdmin: false
+        isAdmin: false,
+        birthdate: sessionUser.user_metadata?.birthdate || '',
+        gender: sessionUser.user_metadata?.gender || ''
       };
       localStorage.setItem('cached_user', JSON.stringify(fallbackUser));
       return fallbackUser;

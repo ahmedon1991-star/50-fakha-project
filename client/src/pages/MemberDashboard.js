@@ -34,6 +34,19 @@ export default function MemberDashboard() {
   const [email, setEmail] = useState(user?.email || '');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [birthdate, setBirthdate] = useState(user?.birthdate || '');
+  const [gender, setGender] = useState(user?.gender || '');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+      setBirthdate(user.birthdate || '');
+      setGender(user.gender || '');
+    }
+  }, [user]);
   
   // Phone OTP Update Modal State
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -75,7 +88,7 @@ export default function MemberDashboard() {
     setLoading(true);
 
     try {
-      // 1. Update Name in profiles and user metadata
+      // 1. Update Name in profiles
       if (name !== user.name) {
         const { error: profileErr } = await supabase
           .from('profiles')
@@ -83,12 +96,13 @@ export default function MemberDashboard() {
           .eq('id', user.id);
         
         if (profileErr) throw profileErr;
-
-        const { error: authErr } = await supabase.auth.updateUser({
-          data: { name }
-        });
-        if (authErr) throw authErr;
       }
+
+      // Update metadata
+      const { error: authErr } = await supabase.auth.updateUser({
+        data: { name, birthdate, gender }
+      });
+      if (authErr) throw authErr;
 
       // 2. Update Password if entered
       if (password) {
@@ -108,10 +122,11 @@ export default function MemberDashboard() {
           email: email
         });
         if (emailErr) throw emailErr;
-        setSuccessMsg('تم تحديث الاسم/كلمة المرور بنجاح. يرجى مراجعة بريدك الإلكتروني الجديد لتأكيد تغيير البريد.');
+        setSuccessMsg('تم تحديث البيانات بنجاح. يرجى مراجعة بريدك الإلكتروني الجديد لتأكيد تغيير البريد.');
       } else {
         setSuccessMsg('تم تحديث بيانات ملفك الشخصي بنجاح! 🎉');
       }
+      setIsEditingProfile(false);
     } catch (err) {
       setError(err.message || 'حدث خطأ أثناء تحديث البيانات');
     } finally {
@@ -275,21 +290,21 @@ export default function MemberDashboard() {
             onClick={() => setActiveTab('orders')}
             className={`py-4 px-3 font-extrabold text-sm border-b-4 transition-all duration-200 ${
               activeTab === 'orders' 
-                ? 'border-emerald-600 text-emerald-700' 
+                ? 'border-[#b8295b] text-[#b8295b]' 
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
             📦 تتبع طلباتي
           </button>
           <button
-            onClick={() => setActiveTab('settings')}
+            onClick={() => { setActiveTab('profile'); setIsEditingProfile(false); }}
             className={`py-4 px-3 font-extrabold text-sm border-b-4 transition-all duration-200 ${
-              activeTab === 'settings' 
-                ? 'border-emerald-600 text-emerald-700' 
+              activeTab === 'profile' 
+                ? 'border-[#b8295b] text-[#b8295b]' 
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
-            ⚙️ إعدادات الحساب والأمان
+            👤 ملفي الشخصي
           </button>
         </div>
       </div>
@@ -320,12 +335,11 @@ export default function MemberDashboard() {
                 
                 {/* Top Cards / Shortcuts */}
                 <div className="grid grid-cols-2 gap-2.5 mb-6">
-                  {/* ملفي الشخصي */}
                   <button 
-                    onClick={() => setActiveTab('settings')}
-                    className="bg-[#3A3029] hover:bg-[#4d4037] text-white p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10"
+                    onClick={() => { setActiveTab('profile'); setIsEditingProfile(false); }}
+                    className="bg-[#3A3029] hover:bg-[#4d4037] text-[#FFF7EC] p-3 rounded-2xl flex flex-col items-center justify-between text-center gap-1.5 transition duration-150 min-h-[96px] border border-[#F0E1CC]/10"
                   >
-                    <span className="text-xl">🕶️</span>
+                    <span className="text-xl">👤</span>
                     <span style={{ fontFamily: "'Cairo', sans-serif" }} className="text-[11px] font-black leading-tight">ملفي الشخصي</span>
                   </button>
                   
@@ -511,129 +525,258 @@ export default function MemberDashboard() {
               </div>
             )}
 
-            {/* TAB 2: ACCOUNT SETTINGS */}
-            {activeTab === 'settings' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* TAB 2: PROFILE SUMMARY & EDITING */}
+            {activeTab === 'profile' && (
+              <div className="max-w-md mx-auto space-y-6">
                 
-                {/* Form 1: General Profile Info & Password */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm text-right space-y-5">
-                  <h3 className="text-lg font-black text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                    <span>🔑</span>
-                    <span>تعديل الملف الشخصي والأمان</span>
-                  </h3>
-                  
-                  <form onSubmit={handleUpdateProfile} className="space-y-4">
-                    <div>
-                      <label className="block text-slate-700 text-sm font-semibold mb-2">الاسم الكامل</label>
-                      <input
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition text-right"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-slate-700 text-sm font-semibold mb-2">البريد الإلكتروني</label>
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition text-left"
-                        dir="ltr"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-slate-700 text-sm font-semibold mb-2">كلمة المرور الجديدة (اختياري)</label>
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="اتركها فارغة إذا لم ترغب في التغيير"
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition text-right"
-                        dir="ltr"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition duration-200 shadow-md"
-                    >
-                      حفظ التغييرات 💾
-                    </button>
-                  </form>
-                </div>
-
-                {/* Form 2: Phone Settings Update with SMS OTP */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm text-right space-y-5 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-lg font-black text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-                      <span>📱</span>
-                      <span>تحديث رقم الهاتف المؤكد</span>
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-2">رقم الهاتف المستخدم حالياً لتلقي رسائل تتبع طلباتك وإثبات الهوية.</p>
-                    
-                    <form onSubmit={handlePhoneUpdateSubmit} className="space-y-4 mt-4">
+                {/* Profile Clean Summary Mode */}
+                {!isEditingProfile ? (
+                  <div className="space-y-6">
+                    {/* Top Avatar Card */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center space-y-4">
+                      {/* Avatar Initials Circle */}
+                      <div 
+                        className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-black shadow-md"
+                        style={{ background: 'radial-gradient(circle, #F3760C 0%, #C95A06 100%)' }}
+                      >
+                        {getInitials(user?.name)}
+                      </div>
                       <div>
-                        <label className="block text-slate-700 text-sm font-semibold mb-2">رقم الهاتف الجديد (بصيغة دولية)</label>
+                        <h2 className="text-xl font-black text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                          {user?.name}
+                        </h2>
+                        <p className="text-xs text-slate-400 mt-1 font-mono">{user?.email}</p>
+                      </div>
+                    </div>
+
+                    {/* Profile Details List */}
+                    <div className="space-y-3">
+                      {/* 1. الاسم */}
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                        <div></div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-xs text-slate-400 font-bold block">الاسم</span>
+                            <span className="text-sm font-black text-slate-800 mt-1 block">{user?.name || '-'}</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                            👤
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. رقم الهاتف */}
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                        <div>
+                          {user?.phone && (
+                            <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-xs text-slate-400 font-bold block">رقم الهاتف</span>
+                            <span className="text-sm font-black text-slate-800 mt-1 block font-mono" dir="ltr">{user?.phone || 'غير محدد'}</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                            📱
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. تاريخ الميلاد */}
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                        <div></div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-xs text-slate-400 font-bold block">تاريخ الميلاد</span>
+                            <span className="text-sm font-black text-slate-800 mt-1 block font-mono">{user?.birthdate || 'غير محدد'}</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                            📅
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 4. البريد الإلكتروني */}
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                        <div>
+                          {user?.email && (
+                            <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-xs text-slate-400 font-bold block">البريد الإلكتروني</span>
+                            <span className="text-sm font-black text-slate-800 mt-1 block font-mono">{user?.email || '-'}</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                            ✉️
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 5. الجنس */}
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-right">
+                        <div></div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-xs text-slate-400 font-bold block">الجنس</span>
+                            <span className="text-sm font-black text-slate-800 mt-1 block">{user?.gender || 'غير محدد'}</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-white text-lg flex-shrink-0">
+                            🚻
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Button: Edit My Profile */}
+                    <button
+                      onClick={() => setIsEditingProfile(true)}
+                      className="w-full py-4 rounded-2xl text-white font-bold text-base cursor-pointer transition shadow-md duration-150 flex items-center justify-center gap-2"
+                      style={{ background: '#b8295b' }}
+                    >
+                      <span>✏️</span> تعديل ملفي الشخصي
+                    </button>
+                  </div>
+                ) : (
+                  /* Profile Edit Form Mode */
+                  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-md text-right space-y-5">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                      <button
+                        onClick={() => setIsEditingProfile(false)}
+                        className="text-xs font-bold text-slate-400 hover:text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl transition"
+                      >
+                        إلغاء ✕
+                      </button>
+                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <span>✏️</span>
+                        <span>تعديل ملفي الشخصي</span>
+                      </h3>
+                    </div>
+
+                    <form onSubmit={handleUpdateProfile} className="space-y-4">
+                      {/* Name */}
+                      <div>
+                        <label className="block text-slate-700 text-sm font-semibold mb-2">الاسم الكامل</label>
+                        <input
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium"
+                        />
+                      </div>
+
+                      {/* Email */}
+                      <div>
+                        <label className="block text-slate-700 text-sm font-semibold mb-2">البريد الإلكتروني</label>
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-left font-medium"
+                          dir="ltr"
+                        />
+                      </div>
+
+                      {/* Birth Date */}
+                      <div>
+                        <label className="block text-slate-700 text-sm font-semibold mb-2">تاريخ الميلاد</label>
+                        <input
+                          type="text"
+                          placeholder="مثال: 18/01/1991"
+                          value={birthdate}
+                          onChange={(e) => setBirthdate(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium"
+                        />
+                      </div>
+
+                      {/* Gender */}
+                      <div>
+                        <label className="block text-slate-700 text-sm font-semibold mb-2">الجنس</label>
+                        <select
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium bg-white"
+                        >
+                          <option value="">اختر الجنس</option>
+                          <option value="ذكر">ذكر</option>
+                          <option value="أنثى">أنثى</option>
+                        </select>
+                      </div>
+
+                      {/* New Password */}
+                      <div>
+                        <label className="block text-slate-700 text-sm font-semibold mb-2">كلمة المرور الجديدة (اختياري)</label>
+                        <input
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="اتركها فارغة إذا لم ترغب في التغيير"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-right font-medium"
+                          dir="ltr"
+                        />
+                      </div>
+
+                      {/* Save Changes Button */}
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-3 text-white font-bold rounded-2xl transition duration-200 shadow-md cursor-pointer flex items-center justify-center gap-2"
+                        style={{ background: '#b8295b' }}
+                      >
+                        💾 حفظ التغييرات
+                      </button>
+                    </form>
+
+                    {/* Phone settings form inline inside edit mode */}
+                    <div className="border-t border-slate-100 pt-5 mt-5 space-y-4">
+                      <h4 className="font-black text-slate-800 text-sm flex items-center gap-1.5">
+                        <span>📱</span> تحديث رقم الهاتف المؤكد
+                      </h4>
+                      <form onSubmit={handlePhoneUpdateSubmit} className="space-y-3">
                         <input
                           type="tel"
                           required
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
-                          placeholder="+201234567890"
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition text-left"
+                          placeholder="+966 558735605"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-left font-medium"
                           dir="ltr"
                         />
-                        <span className="text-[10px] text-slate-400 mt-1 block">يجب كتابة رمز الدولة أولاً (مثال: +20 لمصر، +966 للسعودية)</span>
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition duration-200 shadow-md"
-                      >
-                        طلب تعديل الهاتف وإرسال الرمز ✉️
-                      </button>
-                    </form>
-                  </div>
-
-                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mt-6 text-xs text-amber-800 space-y-1">
-                    <p className="font-bold">⚠️ ملاحظة أمنية:</p>
-                    <p>تغيير رقم الهاتف يتطلب تفعيل الهاتف الجديد عبر رمز تأكيد SMS حقيقي، ولا يمكن التسجيل بنفس الهاتف لحسابين مختلفين مطلقاً.</p>
-                  </div>
-                </div>
-
-                {/* Form 3: Danger Zone */}
-                <div className="bg-white p-6 rounded-3xl border border-rose-100 shadow-sm text-right space-y-5 md:col-span-2">
-                  <h3 className="text-lg font-black text-rose-800 border-b border-rose-100 pb-3 flex items-center gap-2">
-                    <span>⚠️</span>
-                    <span>منطقة الخطر (إجراء غير مسترد)</span>
-                  </h3>
-                  <p className="text-xs text-slate-500">حذف الحساب سيؤدي إلى مسح كافة بياناتك، طلباتك السابقة، وعنوانك نهائياً من أنظمتنا دون إمكانية للاسترجاع.</p>
-                  
-                  <div className="flex justify-between items-center gap-4 flex-wrap bg-rose-50/50 p-4 rounded-2xl border border-rose-100/50">
-                    <div className="text-right">
-                      <p className="font-bold text-sm text-rose-955">حذف الحساب الشخصي</p>
-                      <p className="text-xs text-slate-500">سيتم مسح الحساب نهائياً من خوادم Supabase وقاعدة البيانات فوراً.</p>
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition duration-200 shadow-sm text-xs"
+                        >
+                          طلب رمز تأكيد الهاتف الجديد ✉️
+                        </button>
+                      </form>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeleteConfirmText('');
-                        setDeleteError('');
-                        setShowDeleteModal(true);
-                      }}
-                      className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition duration-200 shadow-md text-xs sm:text-sm"
-                    >
-                      حذف الحساب نهائياً 🚨
-                    </button>
+
+                    {/* Danger Zone: Delete Account */}
+                    <div className="border-t border-rose-100 pt-5 mt-5 space-y-3">
+                      <h4 className="font-black text-rose-800 text-sm flex items-center gap-1.5">
+                        <span>⚠️</span> منطقة الخطر
+                      </h4>
+                      <p className="text-[11px] text-slate-400">سيتم مسح حسابك وكافة بيانات الطلبات نهائياً.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteConfirmText('');
+                          setDeleteError('');
+                          setShowDeleteModal(true);
+                        }}
+                        className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 transition text-xs"
+                      >
+                        حذف الحساب نهائياً 🚨
+                      </button>
+                    </div>
+
                   </div>
-                </div>
+                )}
 
               </div>
             )}
