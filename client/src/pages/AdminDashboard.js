@@ -1634,9 +1634,9 @@ export default function AdminDashboard() {
 
       {/* PRODUCT FORM MODAL */}
       {showProductModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden text-right">
-            <div className="bg-slate-900 text-white p-5 flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden text-right">
+            <div className="bg-slate-900 text-white p-5 flex justify-between items-center flex-shrink-0">
               <h3 className="text-lg font-bold">
                 {editingProduct ? '✏️ تعديل صنف في المنيو' : '➕ إضافة صنف جديد للمنيو'}
               </h3>
@@ -1651,7 +1651,7 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <form onSubmit={handleProductSubmit} className="p-6 space-y-4 text-right overflow-y-auto max-h-[80vh]">
+            <form onSubmit={handleProductSubmit} className="p-6 space-y-4 text-right overflow-y-auto flex-1">
               <div>
                 <label className="block text-slate-700 text-sm font-semibold mb-1">اسم الصنف</label>
                 <input
@@ -1833,7 +1833,7 @@ export default function AdminDashboard() {
 
       {/* Realtime New Order Notification Popup */}
       {alarmActive && latestNewOrder && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl border-2 border-rose-500 animate-bounce relative">
             <div className="text-6xl animate-pulse">🔔</div>
             <div className="space-y-2">
