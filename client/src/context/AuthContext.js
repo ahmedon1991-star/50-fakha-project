@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('name, is_admin')
+        .select('name, is_admin, phone')
         .eq('id', sessionUser.id)
         .single();
       
@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
       
       const fullUser = {
         id: sessionUser.id,
-        phone: sessionUser.phone,
+        phone: data?.phone || sessionUser.phone || sessionUser.user_metadata?.phone || '',
         email: sessionUser.email,
         token: (await supabase.auth.getSession()).data.session?.access_token,
         name: data?.name || 'عميلنا',
@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Error fetching profile:', err.message);
       const fallbackUser = {
         id: sessionUser.id,
-        phone: sessionUser.phone,
+        phone: sessionUser.phone || sessionUser.user_metadata?.phone || '',
         email: sessionUser.email,
         name: sessionUser.user_metadata?.name || 'عميلنا',
         isAdmin: false,
