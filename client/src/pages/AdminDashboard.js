@@ -57,6 +57,7 @@ export default function AdminDashboard() {
 
   // Archive State
   const [ordersSubTab, setOrdersSubTab] = useState('current');
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [archiveOrders, setArchiveOrders] = useState([]);
   const [archiveSearch, setArchiveSearch] = useState('');
   const [archiveLoading, setArchiveLoading] = useState(false);
@@ -1134,6 +1135,7 @@ export default function AdminDashboard() {
                               <th className="p-4">المبلغ</th>
                               <th className="p-4 text-center">الحالة</th>
                               <th className="p-4 text-center">تعديل</th>
+                              <th className="p-4 text-center">التفاصيل</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1195,6 +1197,14 @@ export default function AdminDashboard() {
                                     <option value="ملغي">ملغي</option>
                                   </select>
                                 </td>
+                                <td className="p-4 text-center">
+                                  <button
+                                    onClick={() => setSelectedOrderDetail(order)}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs transition duration-150 shadow-sm"
+                                  >
+                                    👁️ تفاصيل
+                                  </button>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -1255,6 +1265,7 @@ export default function AdminDashboard() {
                                 <th className="p-4">الطلب</th>
                                 <th className="p-4">المبلغ</th>
                                 <th className="p-4 text-center">الحالة</th>
+                                <th className="p-4 text-center">التفاصيل</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1301,6 +1312,14 @@ export default function AdminDashboard() {
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
                                       {order.status}
                                     </span>
+                                  </td>
+                                  <td className="p-4 text-center">
+                                    <button
+                                      onClick={() => setSelectedOrderDetail(order)}
+                                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs transition duration-150 shadow-sm"
+                                    >
+                                      👁️ تفاصيل
+                                    </button>
                                   </td>
                                 </tr>
                               ))}
@@ -1975,6 +1994,200 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Detailed Order View Modal */}
+      {selectedOrderDetail && (() => {
+        const order = selectedOrderDetail;
+        const subtotal = order.items?.reduce((sum, it) => sum + (Number(it.price) * Number(it.quantity)), 0) || 0;
+        const deliveryFee = order.total_amount - subtotal;
+        
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[200] p-4">
+            <div className="bg-[#FFF7EC] rounded-3xl shadow-2xl border border-[#F0E1CC] max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden text-right">
+              {/* Header */}
+              <div className="bg-[#1B130D] text-[#FFF7EC] p-5 flex justify-between items-center flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-black font-sans">
+                    🧾 تفاصيل الطلب #{order.order_number || order.id?.slice(0, 8)}
+                  </h3>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
+                    {order.status}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setSelectedOrderDetail(null)}
+                  className="text-slate-400 hover:text-white text-xl p-1 bg-slate-800 hover:bg-slate-700 rounded-lg transition"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-6 space-y-6 overflow-y-auto flex-1">
+                
+                {/* Section 1: Customer Details Card */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 space-y-3.5 shadow-xs">
+                  <h4 className="font-bold text-slate-800 border-b pb-2 text-sm flex items-center gap-2">
+                    <span>👤</span> بيانات العميل والطلب
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-650">
+                    <div>
+                      <span className="text-slate-400 font-bold block">اسم العميل</span>
+                      <span className="text-slate-800 font-bold text-sm mt-0.5 block">{order.user?.name || 'عميل المتجر'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-bold block">رقم الهاتف</span>
+                      <a href={`tel:${order.phone}`} className="text-emerald-700 font-bold text-sm mt-0.5 block font-mono hover:underline">{order.phone || '-'}</a>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <span className="text-slate-400 font-bold block">العنوان بالتفصيل</span>
+                      <span className="text-slate-800 font-semibold mt-0.5 block leading-relaxed">{order.shipping_address || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-bold block">تاريخ ووقت الطلب</span>
+                      <span className="text-slate-800 font-semibold mt-0.5 block">
+                        {new Date(order.created_at).toLocaleString('ar-SD', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-bold block">طريقة الدفع</span>
+                      <span className="text-slate-800 font-bold mt-0.5 block">
+                        {order.payment_method === 'bank' ? '🏦 تحويل بنكي' : '💵 الدفع عند الاستلام (كاش)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {order.payment_method === 'bank' && order.transfer_receipt && (
+                    <div className="pt-3 border-t border-dashed border-slate-100">
+                      <span className="text-slate-400 text-xs font-bold block mb-2">📸 إشعار التحويل المالي المرفق:</span>
+                      <a
+                        href={order.transfer_receipt}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block relative overflow-hidden rounded-xl border border-slate-200 group hover:shadow-md transition-shadow"
+                      >
+                        <img
+                          src={order.transfer_receipt}
+                          alt="إشعار التحويل البنكي"
+                          className="max-h-48 w-auto object-contain bg-slate-50"
+                        />
+                        <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">
+                          اضغط للتكبير 🔍
+                        </div>
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Ordered Items Card */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 space-y-4 shadow-xs">
+                  <h4 className="font-bold text-slate-800 border-b pb-2 text-sm flex items-center gap-2">
+                    <span>🛒</span> الأصناف المطلوبة
+                  </h4>
+                  
+                  <div className="divide-y divide-slate-100">
+                    {order.items?.map((it, idx) => {
+                      const prodInfo = products.find(p => p.name === it.name);
+                      const imageUrl = prodInfo?.image;
+                      
+                      return (
+                        <div key={idx} className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-4">
+                          <div className="flex items-center gap-3">
+                            {/* Product Thumb */}
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt={it.name}
+                                className="w-12 h-12 object-cover rounded-xl border border-slate-100 flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-orange-100/60 flex items-center justify-center text-xl flex-shrink-0">
+                                🍹
+                              </div>
+                            )}
+                            <div>
+                              <h5 className="font-bold text-slate-800 text-sm">
+                                {it.name}
+                                {it.selectedSize && (
+                                  <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-md mr-1.5 font-bold">
+                                    {it.selectedSize}
+                                  </span>
+                                )}
+                              </h5>
+                              <p className="text-slate-400 text-xs mt-1">
+                                {it.price} ج.س × {it.quantity}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <span className="font-extrabold text-emerald-700 text-sm">
+                            {Number(it.price) * Number(it.quantity)} ج.س
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Section 3: Summary Invoice calculation */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 space-y-2.5 shadow-xs text-sm">
+                  <div className="flex justify-between text-slate-500">
+                    <span>المجموع الفرعي:</span>
+                    <span className="font-semibold">{subtotal} ج.س</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>تكلفة التوصيل:</span>
+                    <span className="font-semibold">{deliveryFee} ج.س</span>
+                  </div>
+                  <div className="flex justify-between text-slate-900 font-black text-base border-t border-dashed pt-2.5 mt-2">
+                    <span>الإجمالي النهائي:</span>
+                    <span className="text-emerald-700 text-lg">{order.total_amount} ج.س</span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 flex-shrink-0">
+                {ordersSubTab === 'current' && (
+                  <div className="flex-1 flex items-center gap-2">
+                    <label className="text-xs font-bold text-slate-500 whitespace-nowrap">تعديل حالة الطلب:</label>
+                    <select
+                      value={order.status}
+                      onChange={(e) => {
+                        handleStatusChange(order.id, e.target.value);
+                        setSelectedOrderDetail({ ...order, status: e.target.value });
+                      }}
+                      className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="قيد الانتظار">قيد الانتظار</option>
+                      <option value="تم التأكيد">تم التأكيد</option>
+                      <option value="قيد التوصيل">قيد التوصيل</option>
+                      <option value="تم التوصيل">تم التوصيل</option>
+                      <option value="ملغي">ملغي</option>
+                    </select>
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => setSelectedOrderDetail(null)}
+                  className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-sm"
+                >
+                  إغلاق التفاصيل 🚪
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
