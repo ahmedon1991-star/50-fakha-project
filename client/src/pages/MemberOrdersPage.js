@@ -14,6 +14,61 @@ export default function MemberOrdersPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [ordersSubTab, setOrdersSubTab] = useState('active');
   const [expandedOrders, setExpandedOrders] = useState({});
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const { data } = await supabase
+          .from('app_settings')
+          .select('whatsapp_phone')
+          .eq('id', 1)
+          .maybeSingle();
+        if (data) {
+          setWhatsappPhone(data.whatsapp_phone || '');
+        }
+      } catch (err) {
+        console.error('Error fetching settings:', err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const sendOrderToWhatsApp = (order) => {
+    if (!whatsappPhone) return;
+
+    const divider = '━━━━━━━━━━━━━━━━━━━━';
+    const formattedItems = (order.items || []).map(item => 
+      `• *${item.name}* ${item.selectedSize ? `(_${item.selectedSize}_)` : ''}\n` +
+      `  الكمية: *${item.quantity || 1}* ✖️ ${item.price} ج.س = *${(item.price || 0) * (item.quantity || 1)} ج.س*`
+    ).join('\n\n');
+
+    const paymentText = order.payment_method === 'bank' 
+      ? '🏦 تحويل بنكي (مرفق إشعار التحويل)' 
+      : '💵 الدفع عند الاستلام (كاش)';
+
+    const bankDetailsSection = (order.payment_method === 'bank' && order.transfer_receipt)
+      ? `\n🔗 *رابط إشعار التحويل:* ${order.transfer_receipt}\n`
+      : '';
+
+    const message = `✨ *فاتورة طلب مؤكدة - 50 فاكهة* ✨\n` +
+      `${divider}\n` +
+      `🆔 *رقم الطلب:* \`#${order.order_number}\`\n` +
+      `👤 *اسم العميل:* ${user?.name || 'عميل المتجر'}\n` +
+      `📞 *رقم الهاتف:* ${order.phone}\n` +
+      `📍 *العنوان:* ${order.shipping_address}\n` +
+      `💳 *طريقة الدفع:* ${paymentText}\n` +
+      `${divider}\n\n` +
+      `🛒 *الأصناف المطلوبة:*\n\n${formattedItems}\n\n` +
+      `${divider}\n` +
+      `💰 *الإجمالي الكلي:* *${order.total_amount} ج.س*\n` +
+      `${divider}\n` +
+      bankDetailsSection +
+      `\n💚 شكراً لتعاملك مع 50 فاكهة!`;
+
+    const cleanPhone = whatsappPhone.replace('+', '').trim();
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
 
   useEffect(() => {
     if (user) {
@@ -354,6 +409,17 @@ export default function MemberOrdersPage() {
                             </div>
                           )}
                         </div>
+
+                        {/* WhatsApp Send Button (Only active post-acceptance) */}
+                        {order.status !== 'قيد الانتظار' && order.status !== 'ملغي' && (
+                          <button
+                            onClick={() => sendOrderToWhatsApp(order)}
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+                            style={{ fontFamily: "'Cairo', sans-serif" }}
+                          >
+                            <span>💬</span> إرسال الفاتورة عبر واتساب
+                          </button>
+                        )}
 
                         {/* Reorder Button */}
                         <button

@@ -243,9 +243,6 @@ export default function CartPage() {
       };
       setLastOrderDetails(savedDetails);
 
-      // Trigger automatic WhatsApp redirect if phone configured
-      sendToWhatsApp(savedDetails);
-
       setOrderSuccess(true);
       clearCart();
     } catch (err) {
@@ -659,17 +656,7 @@ export default function CartPage() {
               </div>
             </div>
           </div>
-
           <div className="space-y-3">
-            {/* Primary Action */}
-            <button
-              onClick={shareViaWhatsApp}
-              className="w-full bg-emerald-650 hover:bg-emerald-755 text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg transition duration-200 flex items-center justify-center gap-2 text-base cursor-pointer"
-              style={{ fontFamily: "'Cairo', sans-serif" }}
-            >
-              <span>💬</span> إرسال الفاتورة كصورة عبر واتساب
-            </button>
-            
             {/* Secondary Actions */}
             <div className="grid grid-cols-2 gap-3">
               <button
