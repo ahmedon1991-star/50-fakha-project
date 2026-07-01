@@ -896,8 +896,8 @@ export default function AdminDashboard() {
               onClick={toggleAutoAccept}
               className={`text-xs font-black px-4 py-2.5 rounded-xl shadow transition duration-200 hover:scale-[1.02] flex items-center gap-1.5 ${
                 autoAcceptEnabled
-                  ? 'bg-emerald-650 hover:bg-emerald-755 text-white font-bold'
-                  : 'bg-slate-700 hover:bg-slate-855 text-slate-300'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold'
+                  : 'bg-rose-600 hover:bg-rose-700 text-white font-bold'
               }`}
             >
               <span>{autoAcceptEnabled ? 'القبول التلقائي: مفعل 🤖' : 'القبول التلقائي: معطل 👤'}</span>
