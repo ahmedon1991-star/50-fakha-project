@@ -98,8 +98,8 @@ export default function AdminDashboard() {
   });
   const [countdown, setCountdown] = useState(5);
   const countdownIntervalRef = useRef(null);
-  const orderPollingIntervalRef = useRef(null);
-  const lastKnownOrderCreatedAt = useRef(new Date().toISOString());
+  const alertedOrderIds = useRef(new Set());
+  const hasInitializedAlerts = useRef(false);
 
   const toggleAutoAccept = () => {
     const nextVal = !autoAcceptEnabled;
@@ -412,54 +412,78 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    // ── Helper: check for new orders since last known ──
-    const checkForNewOrders = async () => {
+    // 1. Initialize by fetching existing pending orders to prevent alerting old orders
+    const initializeAlerts = async () => {
       try {
         const { data, error } = await supabase
           .from('orders')
-          .select('id, order_number, phone, shipping_address, total_amount, payment_method, items, notes, user_id, created_at, admin_cleared, transfer_receipt')
+          .select('id')
           .eq('admin_cleared', false)
-          .gt('created_at', lastKnownOrderCreatedAt.current)
-          .order('created_at', { ascending: false })
-          .limit(1);
+          .eq('status', 'قيد الانتظار');
+        if (error) throw error;
+        if (data) {
+          data.forEach(order => alertedOrderIds.current.add(order.id));
+        }
+      } catch (err) {
+        console.error('Failed to initialize order alerts:', err);
+      } finally {
+        hasInitializedAlerts.current = true;
+      }
+    };
+
+    initializeAlerts();
+
+    // 2. Smart polling fallback (runs every 6 seconds)
+    const checkForNewOrders = async () => {
+      if (!hasInitializedAlerts.current) return;
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id, order_number, phone, shipping_address, total_amount, payment_method, items, notes, user_id, created_at, admin_cleared, transfer_receipt, status')
+          .eq('admin_cleared', false)
+          .eq('status', 'قيد الانتظار')
+          .order('created_at', { ascending: false });
 
         if (error) throw error;
         if (data && data.length > 0) {
-          const newOrder = data[0];
-          // Update our timestamp so we don't alert again for same order
-          lastKnownOrderCreatedAt.current = newOrder.created_at;
-          setLatestNewOrder(newOrder);
-          startAlarm();
-          setTimeout(() => fetchData(), 1500);
+          // Find the first order that hasn't been alerted yet
+          const unalertedOrder = data.find(order => !alertedOrderIds.current.has(order.id));
+          if (unalertedOrder) {
+            alertedOrderIds.current.add(unalertedOrder.id);
+            setLatestNewOrder(unalertedOrder);
+            startAlarm();
+            setTimeout(() => fetchData(), 1500);
+          }
         }
       } catch (err) {
         console.error('Polling error:', err);
       }
     };
 
-    // Start polling every 8 seconds
-    orderPollingIntervalRef.current = setInterval(checkForNewOrders, 8000);
+    const pollInterval = setInterval(checkForNewOrders, 6000);
 
-    // Also keep Realtime as a bonus (fires if RLS allows it)
+    // 3. Realtime INSERT listener (fires if database permissions/RLS allows it)
     const pgChannel = supabase
-      .channel('admin-realtime-orders-v4')
+      .channel('admin-realtime-orders-v5')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
           const newOrder = payload.new;
-          if (newOrder && !newOrder.admin_cleared) {
-            lastKnownOrderCreatedAt.current = newOrder.created_at;
-            setLatestNewOrder(newOrder);
-            startAlarm();
-            setTimeout(() => fetchData(), 1500);
+          if (newOrder && !newOrder.admin_cleared && newOrder.status === 'قيد الانتظار') {
+            if (!alertedOrderIds.current.has(newOrder.id)) {
+              alertedOrderIds.current.add(newOrder.id);
+              setLatestNewOrder(newOrder);
+              startAlarm();
+              setTimeout(() => fetchData(), 1500);
+            }
           }
         }
       )
       .subscribe();
 
     return () => {
-      if (orderPollingIntervalRef.current) clearInterval(orderPollingIntervalRef.current);
+      clearInterval(pollInterval);
       supabase.removeChannel(pgChannel);
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     };
