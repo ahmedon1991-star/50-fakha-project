@@ -130,6 +130,17 @@ export default function CartPage() {
       return;
     }
 
+    // Validate phone number: must be exactly 10 digits (strip spaces and hyphens first)
+    const cleanPhone = phone.replace(/[\s-]/g, '');
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(cleanPhone)) {
+      setError('يرجى إدخال رقم هاتف صحيح مكون من 10 أرقام (مثال: 0912345678)');
+      return;
+    }
+
+    // Save cleaned phone back to state
+    setPhone(cleanPhone);
+
     setError('');
     setLoading(true);
     setUploadingReceipt(false);
@@ -183,7 +194,7 @@ export default function CartPage() {
         })),
         total_amount: grandTotal,
         shipping_address: address,
-        phone: phone,
+        phone: cleanPhone,
         status: 'قيد الانتظار'
       };
 
@@ -201,7 +212,7 @@ export default function CartPage() {
           payload: {
             id: orderPayload.user_id + '-' + Date.now(),
             order_number: orderNumber,
-            phone: phone,
+            phone: cleanPhone,
             shipping_address: address,
             total_amount: grandTotal,
             payment_method: paymentMethod,
@@ -223,7 +234,7 @@ export default function CartPage() {
         deliveryFee,
         grandTotal,
         address,
-        phone,
+        phone: cleanPhone,
         paymentMethod,
         receiptUrl,
         bankName,
