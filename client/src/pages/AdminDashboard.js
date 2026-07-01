@@ -100,6 +100,7 @@ export default function AdminDashboard() {
   const countdownIntervalRef = useRef(null);
   const alertedOrderIds = useRef(new Set());
   const hasInitializedAlerts = useRef(false);
+  const wakeLockRef = useRef(null);
 
   const toggleAutoAccept = () => {
     const nextVal = !autoAcceptEnabled;
@@ -411,6 +412,37 @@ export default function AdminDashboard() {
     startAlarm();
   };
 
+  const checkForNewOrders = async () => {
+    if (!hasInitializedAlerts.current) return;
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('admin_cleared', false)
+        .eq('status', 'قيد الانتظار')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        // Find the first order that hasn't been alerted yet
+        const unalertedOrder = data.find(order => !alertedOrderIds.current.has(order.id));
+        if (unalertedOrder) {
+          alertedOrderIds.current.add(unalertedOrder.id);
+          setLatestNewOrder(unalertedOrder);
+          startAlarm();
+          setTimeout(() => fetchData(), 1500);
+        }
+      }
+    } catch (err) {
+      console.error('Polling error:', err);
+    }
+  };
+
+  const checkForNewOrdersRef = useRef(checkForNewOrders);
+  useEffect(() => {
+    checkForNewOrdersRef.current = checkForNewOrders;
+  }, [checkForNewOrders]);
+
   useEffect(() => {
     // 1. Initialize by fetching existing pending orders to prevent alerting old orders
     const initializeAlerts = async () => {
@@ -433,34 +465,31 @@ export default function AdminDashboard() {
 
     initializeAlerts();
 
-    // 2. Smart polling fallback (runs every 6 seconds)
-    const checkForNewOrders = async () => {
-      if (!hasInitializedAlerts.current) return;
-      try {
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('admin_cleared', false)
-          .eq('status', 'قيد الانتظار')
-          .order('created_at', { ascending: false });
+    // 2. Web Worker for background interval polling (prevents mobile/tab throttling when in background/sleep)
+    const blob = new Blob([
+      `let timer = null;
+       self.onmessage = function(e) {
+         if (e.data === 'start') {
+           if (timer) clearInterval(timer);
+           timer = setInterval(() => {
+             self.postMessage('tick');
+           }, 6000);
+         } else if (e.data === 'stop') {
+           if (timer) clearInterval(timer);
+         }
+       };`
+    ], { type: 'application/javascript' });
 
-        if (error) throw error;
-        if (data && data.length > 0) {
-          // Find the first order that hasn't been alerted yet
-          const unalertedOrder = data.find(order => !alertedOrderIds.current.has(order.id));
-          if (unalertedOrder) {
-            alertedOrderIds.current.add(unalertedOrder.id);
-            setLatestNewOrder(unalertedOrder);
-            startAlarm();
-            setTimeout(() => fetchData(), 1500);
-          }
-        }
-      } catch (err) {
-        console.error('Polling error:', err);
+    const workerUrl = URL.createObjectURL(blob);
+    const worker = new Worker(workerUrl);
+
+    worker.onmessage = (e) => {
+      if (e.data === 'tick') {
+        checkForNewOrdersRef.current();
       }
     };
 
-    const pollInterval = setInterval(checkForNewOrders, 6000);
+    worker.postMessage('start');
 
     // 3. Realtime INSERT listener (fires if database permissions/RLS allows it)
     const pgChannel = supabase
@@ -482,9 +511,47 @@ export default function AdminDashboard() {
       )
       .subscribe();
 
+    // 4. Screen Wake Lock implementation (keeps screen active / prevents sleep)
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+          console.log('Screen Wake Lock acquired successfully! 🔓');
+        }
+      } catch (err) {
+        console.warn('Wake Lock request failed:', err.message);
+      }
+    };
+
+    const releaseWakeLock = async () => {
+      try {
+        if (wakeLockRef.current) {
+          await wakeLockRef.current.release();
+          wakeLockRef.current = null;
+          console.log('Screen Wake Lock released.');
+        }
+      } catch (err) {
+        console.error('Wake Lock release error:', err);
+      }
+    };
+
+    requestWakeLock();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
-      clearInterval(pollInterval);
+      worker.postMessage('stop');
+      worker.terminate();
+      URL.revokeObjectURL(workerUrl);
       supabase.removeChannel(pgChannel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseWakeLock();
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     };
   }, []); // eslint-disable-line
