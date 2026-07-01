@@ -35,7 +35,8 @@ export default function CartPage() {
         const { data } = await supabase
           .from('app_settings')
           .select('delivery_fee, accepting_orders, whatsapp_phone, bank_name, bank_account, bank_holder_name')
-          .single();
+          .eq('id', 1)
+          .maybeSingle();
         if (data) {
           if (data.delivery_fee !== null && data.delivery_fee !== undefined) {
             setDeliveryFee(Number(data.delivery_fee));

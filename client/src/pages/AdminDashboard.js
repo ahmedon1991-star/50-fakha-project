@@ -525,10 +525,10 @@ export default function AdminDashboard() {
         .filter(sz => sz.name.trim() !== '')
         .map(sz => ({ name: sz.name.trim(), price: Number(sz.price) || 0 }));
 
-      // Auto-calculate base price: min of sizes prices, or 0 if no sizes
+      // Auto-calculate base price: min of sizes prices, or keep form price if no sizes
       const autoPrice = cleanedSizes.length > 0
         ? Math.min(...cleanedSizes.map(s => s.price))
-        : 0;
+        : (Number(productForm.price) || 0);
 
       const formData = { ...productForm, sizes: cleanedSizes, price: autoPrice };
 
@@ -1808,9 +1808,24 @@ export default function AdminDashboard() {
                   </button>
                 </div>
                 {productForm.sizes.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-3 border border-dashed border-slate-300 rounded-xl bg-white">
-                    لا توجد أحجام — سيُستخدم السعر الأساسي أعلاه للمنتج
-                  </p>
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-400 text-center py-3 border border-dashed border-slate-300 rounded-xl bg-white">
+                      لا توجد أحجام — سيُستخدم السعر الأساسي للمنتج
+                    </p>
+                    <div>
+                      <label className="block text-slate-700 text-xs font-semibold mb-1">السعر الأساسي (ج.س)</label>
+                      <input
+                        id="client-prod-price"
+                        type="number"
+                        min="0"
+                        required
+                        value={productForm.price}
+                        onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                        placeholder="مثال: 150"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-bold"
+                      />
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     {productForm.sizes.map((sz, idx) => (
