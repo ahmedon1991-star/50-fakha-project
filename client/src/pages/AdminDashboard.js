@@ -439,7 +439,7 @@ export default function AdminDashboard() {
       try {
         const { data, error } = await supabase
           .from('orders')
-          .select('id, order_number, phone, shipping_address, total_amount, payment_method, items, notes, user_id, created_at, admin_cleared, transfer_receipt, status')
+          .select('*')
           .eq('admin_cleared', false)
           .eq('status', 'قيد الانتظار')
           .order('created_at', { ascending: false });
