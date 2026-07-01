@@ -188,7 +188,7 @@ export default function MemberOrdersPage() {
             {(() => {
               const filtered = orders.filter(o => {
                 if (ordersSubTab === 'active') {
-                  return o.status !== 'تم التوصيل' && o.status !== 'ملغي';
+                  return o.status !== 'تم التوصيل';
                 } else {
                   return o.status === 'تم التوصيل' || o.status === 'ملغي';
                 }
@@ -260,6 +260,13 @@ export default function MemberOrdersPage() {
                     {/* Collapsible Details */}
                     {isExpanded && (
                       <div className="p-4 bg-slate-50/50 space-y-4">
+                        {/* Canceled Order Warning */}
+                        {order.status === 'ملغي' && (
+                          <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-center text-rose-800 font-bold text-sm my-2 shadow-sm animate-pulse">
+                            ❌ نعتذر منك، تم إلغاء/رفض هذا الطلب من قبل الإدارة.
+                          </div>
+                        )}
+
                         {/* Stepper (Only for active orders) */}
                         {order.status !== 'ملغي' && stepIdx >= 0 && (
                           <div className="py-2 border-b border-slate-100">
