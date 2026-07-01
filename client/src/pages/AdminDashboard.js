@@ -1046,13 +1046,7 @@ export default function AdminDashboard() {
               <span>{autoAcceptEnabled ? 'القبول التلقائي: مفعل 🤖' : 'القبول التلقائي: معطل 👤'}</span>
             </button>
 
-            {/* Test modal trigger button */}
-            <button
-              onClick={triggerTestModal}
-              className="text-xs font-black px-4 py-2.5 rounded-xl shadow transition duration-200 hover:scale-[1.02] bg-amber-500 hover:bg-amber-600 text-white"
-            >
-              🧪 اختبار النافذة
-            </button>
+
 
             <Link 
               to="/" 
