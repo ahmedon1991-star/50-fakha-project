@@ -90,6 +90,7 @@ export default function AdminDashboard() {
   // New Order Alarm State & Refs
   const [alarmActive, setAlarmActive] = useState(false);
   const [latestNewOrder, setLatestNewOrder] = useState(null);
+  const [latestNewOrderCustomerName, setLatestNewOrderCustomerName] = useState('عميل المتجر');
   const audioIntervalRef = useRef(null);
 
   const [autoAcceptEnabled, setAutoAcceptEnabled] = useState(() => {
@@ -393,21 +394,13 @@ export default function AdminDashboard() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
-        async (payload) => {
+        (payload) => {
           const newOrder = payload.new;
           if (newOrder && !newOrder.admin_cleared) {
             // Refresh dashboard data
             fetchData();
-            
-            // Enrich with customer profile name
-            const customerName = await fetchProfileName(newOrder.user_id);
-            const enrichedOrder = {
-              ...newOrder,
-              customer_name: customerName
-            };
-            
-            // Trigger visual pop-up and alarm sound
-            setLatestNewOrder(enrichedOrder);
+            // Trigger visual pop-up and alarm sound immediately
+            setLatestNewOrder(newOrder);
             startAlarm();
           }
         }
@@ -450,6 +443,18 @@ export default function AdminDashboard() {
       }
     };
   }, [latestNewOrder, autoAcceptEnabled]);
+
+  // Load customer name reactively when a new order is received
+  useEffect(() => {
+    if (latestNewOrder) {
+      setLatestNewOrderCustomerName('عميل المتجر'); // reset
+      const loadProfile = async () => {
+        const name = await fetchProfileName(latestNewOrder.user_id);
+        setLatestNewOrderCustomerName(name);
+      };
+      loadProfile();
+    }
+  }, [latestNewOrder]);
 
   // Categories CRUD
   const handleAddCategory = async (e) => {
@@ -2136,7 +2141,7 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-650">
                     <div>
                       <span className="text-slate-400 font-bold block">اسم العميل</span>
-                      <span className="text-slate-800 font-bold text-sm mt-0.5 block">{order.customer_name || 'عميل المتجر'}</span>
+                      <span className="text-slate-800 font-bold text-sm mt-0.5 block">{latestNewOrderCustomerName || 'عميل المتجر'}</span>
                     </div>
                     <div>
                       <span className="text-slate-400 font-bold block">رقم الهاتف</span>
