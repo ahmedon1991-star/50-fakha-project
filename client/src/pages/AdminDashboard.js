@@ -410,27 +410,40 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    // Realtime listener for incoming orders
-    const channel = supabase
-      .channel('admin-realtime-orders-v2')
+    // Primary: postgres_changes for INSERT events on orders table
+    const pgChannel = supabase
+      .channel('admin-realtime-orders-v3')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
           const newOrder = payload.new;
           if (newOrder && !newOrder.admin_cleared) {
-            // Show the modal and ring the alarm FIRST, before any data refresh
             setLatestNewOrder(newOrder);
             startAlarm();
-            // Defer data refresh so it doesn't interfere with modal rendering
             setTimeout(() => fetchData(), 1500);
           }
         }
       )
       .subscribe();
 
+    // Secondary: broadcast channel as fallback
+    // CartPage sends a broadcast event 'new-order' when checkout succeeds
+    const broadcastChannel = supabase
+      .channel('admin-broadcast-orders')
+      .on('broadcast', { event: 'new-order' }, (payload) => {
+        const newOrder = payload.payload;
+        if (newOrder) {
+          setLatestNewOrder(newOrder);
+          startAlarm();
+          setTimeout(() => fetchData(), 1500);
+        }
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(pgChannel);
+      supabase.removeChannel(broadcastChannel);
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     };
   }, []); // eslint-disable-line

@@ -193,6 +193,28 @@ export default function CartPage() {
 
       if (insertError) throw insertError;
 
+      // Notify admin dashboard via broadcast (works even without RLS full-access for INSERT events)
+      try {
+        await supabase.channel('admin-broadcast-orders').send({
+          type: 'broadcast',
+          event: 'new-order',
+          payload: {
+            id: orderPayload.user_id + '-' + Date.now(),
+            order_number: orderNumber,
+            phone: phone,
+            shipping_address: address,
+            total_amount: grandTotal,
+            payment_method: paymentMethod,
+            items: orderPayload.items,
+            notes: '',
+            user_id: user?.id,
+            admin_cleared: false
+          }
+        });
+      } catch (broadcastErr) {
+        console.warn('Broadcast notify failed (non-critical):', broadcastErr);
+      }
+
       // Save details for success screen invoice preview & WhatsApp link
       const savedDetails = {
         orderNumber,
