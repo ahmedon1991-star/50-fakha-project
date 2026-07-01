@@ -1,0 +1,17 @@
+{
+  "short_name": "50 فاكهة",
+  "name": "50 فاكهة - العصير الطبيعي والوجبات",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#FFF7EC",
+  "background_color": "#FFF7EC",
+  "orientation": "portrait"
+}
