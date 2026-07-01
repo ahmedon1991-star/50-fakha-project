@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,98 @@ export default function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactInfo, setContactInfo] = useState({ phone: '', email: '' });
+  const [statusNotification, setStatusNotification] = useState(null);
+  const orderStatusCache = useRef({});
+
+  // Custom 0.8s melodic chime (Sine wave double tone)
+  const playMelodicChime = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      // Note 1 (E5)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(659.25, ctx.currentTime);
+      gain1.gain.setValueAtTime(0, ctx.currentTime);
+      gain1.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.05);
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      
+      // Note 2 (A5)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880.00, ctx.currentTime + 0.12);
+      gain2.gain.setValueAtTime(0, ctx.currentTime + 0.12);
+      gain2.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.17);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.5);
+      osc2.start(ctx.currentTime + 0.12);
+      osc2.stop(ctx.currentTime + 0.7);
+    } catch (e) {
+      console.error('Audio failed:', e);
+    }
+  };
+
+  // Realtime subscription for order status updates
+  useEffect(() => {
+    if (!user) {
+      setStatusNotification(null);
+      return;
+    }
+
+    const channel = supabase
+      .channel(`client-order-updates-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          const newOrder = payload.new;
+          if (newOrder) {
+            const lastStatus = orderStatusCache.current[newOrder.id];
+            if (lastStatus !== undefined && lastStatus === newOrder.status) {
+              return;
+            }
+            orderStatusCache.current[newOrder.id] = newOrder.status;
+
+            playMelodicChime();
+            setStatusNotification({
+              orderNumber: newOrder.order_number,
+              status: newOrder.status,
+              id: newOrder.id
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Clear notification after 6 seconds
+  useEffect(() => {
+    if (statusNotification) {
+      const timer = setTimeout(() => {
+        setStatusNotification(null);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusNotification]);
 
   useEffect(() => {
     const fetchContactInfo = async () => {
@@ -50,6 +142,21 @@ export default function Navbar() {
       style={{ background: '#FFF7EC', borderBottom: '1px solid #F0E1CC' }}
       className="sticky top-0 z-50 shadow-sm"
     >
+      <style>{`
+        @keyframes slideInUp {
+          from {
+            transform: translateY(-20px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-up {
+          animation: slideInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
       <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
         
         {/* Brand Logo */}
@@ -372,6 +479,46 @@ export default function Navbar() {
                 إغلاق النافذة
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ─── LIVE ORDER STATUS TOAST ─── */}
+      {statusNotification && (
+        <div 
+          className="fixed top-20 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border-2 border-orange-105 p-4 z-[9999] flex items-center justify-between gap-4 animate-slide-up"
+          dir="rtl"
+        >
+          <div className="flex items-center gap-3 text-right">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-lg flex-shrink-0 animate-bounce">
+              🔔
+            </div>
+            <div>
+              <h4 className="font-black text-sm text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                تحديث حالة الطلب
+              </h4>
+              <p className="text-xs text-slate-650 mt-1 font-medium leading-relaxed">
+                طلبك رقم <span className="font-mono font-bold text-orange-600">#{statusNotification.orderNumber}</span> أصبح الآن:
+                <span className="font-bold text-slate-855 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100 mr-1.5 inline-block">
+                  {statusNotification.status}
+                </span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/orders"
+              onClick={() => setStatusNotification(null)}
+              className="text-xs font-black text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100/80 px-3 py-2 rounded-xl transition text-decoration-none"
+              style={{ fontFamily: "'Cairo', sans-serif" }}
+            >
+              تتبع 🗺️
+            </Link>
+            <button
+              onClick={() => setStatusNotification(null)}
+              className="text-slate-450 hover:text-slate-700 text-lg font-bold p-1 leading-none transition"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}

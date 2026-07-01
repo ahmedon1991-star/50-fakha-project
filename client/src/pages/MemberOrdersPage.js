@@ -21,6 +21,35 @@ export default function MemberOrdersPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`member-orders-realtime-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          const updatedOrder = payload.new;
+          if (updatedOrder) {
+            setOrders(prevOrders => 
+              prevOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const fetchOrders = async () => {
     setLoading(true);
     setError('');
