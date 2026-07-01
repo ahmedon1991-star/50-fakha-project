@@ -98,6 +98,8 @@ export default function AdminDashboard() {
   });
   const [countdown, setCountdown] = useState(5);
   const countdownIntervalRef = useRef(null);
+  const orderPollingIntervalRef = useRef(null);
+  const lastKnownOrderCreatedAt = useRef(new Date().toISOString());
 
   const toggleAutoAccept = () => {
     const nextVal = !autoAcceptEnabled;
@@ -410,15 +412,44 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    // Primary: postgres_changes for INSERT events on orders table
+    // ── Helper: check for new orders since last known ──
+    const checkForNewOrders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id, order_number, phone, shipping_address, total_amount, payment_method, items, notes, user_id, created_at, admin_cleared, transfer_receipt')
+          .eq('admin_cleared', false)
+          .gt('created_at', lastKnownOrderCreatedAt.current)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          const newOrder = data[0];
+          // Update our timestamp so we don't alert again for same order
+          lastKnownOrderCreatedAt.current = newOrder.created_at;
+          setLatestNewOrder(newOrder);
+          startAlarm();
+          setTimeout(() => fetchData(), 1500);
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    };
+
+    // Start polling every 8 seconds
+    orderPollingIntervalRef.current = setInterval(checkForNewOrders, 8000);
+
+    // Also keep Realtime as a bonus (fires if RLS allows it)
     const pgChannel = supabase
-      .channel('admin-realtime-orders-v3')
+      .channel('admin-realtime-orders-v4')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
           const newOrder = payload.new;
           if (newOrder && !newOrder.admin_cleared) {
+            lastKnownOrderCreatedAt.current = newOrder.created_at;
             setLatestNewOrder(newOrder);
             startAlarm();
             setTimeout(() => fetchData(), 1500);
@@ -427,23 +458,9 @@ export default function AdminDashboard() {
       )
       .subscribe();
 
-    // Secondary: broadcast channel as fallback
-    // CartPage sends a broadcast event 'new-order' when checkout succeeds
-    const broadcastChannel = supabase
-      .channel('admin-broadcast-orders')
-      .on('broadcast', { event: 'new-order' }, (payload) => {
-        const newOrder = payload.payload;
-        if (newOrder) {
-          setLatestNewOrder(newOrder);
-          startAlarm();
-          setTimeout(() => fetchData(), 1500);
-        }
-      })
-      .subscribe();
-
     return () => {
+      if (orderPollingIntervalRef.current) clearInterval(orderPollingIntervalRef.current);
       supabase.removeChannel(pgChannel);
-      supabase.removeChannel(broadcastChannel);
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     };
   }, []); // eslint-disable-line
