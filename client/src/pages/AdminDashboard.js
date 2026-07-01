@@ -92,6 +92,78 @@ export default function AdminDashboard() {
   const [latestNewOrder, setLatestNewOrder] = useState(null);
   const audioIntervalRef = useRef(null);
 
+  const [autoAcceptEnabled, setAutoAcceptEnabled] = useState(() => {
+    return localStorage.getItem('auto_accept_orders') === 'true';
+  });
+  const [countdown, setCountdown] = useState(5);
+  const countdownIntervalRef = useRef(null);
+
+  const toggleAutoAccept = () => {
+    const nextVal = !autoAcceptEnabled;
+    setAutoAcceptEnabled(nextVal);
+    localStorage.setItem('auto_accept_orders', String(nextVal));
+  };
+
+  const fetchProfileName = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.name || 'عميل المتجر';
+    } catch (e) {
+      console.error(e);
+      return 'عميل المتجر';
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (err) {
+      console.error('Error fetching products:', err.message);
+    }
+  };
+
+  const handleAcceptOrder = async (orderId, orderNumber) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'تم التأكيد' })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'تم التأكيد' } : o));
+      stopAlarm();
+      setLatestNewOrder(null);
+    } catch (err) {
+      console.error('Error accepting order:', err);
+    }
+  };
+
+  const handleRejectOrder = async (orderId) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'ملغي' })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'ملغي' } : o));
+      stopAlarm();
+      setLatestNewOrder(null);
+    } catch (err) {
+      console.error('Error rejecting order:', err);
+    }
+  };
+
   const playLoudNotification = () => {
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -311,6 +383,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchCategories();
     fetchAppSettings();
+    fetchProducts();
   }, []);
 
   useEffect(() => {
@@ -320,13 +393,21 @@ export default function AdminDashboard() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
-        (payload) => {
+        async (payload) => {
           const newOrder = payload.new;
           if (newOrder && !newOrder.admin_cleared) {
             // Refresh dashboard data
             fetchData();
+            
+            // Enrich with customer profile name
+            const customerName = await fetchProfileName(newOrder.user_id);
+            const enrichedOrder = {
+              ...newOrder,
+              customer_name: customerName
+            };
+            
             // Trigger visual pop-up and alarm sound
-            setLatestNewOrder(newOrder);
+            setLatestNewOrder(enrichedOrder);
             startAlarm();
           }
         }
@@ -338,6 +419,37 @@ export default function AdminDashboard() {
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     };
   }, []); // eslint-disable-line
+
+  // Countdown effect for auto-accepting orders
+  useEffect(() => {
+    if (latestNewOrder && autoAcceptEnabled) {
+      setCountdown(5);
+      
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(countdownIntervalRef.current);
+            handleAcceptOrder(latestNewOrder.id, latestNewOrder.order_number);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, [latestNewOrder, autoAcceptEnabled]);
 
   // Categories CRUD
   const handleAddCategory = async (e) => {
@@ -772,6 +884,18 @@ export default function AdminDashboard() {
               }`}
             >
               <span>{acceptingOrders ? 'استقبال الطلبات: مفعل 🟢' : 'استقبال الطلبات: مغلق 🔴'}</span>
+            </button>
+
+            {/* Auto Accept toggle button */}
+            <button
+              onClick={toggleAutoAccept}
+              className={`text-xs font-black px-4 py-2.5 rounded-xl shadow transition duration-200 hover:scale-[1.02] flex items-center gap-1.5 ${
+                autoAcceptEnabled
+                  ? 'bg-emerald-650 hover:bg-emerald-755 text-white font-bold'
+                  : 'bg-slate-700 hover:bg-slate-855 text-slate-300'
+              }`}
+            >
+              <span>{autoAcceptEnabled ? 'القبول التلقائي: مفعل 🤖' : 'القبول التلقائي: معطل 👤'}</span>
             </button>
 
             <Link 
@@ -1971,29 +2095,155 @@ export default function AdminDashboard() {
       )}
 
       {/* Realtime New Order Notification Popup */}
-      {alarmActive && latestNewOrder && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl border-2 border-rose-500 animate-bounce relative">
-            <div className="text-6xl animate-pulse">🔔</div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-black text-rose-600">طلب جديد وارد!</h2>
-              <p className="text-slate-755 text-sm font-bold">
-                وصل طلب جديد للمطعم برقم: 
-                <span className="block mt-2 text-xl bg-slate-100 text-rose-700 px-3 py-1.5 rounded-xl font-mono font-black border border-slate-200">
-                  #{latestNewOrder.order_number}
+      {alarmActive && latestNewOrder && (() => {
+        const order = latestNewOrder;
+        const subtotal = order.items?.reduce((sum, it) => sum + (Number(it.price) * Number(it.quantity)), 0) || 0;
+        const deliveryFee = (Number(order.total_amount) || 0) - subtotal;
+        
+        return (
+          <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto text-right" dir="rtl">
+            <div className="bg-[#FFF7EC] rounded-3xl shadow-2xl border-2 border-rose-500 max-w-2xl w-full max-h-[95vh] flex flex-col overflow-hidden animate-slide-up">
+              
+              {/* Modal Header */}
+              <div className="bg-rose-600 text-white p-5 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl animate-bounce">🚨</span>
+                  <h3 className="text-xl font-black" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                    طلب جديد وارد الآن!
+                  </h3>
+                </div>
+                <span className="font-mono text-sm bg-rose-700 px-3 py-1 rounded-full font-bold">
+                  رقم الطلب: #{order.order_number}
                 </span>
-              </p>
-              <p className="text-xs text-slate-400 mt-2">يرجى مراجعة تفاصيل الفاتورة وإرسالها للعميل.</p>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="p-6 space-y-6 overflow-y-auto flex-1 text-slate-800">
+                
+                {/* Auto Accept Indicator */}
+                {autoAcceptEnabled && (
+                  <div className="bg-emerald-50 border-r-4 border-emerald-500 text-emerald-800 p-4 rounded-xl shadow-xs font-bold text-center text-sm flex items-center justify-center gap-2 animate-pulse">
+                    <span>⏱️</span>
+                    <span>سيتم القبول التلقائي للطلب خلال: {countdown} ثوانٍ...</span>
+                  </div>
+                )}
+
+                {/* Section 1: Customer Details */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 space-y-3.5 shadow-xs">
+                  <h4 className="font-bold text-slate-800 border-b pb-2 text-sm flex items-center gap-2">
+                    <span>👤</span> بيانات العميل والتوصيل
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-650">
+                    <div>
+                      <span className="text-slate-400 font-bold block">اسم العميل</span>
+                      <span className="text-slate-800 font-bold text-sm mt-0.5 block">{order.customer_name || 'عميل المتجر'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-bold block">رقم الهاتف</span>
+                      <a href={`tel:${order.phone}`} className="text-emerald-700 font-bold text-sm mt-0.5 block font-mono hover:underline">{order.phone || order.customer_phone || '-'}</a>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <span className="text-slate-400 font-bold block">العنوان بالتفصيل</span>
+                      <span className="text-slate-800 font-semibold mt-0.5 block leading-relaxed">{order.shipping_address || '-'}</span>
+                    </div>
+                    {order.notes && (
+                      <div className="sm:col-span-2 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100 text-amber-800">
+                        <span className="text-slate-400 font-bold block text-[10px]">ملاحظات العميل</span>
+                        <span className="font-semibold block mt-0.5">{order.notes}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section 2: Ordered Items */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 space-y-4 shadow-xs">
+                  <h4 className="font-bold text-slate-800 border-b pb-2 text-sm flex items-center gap-2">
+                    <span>🛒</span> الأصناف المطلوبة
+                  </h4>
+                  
+                  <div className="divide-y divide-slate-100">
+                    {order.items?.map((it, idx) => {
+                      const prodInfo = products.find(p => p.name === it.name);
+                      const imageUrl = prodInfo?.image;
+                      
+                      return (
+                        <div key={idx} className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-4">
+                          <div className="flex items-center gap-3">
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt={it.name}
+                                className="w-12 h-12 object-cover rounded-xl border border-slate-100 flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl bg-orange-100/60 flex items-center justify-center text-xl flex-shrink-0">
+                                🍹
+                              </div>
+                            )}
+                            <div>
+                              <h5 className="font-bold text-slate-800 text-sm">
+                                {it.name}
+                                {it.selectedSize && (
+                                  <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-md mr-1.5 font-bold">
+                                    {it.selectedSize}
+                                  </span>
+                                )}
+                              </h5>
+                              <p className="text-slate-400 text-xs mt-1">
+                                {it.price} ج.س × {it.quantity}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <span className="font-extrabold text-emerald-700 text-sm">
+                            {Number(it.price) * Number(it.quantity)} ج.س
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Section 3: Totals */}
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 space-y-2.5 shadow-xs text-sm">
+                  <div className="flex justify-between text-slate-500">
+                    <span>المجموع الفرعي:</span>
+                    <span className="font-semibold">{subtotal} ج.س</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>تكلفة التوصيل:</span>
+                    <span className="font-semibold">{deliveryFee} ج.س</span>
+                  </div>
+                  <div className="flex justify-between text-slate-900 font-black text-base border-t border-dashed pt-2.5 mt-2">
+                    <span>الإجمالي الكلي:</span>
+                    <span className="text-emerald-700">{order.total_amount} ج.س</span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-5 bg-white border-t border-[#F0E1CC] flex gap-3 flex-shrink-0">
+                <button
+                  onClick={() => handleRejectOrder(order.id)}
+                  className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 rounded-2xl shadow-md transition active:scale-95 text-base cursor-pointer text-center"
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
+                >
+                  ❌ رفض الطلب (إلغاء)
+                </button>
+                <button
+                  onClick={() => handleAcceptOrder(order.id, order.order_number)}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl shadow-md transition active:scale-95 text-base cursor-pointer text-center"
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
+                >
+                  ✅ قبول وتأكيد الطلب
+                </button>
+              </div>
+
             </div>
-            <button
-              onClick={stopAlarm}
-              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition active:scale-95 text-sm"
-            >
-              إيقاف جرس التنبيه 🔇
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Detailed Order View Modal */}
       {selectedOrderDetail && (() => {
