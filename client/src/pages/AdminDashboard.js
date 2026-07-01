@@ -387,21 +387,43 @@ export default function AdminDashboard() {
     fetchProducts();
   }, []);
 
+  // Manual test trigger for the new order modal (admin only)
+  const triggerTestModal = () => {
+    const testOrder = {
+      id: 'test-' + Date.now(),
+      order_number: Math.floor(10000000 + Math.random() * 90000000),
+      phone: '0501234567',
+      shipping_address: 'السودان - الخرطوم - شارع النيل',
+      notes: 'طلب تجريبي للتحقق من الميزة',
+      payment_method: 'cash',
+      total_amount: 25000,
+      items: [
+        { name: products[0]?.name || 'عصير برتقال', price: 15000, quantity: 1, selectedSize: 'كبير' },
+        { name: products[1]?.name || 'فاكهة مشكلة', price: 10000, quantity: 1, selectedSize: '' },
+      ],
+      user_id: null,
+      admin_cleared: false,
+    };
+    setLatestNewOrder(testOrder);
+    setLatestNewOrderCustomerName('عميل تجريبي');
+    startAlarm();
+  };
+
   useEffect(() => {
     // Realtime listener for incoming orders
     const channel = supabase
-      .channel('admin-realtime-orders')
+      .channel('admin-realtime-orders-v2')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
           const newOrder = payload.new;
           if (newOrder && !newOrder.admin_cleared) {
-            // Refresh dashboard data
-            fetchData();
-            // Trigger visual pop-up and alarm sound immediately
+            // Show the modal and ring the alarm FIRST, before any data refresh
             setLatestNewOrder(newOrder);
             startAlarm();
+            // Defer data refresh so it doesn't interfere with modal rendering
+            setTimeout(() => fetchData(), 1500);
           }
         }
       )
@@ -901,6 +923,14 @@ export default function AdminDashboard() {
               }`}
             >
               <span>{autoAcceptEnabled ? 'القبول التلقائي: مفعل 🤖' : 'القبول التلقائي: معطل 👤'}</span>
+            </button>
+
+            {/* Test modal trigger button */}
+            <button
+              onClick={triggerTestModal}
+              className="text-xs font-black px-4 py-2.5 rounded-xl shadow transition duration-200 hover:scale-[1.02] bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              🧪 اختبار النافذة
             </button>
 
             <Link 
