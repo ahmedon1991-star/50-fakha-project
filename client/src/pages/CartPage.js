@@ -262,6 +262,310 @@ export default function CartPage() {
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
+  const generateInvoiceCanvas = async (details) => {
+    const canvas = document.createElement('canvas');
+    const width = 600;
+    
+    // Dynamic height based on items and address wrapping
+    const itemHeight = 45;
+    const baseHeight = 350;
+    const totalsHeight = 140;
+    
+    // Temporary context to measure address wrapping
+    const tempCtx = canvas.getContext('2d');
+    tempCtx.font = 'bold 15px Cairo, Arial, sans-serif';
+    
+    const addressText = details.address || '';
+    const maxAddressWidth = 350;
+    const words = addressText.split(' ');
+    let line = '';
+    const lines = [];
+    for (let n = 0; n < words.length; n++) {
+      let testLine = line + words[n] + ' ';
+      let metrics = tempCtx.measureText(testLine);
+      let testWidth = metrics.width;
+      if (testWidth > maxAddressWidth && n > 0) {
+        lines.push(line);
+        line = words[n] + ' ';
+      } else {
+        line = testLine;
+      }
+    }
+    lines.push(line);
+    
+    const addressPadding = (lines.length - 1) * 22;
+    const height = baseHeight + (details.items.length * itemHeight) + totalsHeight + addressPadding;
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    const ctx = canvas.getContext('2d');
+    
+    // 1. Background
+    ctx.fillStyle = '#FFFBF7';
+    ctx.fillRect(0, 0, width, height);
+    
+    // 2. Load Logo
+    const img = new Image();
+    img.src = '/logo.png';
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+    
+    let startY = 35;
+    if (img.complete && img.naturalWidth > 0) {
+      const logow = 140;
+      const logoh = (img.naturalHeight / img.naturalWidth) * logow;
+      ctx.drawImage(img, (width - logow) / 2, startY, logow, logoh);
+      startY += logoh + 25;
+    } else {
+      ctx.fillStyle = '#C95A06';
+      ctx.font = 'bold 28px Cairo, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('50 فاكهة 🍹', width / 2, startY + 20);
+      startY += 55;
+    }
+    
+    // Title
+    ctx.fillStyle = '#1B130D';
+    ctx.font = 'bold 22px Cairo, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🧾 فاتورة شراء', width / 2, startY);
+    startY += 30;
+    
+    // 3. Customer Info Box
+    const infoBoxY = startY;
+    ctx.fillStyle = '#FFF7EC';
+    ctx.strokeStyle = '#F0E1CC';
+    ctx.lineWidth = 1.5;
+    
+    let boxCurrentY = infoBoxY + 28;
+    
+    // Set standard styles
+    ctx.textAlign = 'right';
+    
+    // Draw Order Number
+    ctx.fillStyle = '#6B5C4F';
+    ctx.font = '16px Cairo, Arial, sans-serif';
+    ctx.fillText('رقم الطلب:', width - 50, boxCurrentY);
+    ctx.fillStyle = '#1B130D';
+    ctx.font = 'bold 15px Courier New, monospace';
+    ctx.fillText(`#${details.orderNumber}`, width - 160, boxCurrentY);
+    boxCurrentY += 28;
+    
+    // Customer Name
+    ctx.font = '16px Cairo, Arial, sans-serif';
+    ctx.fillStyle = '#6B5C4F';
+    ctx.fillText('اسم العميل:', width - 50, boxCurrentY);
+    ctx.fillStyle = '#1B130D';
+    ctx.font = 'bold 16px Cairo, Arial, sans-serif';
+    ctx.fillText(user?.name || 'عميل المتجر', width - 160, boxCurrentY);
+    boxCurrentY += 28;
+
+    // Customer Phone
+    ctx.font = '16px Cairo, Arial, sans-serif';
+    ctx.fillStyle = '#6B5C4F';
+    ctx.fillText('رقم الهاتف:', width - 50, boxCurrentY);
+    ctx.fillStyle = '#1B130D';
+    ctx.font = 'bold 15px Courier New, monospace';
+    ctx.fillText(details.phone, width - 160, boxCurrentY);
+    boxCurrentY += 28;
+    
+    // Address (wrapped)
+    ctx.font = '16px Cairo, Arial, sans-serif';
+    ctx.fillStyle = '#6B5C4F';
+    ctx.fillText('العنوان:', width - 50, boxCurrentY);
+    ctx.fillStyle = '#1B130D';
+    ctx.font = 'bold 15px Cairo, Arial, sans-serif';
+    
+    lines.forEach((l, idx) => {
+      ctx.fillText(l.trim(), width - 160, boxCurrentY + (idx * 22));
+    });
+    boxCurrentY += (lines.length * 22) + 6;
+    
+    // Payment Method
+    ctx.font = '16px Cairo, Arial, sans-serif';
+    ctx.fillStyle = '#6B5C4F';
+    ctx.fillText('طريقة الدفع:', width - 50, boxCurrentY);
+    ctx.fillStyle = '#1B130D';
+    ctx.font = 'bold 15px Cairo, Arial, sans-serif';
+    ctx.fillText(details.paymentMethod === 'bank' ? 'تحويل بنكي 🏦' : 'الدفع عند الاستلام 💵', width - 160, boxCurrentY);
+    
+    const infoBoxHeight = boxCurrentY - infoBoxY + 18;
+    
+    // Draw the rounded box path now
+    const radius = 15;
+    ctx.strokeStyle = '#F0E1CC';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(30 + radius, infoBoxY);
+    ctx.lineTo(width - 30 - radius, infoBoxY);
+    ctx.quadraticCurveTo(width - 30, infoBoxY, width - 30, infoBoxY + radius);
+    ctx.lineTo(width - 30, infoBoxY + infoBoxHeight - radius);
+    ctx.quadraticCurveTo(width - 30, infoBoxY + infoBoxHeight, width - 30 - radius, infoBoxY + infoBoxHeight);
+    ctx.lineTo(30 + radius, infoBoxY + infoBoxHeight);
+    ctx.quadraticCurveTo(30, infoBoxY + infoBoxHeight, 30, infoBoxY + infoBoxHeight - radius);
+    ctx.lineTo(30, infoBoxY + radius);
+    ctx.quadraticCurveTo(30, infoBoxY, 30 + radius, infoBoxY);
+    ctx.closePath();
+    ctx.stroke();
+    
+    startY = infoBoxY + infoBoxHeight + 35;
+    
+    // 4. Items Table Header
+    ctx.fillStyle = '#1B130D';
+    ctx.font = 'bold 16px Cairo, Arial, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('الأصناف المطلوبة:', width - 30, startY);
+    startY += 20;
+    
+    ctx.strokeStyle = '#F0E1CC';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(30, startY);
+    ctx.lineTo(width - 30, startY);
+    ctx.stroke();
+    startY += 10;
+    
+    // Loop through items
+    details.items.forEach((item) => {
+      ctx.fillStyle = '#1B130D';
+      ctx.font = 'bold 15px Cairo, Arial, sans-serif';
+      ctx.textAlign = 'right';
+      
+      const sizeText = item.selectedSize ? ` (${item.selectedSize})` : '';
+      ctx.fillText(`• ${item.name}${sizeText}`, width - 35, startY + 15);
+      
+      ctx.fillStyle = '#6B5C4F';
+      ctx.font = '14px Cairo, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`(${item.quantity}x)  ${item.price} ج.س`, 170, startY + 15);
+      
+      ctx.fillStyle = '#1B130D';
+      ctx.font = 'bold 15px Courier New, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${item.price * item.quantity} ج.س`, 35, startY + 15);
+      
+      startY += itemHeight;
+    });
+    
+    startY += 10;
+    
+    ctx.strokeStyle = '#F0E1CC';
+    ctx.beginPath();
+    ctx.moveTo(30, startY);
+    ctx.lineTo(width - 30, startY);
+    ctx.stroke();
+    startY += 20;
+    
+    // 5. Totals Box
+    const totalsBoxY = startY;
+    const totalsBoxHeight = 110;
+    ctx.fillStyle = '#FFF7EC';
+    ctx.strokeStyle = '#FFE3C2';
+    ctx.lineWidth = 1;
+    
+    ctx.beginPath();
+    ctx.moveTo(30 + radius, totalsBoxY);
+    ctx.lineTo(width - 30 - radius, totalsBoxY);
+    ctx.quadraticCurveTo(width - 30, totalsBoxY, width - 30, totalsBoxY + radius);
+    ctx.lineTo(width - 30, totalsBoxY + totalsBoxHeight - radius);
+    ctx.quadraticCurveTo(width - 30, totalsBoxY + totalsBoxHeight, width - 30 - radius, totalsBoxY + totalsBoxHeight);
+    ctx.lineTo(30 + radius, totalsBoxY + totalsBoxHeight);
+    ctx.quadraticCurveTo(30, totalsBoxY + totalsBoxHeight, 30, totalsBoxY + totalsBoxHeight - radius);
+    ctx.lineTo(30, totalsBoxY + radius);
+    ctx.quadraticCurveTo(30, totalsBoxY, 30 + radius, totalsBoxY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    ctx.fillStyle = '#6B5C4F';
+    ctx.font = '15px Cairo, Arial, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('المجموع الفرعي:', width - 50, totalsBoxY + 30);
+    ctx.fillText('تكلفة التوصيل:', width - 50, totalsBoxY + 60);
+    
+    ctx.fillStyle = '#E14133';
+    ctx.font = 'bold 18px Cairo, Arial, sans-serif';
+    ctx.fillText('الإجمالي الكلي:', width - 50, totalsBoxY + 92);
+    
+    ctx.fillStyle = '#1B130D';
+    ctx.font = 'bold 15px Courier New, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${details.totalAmount} ج.س`, 50, totalsBoxY + 30);
+    ctx.fillText(`${details.deliveryFee} ج.س`, 50, totalsBoxY + 60);
+    
+    ctx.fillStyle = '#E14133';
+    ctx.font = 'bold 20px Courier New, monospace';
+    ctx.fillText(`${details.grandTotal} ج.س`, 50, totalsBoxY + 92);
+    
+    // Footer
+    ctx.fillStyle = '#6B5C4F';
+    ctx.font = 'bold 15px Cairo, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('💚 شكراً لطلبك من 50 فاكهة! 💚', width / 2, totalsBoxY + totalsBoxHeight + 35);
+    
+    return canvas;
+  };
+
+  const copyInvoiceAsImage = async () => {
+    try {
+      const canvas = await generateInvoiceCanvas(lastOrderDetails);
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const item = new ClipboardItem({ 'image/png': blob });
+        await navigator.clipboard.write([item]);
+        alert('📋 تم نسخ صورة الفاتورة الاحترافية لحافظة جهازك بنجاح! يمكنك الآن لصقها (Ctrl + V) مباشرة للعميل في المحادثة.');
+      }, 'image/png');
+    } catch (err) {
+      console.error(err);
+      alert('تعذر نسخ الصورة تلقائياً. يرجى تحميل الفاتورة كصورة أولاً.');
+    }
+  };
+
+  const copyInvoiceAsImageQuiet = async () => {
+    const canvas = await generateInvoiceCanvas(lastOrderDetails);
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(async (blob) => {
+        try {
+          if (!blob) throw new Error('Blob generation failed');
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      }, 'image/png');
+    });
+  };
+
+  const downloadInvoiceAsImage = async () => {
+    try {
+      const canvas = await generateInvoiceCanvas(lastOrderDetails);
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `invoice_${lastOrderDetails.orderNumber}.png`;
+      link.href = url;
+      link.click();
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء تحميل الفاتورة.');
+    }
+  };
+
+  const shareViaWhatsApp = async () => {
+    try {
+      await copyInvoiceAsImageQuiet();
+      const cleanPhone = whatsappPhone.replace('+', '').trim();
+      const msg = `أهلاً بك! تم نسخ صورة الفاتورة الاحترافية للطلب رقم #${lastOrderDetails.orderNumber} تلقائياً. سأقوم بلصقها وإرسالها لك الآن 🧾💚`;
+      window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    } catch (err) {
+      console.warn('Clipboard copy failed before redirection:', err);
+      sendToWhatsApp(lastOrderDetails);
+    }
+  };
+
   if (orderSuccess && lastOrderDetails) {
     return (
       <div className="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 to-teal-100 min-h-screen">
@@ -271,7 +575,7 @@ export default function CartPage() {
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl sm:text-3xl font-black text-emerald-950">تم إرسال طلبك بنجاح!</h2>
-            <p className="text-slate-500 text-sm">تم توليد فاتورة الطلب وإرسالها إلى الواتساب تلقائياً.</p>
+            <p className="text-slate-500 text-sm">تم توليد فاتورة الطلب الاحترافية بنجاح.</p>
           </div>
 
           {/* Invoice card preview */}
@@ -323,16 +627,39 @@ export default function CartPage() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="space-y-3">
+            {/* Primary Action */}
             <button
-              onClick={() => sendToWhatsApp(lastOrderDetails)}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2"
+              onClick={shareViaWhatsApp}
+              className="w-full bg-emerald-650 hover:bg-emerald-755 text-white font-bold py-3.5 px-4 rounded-2xl shadow-lg transition duration-200 flex items-center justify-center gap-2 text-base cursor-pointer"
+              style={{ fontFamily: "'Cairo', sans-serif" }}
             >
-              <span>💬</span> إعادة إرسال الفاتورة عبر واتساب
+              <span>💬</span> إرسال الفاتورة كصورة عبر واتساب
             </button>
+            
+            {/* Secondary Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={copyInvoiceAsImage}
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl shadow-sm transition duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+                style={{ fontFamily: "'Cairo', sans-serif" }}
+              >
+                <span>📋</span> نسخ صورة الفاتورة
+              </button>
+              <button
+                onClick={downloadInvoiceAsImage}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl shadow-sm transition duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+                style={{ fontFamily: "'Cairo', sans-serif" }}
+              >
+                <span>📥</span> تحميل كصورة
+              </button>
+            </div>
+            
+            {/* Back to store */}
             <button
               onClick={() => navigate('/')}
-              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition duration-200"
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition duration-200 text-sm mt-2 cursor-pointer"
+              style={{ fontFamily: "'Cairo', sans-serif" }}
             >
               العودة للمتجر 🍉
             </button>
