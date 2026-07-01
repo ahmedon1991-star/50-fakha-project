@@ -568,8 +568,8 @@ export default function CartPage() {
 
   if (orderSuccess && lastOrderDetails) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 to-teal-100 min-h-screen">
-        <div className="max-w-xl w-full bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-emerald-100 text-center space-y-6">
+      <div className="flex-1 flex flex-col items-center justify-start p-4 pb-36 pt-10 bg-gradient-to-br from-emerald-50 to-teal-100 min-h-screen overflow-y-auto">
+        <div className="max-w-xl w-full bg-white p-5 sm:p-8 rounded-3xl shadow-2xl border border-emerald-100 text-center space-y-6">
           <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto animate-bounce">
             🎉
           </div>
