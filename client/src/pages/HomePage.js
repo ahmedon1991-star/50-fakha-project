@@ -81,7 +81,7 @@ export default function HomePage() {
   useEffect(() => {
     const fetchSliderImages = async () => {
       try {
-        const { data } = await supabase.from('app_settings').select('*').eq('id', 3).maybeSingle();
+        const { data } = await supabase.from('app_settings').select('*').eq('id', 2).maybeSingle();
         if (data && data.bank_account) {
           const parsed = JSON.parse(data.bank_account) || [];
           setSliderImages(parsed.filter(url => !!url));

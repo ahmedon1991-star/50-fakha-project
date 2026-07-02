@@ -910,23 +910,22 @@ export default function AdminDashboard() {
       if (contactData) {
         setContactPhone(contactData.whatsapp_phone || '');
         setContactEmail(contactData.bank_name || '');
-      }
-
-      // Fetch slider settings (id = 3)
-      const { data: sliderData } = await supabase.from('app_settings').select('*').eq('id', 3).maybeSingle();
-      if (sliderData && sliderData.bank_account) {
-        try {
-          const parsed = JSON.parse(sliderData.bank_account);
-          if (Array.isArray(parsed)) {
-            setSliderImages(parsed);
-          } else {
+        
+        // Load slider images from id = 2's bank_account field
+        if (contactData.bank_account) {
+          try {
+            const parsed = JSON.parse(contactData.bank_account);
+            if (Array.isArray(parsed)) {
+              setSliderImages(parsed);
+            } else {
+              setSliderImages([]);
+            }
+          } catch (e) {
             setSliderImages([]);
           }
-        } catch (e) {
+        } else {
           setSliderImages([]);
         }
-      } else {
-        setSliderImages([]);
       }
     } catch (err) { console.error('Settings fetch error:', err); }
   };
@@ -1011,12 +1010,11 @@ export default function AdminDashboard() {
     setSettingsError('');
     setSettingsSuccess('');
     try {
-      const { error } = await supabase.from('app_settings').upsert({
-        id: 3,
-        bank_name: 'hero_slider_settings',
+      const { error } = await supabase.from('app_settings').update({
         bank_account: JSON.stringify(sliderImages),
         updated_at: new Date().toISOString()
-      });
+      }).eq('id', 2);
+      
       if (error) throw error;
       setSettingsSuccess('تم حفظ صور السلايدر بنجاح 🖼️✨');
     } catch (err) {
