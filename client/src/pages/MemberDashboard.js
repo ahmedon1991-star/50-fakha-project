@@ -77,10 +77,10 @@ export default function MemberDashboard() {
         setPassword('');
       }
 
-      // 3. Update Email if changed (Block for admin accounts)
+      // 3. Update Email if changed (Block for dedicated admin account only)
       if (email !== user.email) {
-        if (user?.isAdmin) {
-          throw new Error('لا يمكن تغيير البريد الإلكتروني لحسابات الإدارة من داخل التطبيق.');
+        if (user?.email?.toLowerCase() === 'admin@50fakha.com') {
+          throw new Error('لا يمكن تغيير البريد الإلكتروني لحساب الإدارة الرئيسي (admin@50fakha.com) من داخل التطبيق.');
         }
         const { error: emailErr } = await supabase.auth.updateUser({
           email: email
@@ -121,7 +121,7 @@ export default function MemberDashboard() {
       setOtpToken('');
       setShowOtpModal(true);
     } catch (err) {
-      setError(err.message || 'فشل إرسال رمز تأكيد الهاتف');
+      setError(err.message || 'Fails to send OTP verification code');
     } finally {
       setLoading(false);
     }
@@ -153,8 +153,8 @@ export default function MemberDashboard() {
 
   const handleDeleteAccount = async (e) => {
     e.preventDefault();
-    if (user?.isAdmin) {
-      setDeleteError('لا يمكن حذف حساب الإدارة من داخل التطبيق.');
+    if (user?.email?.toLowerCase() === 'admin@50fakha.com') {
+      setDeleteError('لا يمكن حذف حساب الإدارة الرئيسي (admin@50fakha.com) من داخل التطبيق.');
       return;
     }
     if (deleteConfirmText !== 'حذف') {
@@ -386,11 +386,11 @@ export default function MemberDashboard() {
                   <input
                     type="email"
                     required
-                    disabled={user?.isAdmin}
+                    disabled={user?.email?.toLowerCase() === 'admin@50fakha.com'}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className={`w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-left font-medium ${
-                      user?.isAdmin ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''
+                      user?.email?.toLowerCase() === 'admin@50fakha.com' ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''
                     }`}
                     dir="ltr"
                   />
@@ -471,8 +471,8 @@ export default function MemberDashboard() {
                 </form>
               </div>
 
-              {/* Danger Zone: Delete Account (Hide for admin accounts) */}
-              {!user?.isAdmin && (
+              {/* Danger Zone: Delete Account (Hide for dedicated admin account) */}
+              {user?.email?.toLowerCase() !== 'admin@50fakha.com' && (
                 <div className="border-t border-rose-100 pt-5 mt-5 space-y-3">
                   <h4 className="font-black text-rose-800 text-sm flex items-center gap-1.5">
                     <span>⚠️</span> منطقة الخطر
