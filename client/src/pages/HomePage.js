@@ -327,13 +327,28 @@ export default function HomePage() {
                     inset: 0,
                     opacity: currentSlideIdx === idx ? 1 : 0,
                     transition: 'opacity 0.8s ease-in-out',
-                    backgroundColor: '#F47B20', // Store brand identity color
+                    overflow: 'hidden',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     zIndex: 0,
                   }}
                 >
+                  {/* Blurred Background Layer (Dynamic matching color/art cover) */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: '-20px',
+                      backgroundImage: `url(${imgUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      filter: 'blur(20px) brightness(0.85)',
+                      transform: 'scale(1.15)',
+                      zIndex: 0,
+                    }}
+                  />
+
+                  {/* Centered Contained Foreground Image */}
                   <img
                     src={imgUrl}
                     alt={`Slide ${idx + 1}`}
@@ -342,6 +357,8 @@ export default function HomePage() {
                       height: '100%',
                       objectFit: 'contain',
                       objectPosition: 'center',
+                      position: 'relative',
+                      zIndex: 1,
                     }}
                   />
                 </div>
