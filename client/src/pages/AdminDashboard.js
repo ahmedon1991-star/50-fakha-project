@@ -316,7 +316,8 @@ export default function AdminDashboard() {
           .update({ archived: true })
           .lt('created_at', todayStart.toISOString())
           .eq('archived', false)
-          .eq('admin_cleared', false);
+          .eq('admin_cleared', false)
+          .in('status', ['تم التوصيل', 'ملغي']);
 
         // Fetch only today's non-archived non-cleared orders
         const { data, error } = await supabase
