@@ -77,6 +77,7 @@ export default function HomePage() {
   const [sliderImages, setSliderImages] = useState([]);
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeSlideIsPortrait, setActiveSlideIsPortrait] = useState(false);
 
   useEffect(() => {
     const fetchSliderImages = async () => {
@@ -92,6 +93,31 @@ export default function HomePage() {
     };
     fetchSliderImages();
   }, []);
+
+  useEffect(() => {
+    if (sliderImages.length === 0) {
+      setActiveSlideIsPortrait(false);
+      return;
+    }
+    const imgUrl = sliderImages[currentSlideIdx];
+    if (!imgUrl) {
+      setActiveSlideIsPortrait(false);
+      return;
+    }
+
+    const img = new Image();
+    img.src = imgUrl;
+    img.onload = () => {
+      if (img.naturalHeight > img.naturalWidth) {
+        setActiveSlideIsPortrait(true);
+      } else {
+        setActiveSlideIsPortrait(false);
+      }
+    };
+    img.onerror = () => {
+      setActiveSlideIsPortrait(false);
+    };
+  }, [currentSlideIdx, sliderImages]);
 
   useEffect(() => {
     if (sliderImages.length <= 1) return;
@@ -258,11 +284,16 @@ export default function HomePage() {
         <div style={{
           position: 'relative',
           borderRadius: '22px',
-          padding: '20px 20px 20px',
+          padding: activeSlideIsPortrait ? '14px' : '20px 20px 20px',
           color: 'white',
           overflow: 'hidden',
           marginBottom: '16px',
-          minHeight: '140px',
+          height: activeSlideIsPortrait ? '340px' : '150px',
+          transition: 'height 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: activeSlideIsPortrait ? 'flex-end' : 'center',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.06)',
         }}>
           {/* Slides background wrapper */}
           <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
@@ -273,14 +304,26 @@ export default function HomePage() {
                   style={{
                     position: 'absolute',
                     inset: 0,
-                    backgroundImage: `url(${imgUrl})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
                     opacity: currentSlideIdx === idx ? 1 : 0,
-                    transition: 'opacity 1s ease-in-out',
+                    transition: 'opacity 0.8s ease-in-out',
+                    backgroundColor: '#F47B20', // Store brand identity color
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     zIndex: 0,
                   }}
-                />
+                >
+                  <img
+                    src={imgUrl}
+                    alt={`Slide ${idx + 1}`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      objectPosition: 'center',
+                    }}
+                  />
+                </div>
               ))
             ) : (
               // Fallback solid gradient background if no slides uploaded
@@ -296,21 +339,37 @@ export default function HomePage() {
             <div style={{
               position: 'absolute',
               inset: 0,
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.5) 100%)',
+              background: activeSlideIsPortrait
+                ? 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.25) 100%)'
+                : 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.5) 100%)',
               zIndex: 1,
             }} />
           </div>
 
           {/* Text and Button content (Z-index above background slides) */}
-          <div style={{ position: 'relative', zIndex: 2 }}>
+          <div style={{
+            position: 'relative',
+            zIndex: 2,
+            background: activeSlideIsPortrait ? 'rgba(27, 19, 13, 0.72)' : 'none',
+            backdropFilter: activeSlideIsPortrait ? 'blur(10px)' : 'none',
+            WebkitBackdropFilter: activeSlideIsPortrait ? 'blur(10px)' : 'none',
+            padding: activeSlideIsPortrait ? '14px 18px' : '0',
+            borderRadius: activeSlideIsPortrait ? '18px' : '0',
+            border: activeSlideIsPortrait ? '1px solid rgba(255,255,255,0.08)' : 'none',
+            boxShadow: activeSlideIsPortrait ? '0 10px 30px rgba(0,0,0,0.25)' : 'none',
+            transition: 'all 0.4s ease',
+            maxWidth: activeSlideIsPortrait ? '100%' : '260px',
+            alignSelf: 'flex-start',
+            width: activeSlideIsPortrait ? '100%' : 'auto',
+          }}>
             <div style={{ fontSize: '11px', fontWeight: 700, opacity: 0.95, marginBottom: '6px', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
               {user ? `أهلاً بك 👋 ${user.name.split(' ')[0]}` : 'عروض اليوم 🔥'}
             </div>
             <h1 style={{
               fontFamily: "'Cairo', sans-serif",
-              fontSize: 'clamp(16px, 4.5vw, 22px)',
-              fontWeight: 800, lineHeight: 1.45,
-              maxWidth: '220px', marginBottom: '16px',
+              fontSize: 'clamp(14px, 4.5vw, 20px)',
+              fontWeight: 850, lineHeight: 1.4,
+              marginBottom: '12px',
               textShadow: '0 2px 4px rgba(0,0,0,0.6)',
             }}>
               اعصر يومك بطعم ٥٠ فاكهة الأصلي
@@ -322,23 +381,26 @@ export default function HomePage() {
               }}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
-                background: '#1B130D', color: '#FFF7EC',
-                fontSize: '12px', fontWeight: 700,
-                padding: '8px 16px', borderRadius: '999px',
+                background: '#F3760C', color: 'white',
+                fontSize: '11.5px', fontWeight: 800,
+                padding: '7px 16px', borderRadius: '999px',
                 cursor: 'pointer',
                 boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                fontFamily: "'Cairo', sans-serif",
               }}
             >
               اطلب الآن ←
             </div>
           </div>
           
-          {/* SVG cup */}
-          <svg viewBox="0 0 100 130" fill="none" style={{ position: 'absolute', left: '12px', bottom: '8px', width: '66px', opacity: 0.88, pointerEvents: 'none', zIndex: 2 }}>
-            <path d="M22 30h56l-6 80a8 8 0 0 1-8 7H36a8 8 0 0 1-8-7L22 30Z" fill="white" fillOpacity=".18"/>
-            <rect x="18" y="22" width="64" height="12" rx="6" fill="white" fillOpacity=".25"/>
-            <path d="M60 8 L78 0 M78 0 a6 6 0 0 1 6 6 L84 28" stroke="white" strokeOpacity=".5" strokeWidth="6" strokeLinecap="round" fill="none"/>
-          </svg>
+          {/* SVG cup (Only show if not portrait to avoid visual overlap with banner layout) */}
+          {!activeSlideIsPortrait && (
+            <svg viewBox="0 0 100 130" fill="none" style={{ position: 'absolute', left: '12px', bottom: '8px', width: '66px', opacity: 0.88, pointerEvents: 'none', zIndex: 2 }}>
+              <path d="M22 30h56l-6 80a8 8 0 0 1-8 7H36a8 8 0 0 1-8-7L22 30Z" fill="white" fillOpacity=".18"/>
+              <rect x="18" y="22" width="64" height="12" rx="6" fill="white" fillOpacity=".25"/>
+              <path d="M60 8 L78 0 M78 0 a6 6 0 0 1 6 6 L84 28" stroke="white" strokeOpacity=".5" strokeWidth="6" strokeLinecap="round" fill="none"/>
+            </svg>
+          )}
         </div>
 
         {/* ─── SEARCH BAR ─── */}
