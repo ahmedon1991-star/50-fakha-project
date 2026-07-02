@@ -432,6 +432,9 @@ export default function Navbar() {
                   <span>🚪</span> تسجيل الخروج
                 </button>
               </div>
+
+              {/* Bottom Spacer to ensure scrollability past mobile browser/app navigation bars */}
+              <div className="h-28 sm:hidden" />
             </div>
           </div>
         </div>
