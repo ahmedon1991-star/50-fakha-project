@@ -304,22 +304,59 @@ export default function HomePage() {
             padding: 18px;
           }
         }
+        .default-slide-container {
+          display: flex;
+          width: 100%;
+          height: 100%;
+          direction: rtl;
+        }
+        .default-slide-left {
+          width: 50%;
+          background: #083B3F;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
+          padding: 8px 12px;
+          position: relative;
+          border-left: 3px double #D6A84E;
+          border-right: 3px double #D6A84E;
+        }
+        .default-slide-left::before, .default-slide-left::after {
+          content: '';
+          position: absolute;
+          top: 8%;
+          bottom: 8%;
+          width: 1px;
+          background: rgba(214, 168, 78, 0.3);
+        }
+        .default-slide-left::before { right: 6px; }
+        .default-slide-left::after { left: 6px; }
+        
+        .default-slide-right {
+          width: 50%;
+          background-image: url('/luxury_fruit_dessert_slide.png');
+          background-size: cover;
+          background-position: center;
+        }
       `}</style>
 
       {/* ─── MAIN CONTENT WRAPPER ─── */}
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 16px 0' }}>
-        <div 
-          className={`hero-slider-container ${activeSlideIsPortrait ? 'is-portrait' : ''}`}
-          onClick={() => {
-            const el = document.querySelector('.chip-scroll');
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-          }}
-          style={{ cursor: 'pointer' }}
-        >
-          {/* Slides background wrapper */}
-          <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-            {sliderImages.length > 0 ? (
-              sliderImages.map((imgUrl, idx) => (
+        {sliderImages.length > 0 ? (
+          /* Custom Banners Slider */
+          <div 
+            className={`hero-slider-container ${activeSlideIsPortrait ? 'is-portrait' : ''}`}
+            onClick={() => {
+              const el = document.querySelector('.chip-scroll');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            style={{ cursor: 'pointer' }}
+          >
+            {/* Slides background wrapper */}
+            <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+              {sliderImages.map((imgUrl, idx) => (
                 <div
                   key={idx}
                   style={{
@@ -362,60 +399,21 @@ export default function HomePage() {
                     }}
                   />
                 </div>
-              ))
-            ) : (
-              // Fallback solid gradient background if no slides uploaded
+              ))}
+              
+              {/* Linear Gradient Overlay to guarantee high contrast readability */}
               <div style={{
                 position: 'absolute',
                 inset: 0,
-                background: 'radial-gradient(120% 140% at 100% 0%, #FF9A3D 0%, #F3760C 55%, #C95A06 100%)',
-                zIndex: 0,
+                background: activeSlideIsPortrait
+                  ? 'linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.15) 100%)'
+                  : 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.5) 100%)',
+                zIndex: 1,
               }} />
-            )}
-            
-            {/* Linear Gradient Overlay to guarantee high contrast readability */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              background: activeSlideIsPortrait
-                ? 'linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.15) 100%)'
-                : 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.5) 100%)',
-              zIndex: 1,
-            }} />
-          </div>
-
-          {/* Text and Button content (Z-index above background slides) */}
-          {sliderImages.length === 0 ? (
-            /* Default Slide welcome overlay text */
-            <div style={{ position: 'relative', zIndex: 2, padding: '0 20px 20px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, opacity: 0.95, marginBottom: '6px', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-                {user ? `أهلاً بك 👋 ${user.name.split(' ')[0]}` : 'عروض اليوم 🔥'}
-              </div>
-              <h1 style={{
-                fontFamily: "'Cairo', sans-serif",
-                fontSize: 'clamp(16px, 4.5vw, 22px)',
-                fontWeight: 800, lineHeight: 1.45,
-                maxWidth: '220px', marginBottom: '16px',
-                textShadow: '0 2px 4px rgba(0,0,0,0.6)',
-              }}>
-                اعصر يومك بطعم ٥٠ فاكهة الأصلي
-              </h1>
-              <div 
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  background: '#1B130D', color: '#FFF7EC',
-                  fontSize: '12px', fontWeight: 700,
-                  padding: '8px 16px', borderRadius: '999px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-                }}
-              >
-                اطلب الآن ←
-              </div>
             </div>
-          ) : (
-            /* Custom merchant slides - show a tiny, 100% transparent elegant welcome text in the top right corner if logged in, completely unobtrusive, otherwise show nothing */
-            user && (
+
+            {/* Custom merchant slides welcome pill */}
+            {user && (
               <div style={{
                 position: 'absolute',
                 top: '12px',
@@ -433,18 +431,72 @@ export default function HomePage() {
               }}>
                 أهلاً بك 👋 {user.name.split(' ')[0]}
               </div>
-            )
-          )}
-          
-          {/* SVG cup (Only show if not custom slides and not portrait to avoid visual overlap) */}
-          {sliderImages.length === 0 && (
-            <svg viewBox="0 0 100 130" fill="none" style={{ position: 'absolute', left: '12px', bottom: '8px', width: '66px', opacity: 0.88, pointerEvents: 'none', zIndex: 2 }}>
-              <path d="M22 30h56l-6 80a8 8 0 0 1-8 7H36a8 8 0 0 1-8-7L22 30Z" fill="white" fillOpacity=".18"/>
-              <rect x="18" y="22" width="64" height="12" rx="6" fill="white" fillOpacity=".25"/>
-              <path d="M60 8 L78 0 M78 0 a6 6 0 0 1 6 6 L84 28" stroke="white" strokeOpacity=".5" strokeWidth="6" strokeLinecap="round" fill="none"/>
-            </svg>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          /* Default Welcome Banner (Redesigned Split Screen style) */
+          <div 
+            className="hero-slider-container"
+            onClick={() => {
+              const el = document.querySelector('.chip-scroll');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            style={{ cursor: 'pointer', padding: 0 }}
+          >
+            <div className="default-slide-container">
+              {/* Left Side (Teal Text Card) */}
+              <div className="default-slide-left">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '11px', color: '#D6A84E' }}>✨</span>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 'clamp(12px, 3.8vw, 17px)', fontWeight: 855, color: '#D6A84E' }}>
+                    ارتقِ بيومك
+                  </span>
+                </div>
+                
+                <p style={{
+                  fontFamily: "'Cairo', sans-serif",
+                  fontSize: 'clamp(9px, 2.5vw, 11px)',
+                  fontWeight: 700,
+                  color: 'white',
+                  lineHeight: 1.45,
+                  maxWidth: '92%',
+                  margin: '4px 0 10px',
+                }}>
+                  استمتع بتجربة فاكهة استثنائية مع 50 فاكهة
+                </p>
+                
+                <div style={{
+                  fontFamily: "'Cairo', sans-serif",
+                  fontSize: 'clamp(9px, 2.2vw, 11px)',
+                  fontWeight: 800,
+                  background: 'white',
+                  color: '#083B3F',
+                  padding: '5px 14px',
+                  borderRadius: '999px',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  اكتشف قائمتنا ←
+                </div>
+                
+                <span style={{
+                  fontFamily: "'Cairo', sans-serif",
+                  fontSize: 'clamp(7px, 1.8vw, 8.5px)',
+                  fontWeight: 700,
+                  color: 'rgba(255,255,255,0.7)',
+                  marginTop: '10px',
+                }}>
+                  توصيل سريع وآمن للمنتجات الطازجة
+                </span>
+              </div>
+              
+              {/* Right Side (Dessert Photo) */}
+              <div className="default-slide-right" />
+            </div>
+          </div>
+        )}
 
         {/* ─── SEARCH BAR ─── */}
         <div style={{ position: 'relative', marginBottom: '16px' }}>
