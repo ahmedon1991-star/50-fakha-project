@@ -74,7 +74,32 @@ export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedSizeIdx, setSelectedSizeIdx] = useState(0);
 
+  const [sliderImages, setSliderImages] = useState([]);
+  const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const fetchSliderImages = async () => {
+      try {
+        const { data } = await supabase.from('app_settings').select('*').eq('id', 3).maybeSingle();
+        if (data && data.bank_account) {
+          const parsed = JSON.parse(data.bank_account) || [];
+          setSliderImages(parsed.filter(url => !!url));
+        }
+      } catch (err) {
+        console.error('Error fetching slider:', err);
+      }
+    };
+    fetchSliderImages();
+  }, []);
+
+  useEffect(() => {
+    if (sliderImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlideIdx(prev => (prev + 1) % sliderImages.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [sliderImages]);
 
   useEffect(() => {
     const normQuery = searchQuery.trim().toLowerCase()
@@ -231,36 +256,85 @@ export default function HomePage() {
       {/* ─── MAIN CONTENT WRAPPER ─── */}
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 16px 0' }}>
         <div style={{
-          background: 'radial-gradient(120% 140% at 100% 0%, #FF9A3D 0%, #F3760C 55%, #C95A06 100%)',
+          position: 'relative',
           borderRadius: '22px',
           padding: '20px 20px 20px',
           color: 'white',
-          position: 'relative',
           overflow: 'hidden',
           marginBottom: '16px',
+          minHeight: '140px',
         }}>
-          <div style={{ position: 'absolute', left: '-20px', bottom: '-35px', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255,255,255,.1)', pointerEvents: 'none' }} />
-          <div style={{ fontSize: '11px', fontWeight: 700, opacity: 0.9, marginBottom: '6px' }}>
-            {user ? `أهلاً بك 👋 ${user.name.split(' ')[0]}` : 'عروض اليوم 🔥'}
+          {/* Slides background wrapper */}
+          <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+            {sliderImages.length > 0 ? (
+              sliderImages.map((imgUrl, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundImage: `url(${imgUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    opacity: currentSlideIdx === idx ? 1 : 0,
+                    transition: 'opacity 1s ease-in-out',
+                    zIndex: 0,
+                  }}
+                />
+              ))
+            ) : (
+              // Fallback solid gradient background if no slides uploaded
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'radial-gradient(120% 140% at 100% 0%, #FF9A3D 0%, #F3760C 55%, #C95A06 100%)',
+                zIndex: 0,
+              }} />
+            )}
+            
+            {/* Linear Gradient Overlay to guarantee high contrast readability */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.5) 100%)',
+              zIndex: 1,
+            }} />
           </div>
-          <h1 style={{
-            fontFamily: "'Cairo', sans-serif",
-            fontSize: 'clamp(16px, 4.5vw, 22px)',
-            fontWeight: 800, lineHeight: 1.45,
-            maxWidth: '220px', marginBottom: '16px',
-          }}>
-            اعصر يومك بطعم ٥٠ فاكهة الأصلي
-          </h1>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            background: '#1B130D', color: '#FFF7EC',
-            fontSize: '12px', fontWeight: 700,
-            padding: '8px 16px', borderRadius: '999px',
-          }}>
-            اطلب الآن ←
+
+          {/* Text and Button content (Z-index above background slides) */}
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, opacity: 0.95, marginBottom: '6px', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+              {user ? `أهلاً بك 👋 ${user.name.split(' ')[0]}` : 'عروض اليوم 🔥'}
+            </div>
+            <h1 style={{
+              fontFamily: "'Cairo', sans-serif",
+              fontSize: 'clamp(16px, 4.5vw, 22px)',
+              fontWeight: 800, lineHeight: 1.45,
+              maxWidth: '220px', marginBottom: '16px',
+              textShadow: '0 2px 4px rgba(0,0,0,0.6)',
+            }}>
+              اعصر يومك بطعم ٥٠ فاكهة الأصلي
+            </h1>
+            <div 
+              onClick={() => {
+                const el = document.querySelector('.chip-scroll');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                background: '#1B130D', color: '#FFF7EC',
+                fontSize: '12px', fontWeight: 700,
+                padding: '8px 16px', borderRadius: '999px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+              }}
+            >
+              اطلب الآن ←
+            </div>
           </div>
+          
           {/* SVG cup */}
-          <svg viewBox="0 0 100 130" fill="none" style={{ position: 'absolute', left: '12px', bottom: '8px', width: '66px', opacity: 0.88, pointerEvents: 'none' }}>
+          <svg viewBox="0 0 100 130" fill="none" style={{ position: 'absolute', left: '12px', bottom: '8px', width: '66px', opacity: 0.88, pointerEvents: 'none', zIndex: 2 }}>
             <path d="M22 30h56l-6 80a8 8 0 0 1-8 7H36a8 8 0 0 1-8-7L22 30Z" fill="white" fillOpacity=".18"/>
             <rect x="18" y="22" width="64" height="12" rx="6" fill="white" fillOpacity=".25"/>
             <path d="M60 8 L78 0 M78 0 a6 6 0 0 1 6 6 L84 28" stroke="white" strokeOpacity=".5" strokeWidth="6" strokeLinecap="round" fill="none"/>

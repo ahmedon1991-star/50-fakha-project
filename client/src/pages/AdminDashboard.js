@@ -100,7 +100,8 @@ export default function AdminDashboard() {
   const countdownIntervalRef = useRef(null);
   const alertedOrderIds = useRef(new Set());
   const hasInitializedAlerts = useRef(false);
-  const wakeLockRef = useRef(null);
+  const [sliderImages, setSliderImages] = useState([]);
+  const [sliderUploading, setSliderUploading] = useState(false);
 
   const toggleAutoAccept = () => {
     const nextVal = !autoAcceptEnabled;
@@ -910,6 +911,23 @@ export default function AdminDashboard() {
         setContactPhone(contactData.whatsapp_phone || '');
         setContactEmail(contactData.bank_name || '');
       }
+
+      // Fetch slider settings (id = 3)
+      const { data: sliderData } = await supabase.from('app_settings').select('*').eq('id', 3).maybeSingle();
+      if (sliderData && sliderData.bank_account) {
+        try {
+          const parsed = JSON.parse(sliderData.bank_account);
+          if (Array.isArray(parsed)) {
+            setSliderImages(parsed);
+          } else {
+            setSliderImages([]);
+          }
+        } catch (e) {
+          setSliderImages([]);
+        }
+      } else {
+        setSliderImages([]);
+      }
     } catch (err) { console.error('Settings fetch error:', err); }
   };
 
@@ -986,6 +1004,81 @@ export default function AdminDashboard() {
       setSettingsSuccess('تم حفظ الإعدادات ومعلومات التواصل بنجاح ✅');
     } catch (err) { setSettingsError(err.message || 'خطأ أثناء حفظ الإعدادات'); }
     finally { setSettingsLoading(false); }
+  };
+
+  const handleSaveSliderSettings = async () => {
+    setSettingsLoading(true);
+    setSettingsError('');
+    setSettingsSuccess('');
+    try {
+      const { error } = await supabase.from('app_settings').upsert({
+        id: 3,
+        bank_name: 'hero_slider_settings',
+        bank_account: JSON.stringify(sliderImages),
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      setSettingsSuccess('تم حفظ صور السلايدر بنجاح 🖼️✨');
+    } catch (err) {
+      console.error('Error saving slider settings:', err);
+      setSettingsError(err.message || 'حدث خطأ أثناء حفظ السلايدر');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleUploadSliderImage = async (slotIdx, file) => {
+    if (!file) return;
+    setSliderUploading(true);
+    setSettingsError('');
+    setSettingsSuccess('');
+    try {
+      let finalFile = file;
+      try {
+        finalFile = await compressImage(file, 1200, 800, 0.75);
+      } catch (cErr) {
+        console.warn('Slider image compression failed:', cErr);
+      }
+
+      const fileExt = finalFile.name.split('.').pop() || 'jpg';
+      const fileName = `hero_slider/slide_${slotIdx}_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, finalFile, {
+          contentType: finalFile.type,
+          cacheControl: '31536000'
+        });
+      
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+
+      const publicUrl = publicUrlData?.publicUrl || '';
+      
+      setSliderImages(prev => {
+        const next = [...prev];
+        next[slotIdx] = publicUrl;
+        return next;
+      });
+      setSettingsSuccess(`تم رفع الصورة رقم ${slotIdx + 1} بنجاح 🖼️. اضغط على حفظ صور السلايدر لتأكيد التغيير.`);
+    } catch (err) {
+      console.error(err);
+      setSettingsError(err.message || 'حدث خطأ أثناء رفع الصورة');
+    } finally {
+      setSliderUploading(false);
+    }
+  };
+
+  const handleDeleteSliderImage = (slotIdx) => {
+    setSliderImages(prev => {
+      const next = [...prev];
+      next[slotIdx] = '';
+      return next;
+    });
+    setSettingsSuccess(`تم مسح الصورة رقم ${slotIdx + 1}. تذكر الضغط على حفظ صور السلايدر.`);
   };
 
   const handleResetData = async () => {
@@ -1829,65 +1922,128 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                  {/* LEFT: Account Security */}
-                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-                    <h3 className="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
-                      <span>🔐</span> أمان الحساب
-                    </h3>
+                  {/* LEFT: Account Security & Slider */}
+                  <div className="space-y-6">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+                      <h3 className="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
+                        <span>🔐</span> أمان الحساب
+                      </h3>
 
-                    {/* Change Email */}
-                    <form onSubmit={handleUpdateEmail} className="space-y-3">
-                      <div>
-                        <h4 className="font-bold text-slate-700 text-sm mb-1">تغيير البريد الإلكتروني</h4>
-                        <p className="text-xs text-slate-400 mb-2">البريد الحالي: <span className="font-semibold text-slate-600">{user?.email}</span></p>
+                      {/* Change Email */}
+                      <form onSubmit={handleUpdateEmail} className="space-y-3">
+                        <div>
+                          <h4 className="font-bold text-slate-700 text-sm mb-1">تغيير البريد الإلكتروني</h4>
+                          <p className="text-xs text-slate-400 mb-2">البريد الحالي: <span className="font-semibold text-slate-600">{user?.email}</span></p>
+                        </div>
+                        <input
+                          type="email"
+                          required
+                          value={newEmail}
+                          onChange={e => setNewEmail(e.target.value)}
+                          placeholder="البريد الإلكتروني الجديد"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-right"
+                          dir="ltr"
+                        />
+                        <button
+                          type="submit"
+                          disabled={settingsLoading}
+                          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+                        >
+                          <span>📧</span> تحديث البريد الإلكتروني
+                        </button>
+                      </form>
+
+                      <hr className="border-slate-100" />
+
+                      {/* Change Password */}
+                      <form onSubmit={handleUpdatePassword} className="space-y-3">
+                        <h4 className="font-bold text-slate-700 text-sm">تغيير كلمة المرور</h4>
+                        <input
+                          type="password"
+                          required
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-right"
+                        />
+                        <input
+                          type="password"
+                          required
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          placeholder="تأكيد كلمة المرور الجديدة"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-right"
+                        />
+                        <button
+                          type="submit"
+                          disabled={settingsLoading}
+                          className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+                        >
+                          <span>🔑</span> تحديث كلمة المرور
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Hero Slider Management */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+                      <h3 className="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
+                        <span>🖼️</span> السلايدر الترحيبي (Hero Slider)
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        إدارة صور الخلفية المتحركة في القسم الترحيبي للعملاء (يمكنك إضافة حتى 5 صور).
+                      </p>
+
+                      <div className="space-y-4">
+                        {[0, 1, 2, 3, 4].map((idx) => {
+                          const imgUrl = sliderImages[idx];
+                          return (
+                            <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 gap-4">
+                              <div className="flex items-center gap-3">
+                                <span className="font-bold text-slate-600 text-sm">{idx + 1}</span>
+                                {imgUrl ? (
+                                  <img src={imgUrl} alt={`Slide ${idx + 1}`} className="w-12 h-12 object-cover rounded-lg border border-slate-300" />
+                                ) : (
+                                  <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center text-lg">📁</div>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                <label className="bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold px-3 py-2.5 rounded-lg cursor-pointer transition">
+                                  رفع صورة
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleUploadSliderImage(idx, file);
+                                    }}
+                                  />
+                                </label>
+                                {imgUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSliderImage(idx)}
+                                    className="bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold px-3 py-2.5 rounded-lg transition"
+                                  >
+                                    حذف
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <input
-                        type="email"
-                        required
-                        value={newEmail}
-                        onChange={e => setNewEmail(e.target.value)}
-                        placeholder="البريد الإلكتروني الجديد"
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-right"
-                        dir="ltr"
-                      />
-                      <button
-                        type="submit"
-                        disabled={settingsLoading}
-                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
-                      >
-                        <span>📧</span> تحديث البريد الإلكتروني
-                      </button>
-                    </form>
 
-                    <hr className="border-slate-100" />
-
-                    {/* Change Password */}
-                    <form onSubmit={handleUpdatePassword} className="space-y-3">
-                      <h4 className="font-bold text-slate-700 text-sm">تغيير كلمة المرور</h4>
-                      <input
-                        type="password"
-                        required
-                        value={newPassword}
-                        onChange={e => setNewPassword(e.target.value)}
-                        placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)"
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-right"
-                      />
-                      <input
-                        type="password"
-                        required
-                        value={confirmPassword}
-                        onChange={e => setConfirmPassword(e.target.value)}
-                        placeholder="تأكيد كلمة المرور الجديدة"
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none text-right"
-                      />
                       <button
-                        type="submit"
-                        disabled={settingsLoading}
-                        className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+                        type="button"
+                        onClick={handleSaveSliderSettings}
+                        disabled={settingsLoading || sliderUploading}
+                        className="w-full bg-[#1B130D] hover:bg-[#2c2016] text-[#FFF7EC] font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow cursor-pointer"
                       >
-                        <span>🔑</span> تحديث كلمة المرور
+                        {sliderUploading ? 'جاري الرفع والضغط...' : '💾 حفظ صور السلايدر'}
                       </button>
-                    </form>
+                    </div>
                   </div>
 
                   {/* RIGHT: Contact, Bank, Danger Zone */}
