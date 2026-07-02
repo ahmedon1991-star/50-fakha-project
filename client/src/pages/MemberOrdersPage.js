@@ -243,7 +243,7 @@ export default function MemberOrdersPage() {
             {(() => {
               const filtered = orders.filter(o => {
                 if (ordersSubTab === 'active') {
-                  return o.status !== 'تم التوصيل';
+                  return o.status !== 'تم التوصيل' && o.status !== 'ملغي';
                 } else {
                   return o.status === 'تم التوصيل' || o.status === 'ملغي';
                 }
