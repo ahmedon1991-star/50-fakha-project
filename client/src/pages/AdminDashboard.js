@@ -1187,88 +1187,120 @@ export default function AdminDashboard() {
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 transition-opacity duration-300 md:hidden"
+            className="fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-50 transition-opacity duration-300 md:hidden"
             onClick={() => setMobileMenuOpen(false)}
           />
           {/* Drawer Sidebar */}
           <div 
-            className="fixed top-0 right-0 h-full w-64 bg-white shadow-2xl z-50 p-6 flex flex-col justify-between text-right md:hidden transition-transform duration-300 ease-in-out"
+            className="fixed top-0 right-0 h-full w-80 max-w-[85vw] bg-slate-50 shadow-2xl z-50 p-6 flex flex-col justify-between text-right md:hidden transition-transform duration-300 ease-in-out border-l border-slate-200"
             style={{ animation: 'slideRight 0.22s ease-out' }}
           >
-            <div className="space-y-6">
+            <div>
               {/* Close Button & Brand */}
-              <div className="flex justify-between items-center border-b pb-3">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-4 mb-6">
                 <button 
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-slate-400 hover:text-slate-700 text-lg p-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg"
+                  className="text-slate-500 hover:text-slate-800 text-lg p-2.5 bg-slate-200/60 hover:bg-slate-200 rounded-full transition duration-150 flex items-center justify-center cursor-pointer"
                 >
                   ✕
                 </button>
-                <div className="flex items-center gap-1.5 font-black text-emerald-750">
-                  <span>🍓</span>
+                <div className="flex items-center gap-2 font-black text-xl text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                  <span className="text-2xl">🍓</span>
                   <span>50 فاكهة</span>
                 </div>
               </div>
 
               {/* Vertical Menu Buttons */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
+                {/* 1. Stats Card */}
                 <button
                   onClick={() => { setActiveTab('stats'); setMobileMenuOpen(false); }}
-                  className={`w-full text-right py-3 px-4 rounded-xl font-bold text-sm transition ${
+                  className={`w-full text-right p-4 rounded-2xl font-bold text-sm transition duration-200 flex items-center justify-between gap-3 border cursor-pointer shadow-xs hover:shadow-sm ${
                     activeTab === 'stats' 
-                      ? 'bg-emerald-50 text-emerald-800' 
-                      : 'text-slate-650 hover:bg-slate-50'
+                      ? 'bg-white border-emerald-500 text-emerald-700 shadow-sm ring-2 ring-emerald-50' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
                   }`}
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
                 >
-                  📊 إحصائيات وتقارير
+                  <span className="text-lg">📊</span>
+                  <span className="font-extrabold text-sm">إحصائيات وتقارير</span>
                 </button>
 
+                {/* 2. Orders Card */}
                 <button
                   onClick={() => { setActiveTab('orders'); setMobileMenuOpen(false); }}
-                  className={`w-full text-right py-3 px-4 rounded-xl font-bold text-sm transition flex justify-between items-center ${
+                  className={`w-full text-right p-4 rounded-2xl font-bold text-sm transition duration-200 flex items-center justify-between gap-3 border cursor-pointer shadow-xs hover:shadow-sm ${
                     activeTab === 'orders' 
-                      ? 'bg-emerald-50 text-emerald-800' 
-                      : 'text-slate-650 hover:bg-slate-50'
+                      ? 'bg-white border-emerald-500 text-emerald-700 shadow-sm ring-2 ring-emerald-50' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
                   }`}
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
                 >
-                  <div className="flex items-center gap-2">
-                    <span>📦</span>
-                    <span>طلبات العملاء</span>
+                  <div className="flex items-center gap-1.5">
+                    {stats.pendingOrders > 0 && (
+                      <span className="bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+                        {stats.pendingOrders}
+                      </span>
+                    )}
                   </div>
-                  {stats.pendingOrders > 0 && (
-                    <span className="bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
-                      {stats.pendingOrders}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">📦</span>
+                    <span className="font-extrabold text-sm">طلبات العملاء</span>
+                  </div>
                 </button>
 
+                {/* 3. Products Card */}
                 <button
                   onClick={() => { setActiveTab('products'); setMobileMenuOpen(false); }}
-                  className={`w-full text-right py-3 px-4 rounded-xl font-bold text-sm transition ${
+                  className={`w-full text-right p-4 rounded-2xl font-bold text-sm transition duration-200 flex items-center justify-between gap-3 border cursor-pointer shadow-xs hover:shadow-sm ${
                     activeTab === 'products' 
-                      ? 'bg-emerald-50 text-emerald-800' 
-                      : 'text-slate-650 hover:bg-slate-50'
+                      ? 'bg-white border-emerald-500 text-emerald-700 shadow-sm ring-2 ring-emerald-50' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
                   }`}
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
                 >
-                  🍉 إدارة المنيو والمنتجات
+                  <span className="text-lg">🍉</span>
+                  <span className="font-extrabold text-sm">إدارة المنيو والمنتجات</span>
                 </button>
 
+                {/* 4. Settings Card */}
                 <button
                   onClick={() => { setActiveTab('settings'); setMobileMenuOpen(false); }}
-                  className={`w-full text-right py-3 px-4 rounded-xl font-bold text-sm transition ${
+                  className={`w-full text-right p-4 rounded-2xl font-bold text-sm transition duration-200 flex items-center justify-between gap-3 border cursor-pointer shadow-xs hover:shadow-sm ${
                     activeTab === 'settings' 
-                      ? 'bg-purple-50 text-purple-800' 
-                      : 'text-slate-650 hover:bg-purple-50'
+                      ? 'bg-white border-emerald-500 text-emerald-700 shadow-sm ring-2 ring-emerald-50' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
                   }`}
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
                 >
-                  ⚙️ الإعدادات والأمان
+                  <span className="text-lg">⚙️</span>
+                  <span className="font-extrabold text-sm">الإعدادات والأمان</span>
                 </button>
               </div>
             </div>
 
-            {/* Bottom Status */}
-            <div className="border-t pt-4 text-xs text-slate-400">
-              أدمن لوحة تحكم 50 فاكهة
+            {/* Bottom Actions & Status */}
+            <div>
+              <div className="border-t border-slate-200 pt-4 mb-4 space-y-2">
+                <Link
+                  to="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full p-3 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition duration-150 flex items-center justify-center gap-2"
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
+                >
+                  <span>🏪</span> العودة للمتجر
+                </Link>
+                <button
+                  onClick={() => { setMobileMenuOpen(false); handleLogoutClick(); }}
+                  className="w-full p-3 rounded-xl font-bold text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-100 transition duration-150 flex items-center justify-center gap-2 cursor-pointer"
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
+                >
+                  <span>🚪</span> تسجيل الخروج
+                </button>
+              </div>
+              <div className="text-center text-[10px] text-slate-400 font-bold" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                أدمن لوحة تحكم 50 فاكهة
+              </div>
             </div>
           </div>
         </>
