@@ -12,6 +12,7 @@ export default function Navbar() {
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactInfo, setContactInfo] = useState({ phone: '', email: '' });
   const [statusNotification, setStatusNotification] = useState(null);
+  const [showMoreOpen, setShowMoreOpen] = useState(false);
   const orderStatusCache = useRef({});
 
   // Custom 0.8s melodic chime (Sine wave double tone)
@@ -360,6 +361,50 @@ export default function Navbar() {
                     <span className="text-base text-[#F3760C] transition group-hover:scale-110 flex-shrink-0">📞</span>
                   </div>
                 </button>
+
+                {/* 6. المزيد */}
+                <button
+                  onClick={() => setShowMoreOpen(!showMoreOpen)}
+                  className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-amber-50/40 border border-slate-100/80 rounded-2xl shadow-xs transition duration-200 group text-right cursor-pointer"
+                >
+                  <span className={`text-slate-400 font-bold transition duration-200 text-sm ${showMoreOpen ? 'text-amber-500' : ''}`}>
+                    {showMoreOpen ? '▾' : '‹'}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-xs sm:text-sm text-slate-700 group-hover:text-slate-900" style={{ fontFamily: "'Cairo', sans-serif" }}>المزيد</span>
+                    <span className="text-base text-[#F3760C] transition group-hover:scale-110 flex-shrink-0">📂</span>
+                  </div>
+                </button>
+
+                {showMoreOpen && (
+                  <div className="flex flex-col gap-2.5 mr-6 border-r border-slate-200 pr-3 mt-0.5 transition-all duration-300">
+                    {/* Sub-item 1: سياسة الخصوصية */}
+                    <Link 
+                      to="/privacy" 
+                      onClick={() => setDrawerOpen(false)}
+                      className="w-full flex items-center justify-between p-2.5 bg-white/70 hover:bg-amber-50/30 border border-slate-100/60 rounded-xl shadow-xxs transition duration-200 group text-decoration-none"
+                    >
+                      <span className="text-slate-400 font-bold transition group-hover:-translate-x-0.5 text-xs">‹</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-slate-600 group-hover:text-slate-900" style={{ fontFamily: "'Cairo', sans-serif" }}>سياسة الخصوصية</span>
+                        <span className="text-sm text-[#F3760C] transition group-hover:scale-110 flex-shrink-0">🛡️</span>
+                      </div>
+                    </Link>
+                    
+                    {/* Sub-item 2: الشروط والأحكام */}
+                    <Link 
+                      to="/terms" 
+                      onClick={() => setDrawerOpen(false)}
+                      className="w-full flex items-center justify-between p-2.5 bg-white/70 hover:bg-amber-50/30 border border-slate-100/60 rounded-xl shadow-xxs transition duration-200 group text-decoration-none"
+                    >
+                      <span className="text-slate-400 font-bold transition group-hover:-translate-x-0.5 text-xs">‹</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-slate-600 group-hover:text-slate-900" style={{ fontFamily: "'Cairo', sans-serif" }}>الشروط والأحكام</span>
+                        <span className="text-sm text-[#F3760C] transition group-hover:scale-110 flex-shrink-0">⚖️</span>
+                      </div>
+                    </Link>
+                  </div>
+                )}
 
                 {/* 6. دخول الإدارة (Admin Panel Access Card) */}
                 {user.isAdmin && (
