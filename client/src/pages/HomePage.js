@@ -277,24 +277,45 @@ export default function HomePage() {
           border-color: #F3760C !important;
           box-shadow: 0 0 0 3px rgba(243,118,12,0.12);
         }
+        .hero-slider-container {
+          position: relative;
+          border-radius: 22px;
+          color: white;
+          overflow: hidden;
+          margin-bottom: 16px;
+          height: 150px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+          transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hero-slider-container.is-portrait {
+          height: 230px;
+          justify-content: flex-end;
+          padding: 12px;
+        }
+        @media (min-width: 640px) {
+          .hero-slider-container {
+            height: 180px;
+          }
+          .hero-slider-container.is-portrait {
+            height: 320px;
+            padding: 18px;
+          }
+        }
       `}</style>
 
       {/* ─── MAIN CONTENT WRAPPER ─── */}
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 16px 0' }}>
-        <div style={{
-          position: 'relative',
-          borderRadius: '22px',
-          padding: activeSlideIsPortrait ? '14px' : '20px 20px 20px',
-          color: 'white',
-          overflow: 'hidden',
-          marginBottom: '16px',
-          height: activeSlideIsPortrait ? '340px' : '150px',
-          transition: 'height 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: activeSlideIsPortrait ? 'flex-end' : 'center',
-          boxShadow: '0 8px 30px rgba(0,0,0,0.06)',
-        }}>
+        <div 
+          className={`hero-slider-container ${activeSlideIsPortrait ? 'is-portrait' : ''}`}
+          onClick={() => {
+            const el = document.querySelector('.chip-scroll');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           {/* Slides background wrapper */}
           <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
             {sliderImages.length > 0 ? (
@@ -340,61 +361,66 @@ export default function HomePage() {
               position: 'absolute',
               inset: 0,
               background: activeSlideIsPortrait
-                ? 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.25) 100%)'
+                ? 'linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.15) 100%)'
                 : 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.5) 100%)',
               zIndex: 1,
             }} />
           </div>
 
           {/* Text and Button content (Z-index above background slides) */}
-          <div style={{
-            position: 'relative',
-            zIndex: 2,
-            background: activeSlideIsPortrait ? 'rgba(27, 19, 13, 0.72)' : 'none',
-            backdropFilter: activeSlideIsPortrait ? 'blur(10px)' : 'none',
-            WebkitBackdropFilter: activeSlideIsPortrait ? 'blur(10px)' : 'none',
-            padding: activeSlideIsPortrait ? '14px 18px' : '0',
-            borderRadius: activeSlideIsPortrait ? '18px' : '0',
-            border: activeSlideIsPortrait ? '1px solid rgba(255,255,255,0.08)' : 'none',
-            boxShadow: activeSlideIsPortrait ? '0 10px 30px rgba(0,0,0,0.25)' : 'none',
-            transition: 'all 0.4s ease',
-            maxWidth: activeSlideIsPortrait ? '100%' : '260px',
-            alignSelf: 'flex-start',
-            width: activeSlideIsPortrait ? '100%' : 'auto',
-          }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, opacity: 0.95, marginBottom: '6px', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
-              {user ? `أهلاً بك 👋 ${user.name.split(' ')[0]}` : 'عروض اليوم 🔥'}
-            </div>
-            <h1 style={{
-              fontFamily: "'Cairo', sans-serif",
-              fontSize: 'clamp(14px, 4.5vw, 20px)',
-              fontWeight: 850, lineHeight: 1.4,
-              marginBottom: '12px',
-              textShadow: '0 2px 4px rgba(0,0,0,0.6)',
-            }}>
-              اعصر يومك بطعم ٥٠ فاكهة الأصلي
-            </h1>
-            <div 
-              onClick={() => {
-                const el = document.querySelector('.chip-scroll');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                background: '#F3760C', color: 'white',
-                fontSize: '11.5px', fontWeight: 800,
-                padding: '7px 16px', borderRadius: '999px',
-                cursor: 'pointer',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+          {sliderImages.length === 0 ? (
+            /* Default Slide welcome overlay text */
+            <div style={{ position: 'relative', zIndex: 2, padding: '0 20px 20px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, opacity: 0.95, marginBottom: '6px', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                {user ? `أهلاً بك 👋 ${user.name.split(' ')[0]}` : 'عروض اليوم 🔥'}
+              </div>
+              <h1 style={{
                 fontFamily: "'Cairo', sans-serif",
-              }}
-            >
-              اطلب الآن ←
+                fontSize: 'clamp(16px, 4.5vw, 22px)',
+                fontWeight: 800, lineHeight: 1.45,
+                maxWidth: '220px', marginBottom: '16px',
+                textShadow: '0 2px 4px rgba(0,0,0,0.6)',
+              }}>
+                اعصر يومك بطعم ٥٠ فاكهة الأصلي
+              </h1>
+              <div 
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  background: '#1B130D', color: '#FFF7EC',
+                  fontSize: '12px', fontWeight: 700,
+                  padding: '8px 16px', borderRadius: '999px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                }}
+              >
+                اطلب الآن ←
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Custom merchant slides - show a tiny, 100% transparent elegant welcome text in the top right corner if logged in, completely unobtrusive, otherwise show nothing */
+            user && (
+              <div style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                zIndex: 2,
+                fontSize: '10px',
+                fontWeight: 800,
+                color: 'white',
+                background: 'rgba(0,0,0,0.22)',
+                padding: '4px 10px',
+                borderRadius: '999px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+                fontFamily: "'Cairo', sans-serif",
+                pointerEvents: 'none'
+              }}>
+                أهلاً بك 👋 {user.name.split(' ')[0]}
+              </div>
+            )
+          )}
           
-          {/* SVG cup (Only show if not portrait to avoid visual overlap with banner layout) */}
-          {!activeSlideIsPortrait && (
+          {/* SVG cup (Only show if not custom slides and not portrait to avoid visual overlap) */}
+          {sliderImages.length === 0 && (
             <svg viewBox="0 0 100 130" fill="none" style={{ position: 'absolute', left: '12px', bottom: '8px', width: '66px', opacity: 0.88, pointerEvents: 'none', zIndex: 2 }}>
               <path d="M22 30h56l-6 80a8 8 0 0 1-8 7H36a8 8 0 0 1-8-7L22 30Z" fill="white" fillOpacity=".18"/>
               <rect x="18" y="22" width="64" height="12" rx="6" fill="white" fillOpacity=".25"/>
