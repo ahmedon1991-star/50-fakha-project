@@ -28,6 +28,38 @@ export default function CartPage() {
   const [receiptFile, setReceiptFile] = useState(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [lastOrderDetails, setLastOrderDetails] = useState(null);
+  const [insertedOrderId, setInsertedOrderId] = useState(null);
+  const [orderStatus, setOrderStatus] = useState('قيد الانتظار');
+  const [whatsappSent, setWhatsappSent] = useState(false);
+
+  // Real-time subscription to track order approval status
+  useEffect(() => {
+    if (!insertedOrderId) return;
+
+    const channel = supabase
+      .channel(`order-status-${insertedOrderId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${insertedOrderId}`
+        },
+        (payload) => {
+          const updatedOrder = payload.new;
+          if (updatedOrder) {
+            console.log('Realtime order update received:', updatedOrder);
+            setOrderStatus(updatedOrder.status);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [insertedOrderId]);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -198,11 +230,18 @@ export default function CartPage() {
         status: 'قيد الانتظار'
       };
 
-      const { error: insertError } = await supabase
+      const { data: insertedData, error: insertError } = await supabase
         .from('orders')
-        .insert(orderPayload);
+        .insert(orderPayload)
+        .select('id')
+        .single();
 
       if (insertError) throw insertError;
+
+      const insertedId = insertedData?.id;
+      setInsertedOrderId(insertedId);
+      setOrderStatus('قيد الانتظار');
+      setWhatsappSent(false);
 
       // Notify admin dashboard via broadcast (works even without RLS full-access for INSERT events)
       try {
@@ -597,51 +636,89 @@ export default function CartPage() {
   };
 
   if (orderSuccess && lastOrderDetails) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-start p-4 pb-36 pt-10 bg-gradient-to-br from-emerald-50 to-teal-100 min-h-screen overflow-y-auto">
-        <div className="max-w-xl w-full bg-white p-5 sm:p-8 rounded-3xl shadow-2xl border border-emerald-100 text-center space-y-6">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto animate-bounce">
-            🎉
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-black text-emerald-950">تم إرسال طلبك بنجاح!</h2>
-            <p className="text-slate-500 text-sm">تم توليد فاتورة الطلب الاحترافية بنجاح.</p>
-          </div>
+    const isPending = orderStatus === 'قيد الانتظار';
+    const isRejected = orderStatus === 'ملغي';
+    const isAccepted = orderStatus !== 'قيد الانتظار' && orderStatus !== 'ملغي';
 
-          {/* Invoice card preview */}
+    return (
+      <div className="flex-1 flex flex-col items-center justify-start p-4 pb-36 pt-10 bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen overflow-y-auto" style={{ fontFamily: "'Cairo', sans-serif" }}>
+        <div className="max-w-xl w-full bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-100 text-center space-y-6 animate-slideInUp">
+          
+          {/* 1. Icon & Status Banner */}
+          {isPending && (
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-4xl mx-auto border-4 border-amber-100 animate-pulse">
+                ⏳
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl sm:text-2xl font-black text-amber-950">في انتظار مراجعة الطلب...</h2>
+                <p className="text-slate-500 text-xs sm:text-sm font-bold leading-relaxed px-4">
+                  جاري مراجعة طلبك وتأكيده من قبل الكاشير حالياً. يرجى إبقاء هذه الصفحة مفتوحة.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isRejected && (
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center text-4xl mx-auto border-4 border-rose-100 animate-bounce">
+                ❌
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl sm:text-2xl font-black text-rose-950">عذراً، تم إلغاء الطلب!</h2>
+                <p className="text-slate-500 text-xs sm:text-sm font-bold leading-relaxed px-4">
+                  لقد تم رفض وإلغاء طلبك من قبل إدارة المتجر.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isAccepted && (
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-4xl mx-auto border-4 border-emerald-100">
+                ✅
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl sm:text-2xl font-black text-emerald-950">تم قبول وتأكيد طلبك!</h2>
+                {!whatsappSent ? (
+                  <p className="text-rose-700 text-xs sm:text-sm font-extrabold leading-relaxed px-4 bg-rose-50 border border-rose-100 py-3 rounded-2xl">
+                    ⚠️ إجراء إجباري: يرجى الضغط على زر الإرسال للواتساب لمشاركة الفاتورة مع المتجر لتأكيد عنوان الشحن وبدء التوصيل.
+                  </p>
+                ) : (
+                  <p className="text-emerald-800 text-xs sm:text-sm font-extrabold leading-relaxed px-4 bg-emerald-50 border border-emerald-100 py-3 rounded-2xl">
+                    🎉 تم إرسال الإشعار بنجاح! يمكنك الآن إنهاء الطلب والعودة للمتجر.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 2. Invoice Card Preview */}
           <div className="bg-slate-50 rounded-2xl p-5 text-right border border-slate-200/80 space-y-4">
             <div className="flex justify-between items-center border-b pb-2">
-              <span className="font-bold text-slate-800 text-lg">🧾 فاتورة الطلب</span>
-              <span className="font-mono text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold">
+              <span className="font-bold text-slate-800 text-sm sm:text-base">🧾 تفاصيل الفاتورة</span>
+              <span className="font-mono text-[10px] bg-slate-200/60 text-slate-700 px-2.5 py-1 rounded-full font-bold">
                 رقم الطلب: #{lastOrderDetails.orderNumber}
               </span>
             </div>
             
-            <div className="space-y-1.5 text-sm text-slate-600">
-              <p>👤 *العميل:* {user?.name}</p>
-              <p>📞 *الهاتف:* {lastOrderDetails.phone}</p>
-              <p>📍 *العنوان:* {lastOrderDetails.address}</p>
-              <p>💳 *طريقة الدفع:* {lastOrderDetails.paymentMethod === 'bank' ? 'تحويل بنكي 🏦' : 'الدفع عند الاستلام 💵'}</p>
-              {lastOrderDetails.paymentMethod === 'bank' && (
-                <div className="bg-slate-100 p-2.5 rounded-lg border text-xs space-y-0.5 mt-2">
-                  <p className="font-bold text-slate-700">بيانات الحساب المستخدم:</p>
-                  <p>🏦 البنك: {lastOrderDetails.bankName}</p>
-                  <p>💳 الحساب: {lastOrderDetails.bankAccount}</p>
-                  <p>👤 الاسم: {lastOrderDetails.bankHolderName}</p>
-                </div>
-              )}
+            <div className="space-y-1.5 text-xs sm:text-sm text-slate-600">
+              <p>👤 **العميل:** {user?.name}</p>
+              <p>📞 **الهاتف:** {lastOrderDetails.phone}</p>
+              <p>📍 **العنوان:** {lastOrderDetails.address}</p>
+              <p>💳 **طريقة الدفع:** {lastOrderDetails.paymentMethod === 'bank' ? 'تحويل بنكي 🏦' : 'الدفع عند الاستلام 💵'}</p>
             </div>
 
             <div className="border-t pt-3 space-y-2">
               {lastOrderDetails.items.map((it, idx) => (
-                <div key={idx} className="flex justify-between text-sm text-slate-700">
+                <div key={idx} className="flex justify-between text-xs sm:text-sm text-slate-700">
                   <span>{it.quantity}x {it.name} {it.selectedSize ? `(${it.selectedSize})` : ''}</span>
                   <span className="font-semibold">{it.price * it.quantity} ج.س</span>
                 </div>
               ))}
             </div>
 
-            <div className="border-t border-dashed pt-3 space-y-1 text-sm">
+            <div className="border-t border-dashed pt-3 space-y-1 text-xs sm:text-sm">
               <div className="flex justify-between text-slate-500">
                 <span>المجموع الفرعي:</span>
                 <span>{lastOrderDetails.totalAmount} ج.س</span>
@@ -650,40 +727,68 @@ export default function CartPage() {
                 <span>تكلفة التوصيل:</span>
                 <span>{lastOrderDetails.deliveryFee} ج.س</span>
               </div>
-              <div className="flex justify-between text-slate-900 font-black text-base pt-1">
+              <div className="flex justify-between text-slate-900 font-black text-xs sm:text-sm border-t pt-2.5 mt-1.5">
                 <span>الإجمالي الكلي:</span>
-                <span className="text-emerald-700">{lastOrderDetails.grandTotal} ج.س</span>
+                <span className="text-emerald-700 text-sm sm:text-base">{lastOrderDetails.grandTotal} ج.s</span>
               </div>
             </div>
           </div>
+
+          {/* 3. Action Buttons */}
           <div className="space-y-3">
-            {/* Secondary Actions */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* If pending, no buttons allowed to close */}
+            {isPending && (
+              <div className="flex items-center justify-center gap-2.5 p-4 bg-amber-50/50 border border-amber-100 rounded-2xl text-amber-700 text-xs sm:text-sm font-bold">
+                <div className="w-4 h-4 border-2 border-amber-700 border-t-transparent rounded-full animate-spin"></div>
+                <span>يرجى الانتظار، في انتظار رد الإدارة...</span>
+              </div>
+            )}
+
+            {/* If rejected, allow closing to cart/home */}
+            {isRejected && (
               <button
-                onClick={copyInvoiceAsImage}
-                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-xl shadow-sm transition duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
+                onClick={() => {
+                  setOrderSuccess(false);
+                  setInsertedOrderId(null);
+                  setOrderStatus('قيد الانتظار');
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-2xl transition duration-200 text-sm cursor-pointer shadow-sm"
               >
-                <span>📋</span> نسخ صورة الفاتورة
+                العودة للمتجر وإعادة المحاولة 🏪
               </button>
-              <button
-                onClick={downloadInvoiceAsImage}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-xl shadow-sm transition duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
-              >
-                <span>📥</span> تحميل كصورة
-              </button>
-            </div>
-            
-            {/* Back to store */}
-            <button
-              onClick={() => navigate('/')}
-              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition duration-200 text-sm mt-2 cursor-pointer"
-              style={{ fontFamily: "'Cairo', sans-serif" }}
-            >
-              العودة للمتجر 🍉
-            </button>
+            )}
+
+            {/* If accepted, enforce WhatsApp click */}
+            {isAccepted && (
+              <>
+                {!whatsappSent ? (
+                  <button
+                    onClick={() => {
+                      shareViaWhatsApp();
+                      setWhatsappSent(true);
+                    }}
+                    className="w-full bg-[#25D366] hover:bg-[#20ba56] text-white font-black py-3.5 px-4 rounded-2xl shadow-md transition duration-200 flex items-center justify-center gap-2 text-sm cursor-pointer"
+                  >
+                    <span>💬</span> إرسال الفاتورة للواتساب وتأكيد الشحن
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setOrderSuccess(false);
+                      setInsertedOrderId(null);
+                      setOrderStatus('قيد الانتظار');
+                      setWhatsappSent(false);
+                      navigate('/orders'); // redirect to orders history
+                    }}
+                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-2xl transition duration-200 text-sm cursor-pointer shadow-sm animate-pulse"
+                  >
+                    إتمام وإنهاء الطلب والعودة للمتجر 🍉
+                  </button>
+                )}
+              </>
+            )}
           </div>
+
         </div>
       </div>
     );
