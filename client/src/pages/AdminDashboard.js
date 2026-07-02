@@ -1080,17 +1080,37 @@ export default function AdminDashboard() {
   };
 
   const handleResetData = async () => {
-    const c1 = window.confirm('⚠️ هل أنت متأكد من تصفير جميع الطلبات والتقارير؟ هذا الإجراء لا يمكن التراجع عنه!');
-    if (!c1) return;
-    const c2 = window.confirm('⚠️ تأكيد أخير: سيتم إخفاء وتصفير جميع بيانات المبيعات الحالية من لوحة الأدمن نهائياً. هل تريد المتابعة؟');
-    if (!c2) return;
     setSettingsLoading(true); setSettingsError(''); setSettingsSuccess('');
     try {
+      // 1. Check if there are active (uncompleted and not cancelled) orders
+      const { data: activeOrdersList, error: checkErr } = await supabase
+        .from('orders')
+        .select('id, status')
+        .eq('admin_cleared', false)
+        .neq('status', 'تم التوصيل')
+        .neq('status', 'ملغي');
+      
+      if (checkErr) throw checkErr;
+      
+      if (activeOrdersList && activeOrdersList.length > 0) {
+        setSettingsError('⚠️ لا يمكن تصفير البيانات والتقارير لوجود طلبات نشطة (قيد الانتظار أو تم التأكيد). يرجى إكمال أو إلغاء جميع الطلبات أولاً!');
+        setSettingsLoading(false);
+        return;
+      }
+
+      // 2. Double confirmation prompts
+      const c1 = window.confirm('⚠️ هل أنت متأكد من تصفير جميع الطلبات والتقارير؟ هذا الإجراء لا يمكن التراجع عنه!');
+      if (!c1) { setSettingsLoading(false); return; }
+      const c2 = window.confirm('⚠️ تأكيد أخير: سيتم إخفاء وتصفير جميع بيانات المبيعات الحالية من لوحة الأدمن نهائياً. هل تريد المتابعة؟');
+      if (!c2) { setSettingsLoading(false); return; }
+
+      // 3. Clear orders
       const { error } = await supabase
         .from('orders')
         .update({ admin_cleared: true })
         .eq('admin_cleared', false);
       if (error) throw error;
+      
       setSettingsSuccess('تم تصفير لوحة التحكم والتقارير بنجاح ✅');
       setStats({ totalOrders: 0, pendingOrders: 0, completedOrders: 0, totalSales: 0, salesByDate: [] });
       setOrders([]);
