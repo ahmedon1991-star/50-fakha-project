@@ -1103,58 +1103,63 @@ export default function AdminDashboard() {
   return (
     <div className="flex-1 min-h-screen bg-slate-50 flex flex-col pb-16">
       {/* Top Banner Header */}
-      <div className="bg-slate-900 text-white shadow-md p-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">⚙️</span>
+      <div className="bg-slate-900 text-white shadow-md p-5 border-b border-slate-800">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-5">
+          <div className="flex items-center gap-3.5 text-right w-full md:w-auto">
+            <div className="bg-slate-800 p-2.5 rounded-2xl border border-slate-700">
+              <span className="text-2xl block">⚙️</span>
+            </div>
             <div>
-              <h1 className="text-2xl font-black bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+              <h1 className="text-xl sm:text-2xl font-black bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent" style={{ fontFamily: "'Cairo', sans-serif" }}>
                 لوحة التحكم الإدارية
               </h1>
-              <p className="text-slate-400 text-xs">إدارة منيو وطلبات مطعم 50 فاكهة</p>
+              <p className="text-slate-400 text-xs mt-0.5" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                إدارة المتجر | المدير: <span className="text-emerald-400 font-bold">{user?.name || 'أدمن'}</span>
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
+          
+          <div className="w-full md:w-auto grid grid-cols-2 sm:flex sm:flex-row gap-2.5">
             {/* Toggle accepting orders button */}
             <button
               onClick={handleToggleAcceptingOrders}
-              className={`text-xs font-black px-4 py-2.5 rounded-xl shadow transition duration-200 hover:scale-[1.02] flex items-center gap-1.5 ${
+              className={`text-xs font-black px-3.5 py-3 rounded-2xl shadow transition duration-200 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer border ${
                 acceptingOrders
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  : 'bg-rose-600 hover:bg-rose-700 text-white'
+                  ? 'bg-emerald-600 border-emerald-500 hover:bg-emerald-700 text-white'
+                  : 'bg-rose-600 border-rose-500 hover:bg-rose-700 text-white'
               }`}
+              style={{ fontFamily: "'Cairo', sans-serif" }}
             >
-              <span>{acceptingOrders ? 'استقبال الطلبات: مفعل 🟢' : 'استقبال الطلبات: مغلق 🔴'}</span>
+              <span>{acceptingOrders ? '🟢 استقبال الطلبات' : '🔴 استقبال الطلبات'}</span>
             </button>
 
             {/* Auto Accept toggle button */}
             <button
               onClick={toggleAutoAccept}
-              className={`text-xs font-black px-4 py-2.5 rounded-xl shadow transition duration-200 hover:scale-[1.02] flex items-center gap-1.5 ${
+              className={`text-xs font-black px-3.5 py-3 rounded-2xl shadow transition duration-200 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer border ${
                 autoAcceptEnabled
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold'
-                  : 'bg-rose-600 hover:bg-rose-700 text-white font-bold'
+                  ? 'bg-emerald-600 border-emerald-500 hover:bg-emerald-700 text-white'
+                  : 'bg-rose-600 border-rose-500 hover:bg-rose-700 text-white'
               }`}
+              style={{ fontFamily: "'Cairo', sans-serif" }}
             >
-              <span>{autoAcceptEnabled ? 'القبول التلقائي: مفعل 🤖' : 'القبول التلقائي: معطل 👤'}</span>
+              <span>{autoAcceptEnabled ? '🤖 القبول التلقائي' : '👤 القبول اليدوي'}</span>
             </button>
-
-
 
             <Link 
               to="/" 
-              className="bg-slate-700 hover:bg-slate-800 hover:scale-[1.02] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition duration-200"
+              className="bg-slate-800 border border-slate-700 hover:bg-slate-750 active:scale-95 text-white text-xs font-black px-3.5 py-3 rounded-2xl shadow transition duration-200 flex items-center justify-center gap-1.5 text-center"
+              style={{ fontFamily: "'Cairo', sans-serif" }}
             >
-              العودة للمتجر 🏪
+              <span>🏪</span> العودة للمتجر
             </Link>
-            <div className="bg-slate-800 text-slate-200 text-sm px-4 py-2 rounded-xl border border-slate-700 font-semibold">
-              المدير: {user?.name || 'أدمن'}
-            </div>
+
             <button 
               onClick={handleLogoutClick}
-              className="bg-slate-650 hover:bg-slate-700 hover:scale-[1.02] text-slate-300 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-700 transition duration-200"
+              className="bg-slate-800 border border-slate-700 hover:bg-slate-755 active:scale-95 text-rose-450 text-xs font-black px-3.5 py-3 rounded-2xl shadow transition duration-200 flex items-center justify-center gap-1.5 cursor-pointer"
+              style={{ fontFamily: "'Cairo', sans-serif" }}
             >
-              تسجيل الخروج 🚪
+              <span>🚪</span> خروج
             </button>
           </div>
         </div>
@@ -1350,30 +1355,37 @@ export default function AdminDashboard() {
             {activeTab === 'stats' && (
               <div className="space-y-6">
 
-                {/* Period Filter Buttons */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-slate-600 font-bold text-sm">📅 عرض بيانات:</span>
-                  {[
-                    { key: 'today', label: 'اليوم', icon: '☀️' },
-                    { key: 'week',  label: 'هذا الأسبوع', icon: '📆' },
-                    { key: 'month', label: 'هذا الشهر', icon: '🗓️' },
-                    { key: 'all',   label: 'الكل', icon: '📊' },
-                  ].map(({ key, label, icon }) => (
-                    <button
-                      key={key}
-                      onClick={() => setStatsFilter(key)}
-                      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-sm border-2 transition-all duration-200 ${
-                        statsFilter === key
-                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-200 scale-105'
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400'
-                      }`}
-                    >
-                      <span>{icon}</span> {label}
-                    </button>
-                  ))}
-                  <span className="text-xs text-slate-400 mr-auto">
-                    {statsFilter === 'today' ? 'اليوم فقط' : statsFilter === 'week' ? 'آخر 7 أيام' : statsFilter === 'month' ? 'آخر 30 يوم' : 'جميع البيانات'}
-                  </span>
+                {/* Period Filter (Segmented Control) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-700" style={{ fontFamily: "'Cairo', sans-serif" }}>📅 الفترة الزمنية:</span>
+                    <span className="text-xs text-slate-400 font-bold" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                      ({statsFilter === 'today' ? 'اليوم فقط' : statsFilter === 'week' ? 'آخر 7 أيام' : statsFilter === 'month' ? 'آخر 30 يوم' : 'جميع البيانات'})
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-100 p-1 rounded-2xl flex items-center border border-slate-200 w-full sm:w-80 shadow-inner">
+                    {[
+                      { key: 'today', label: 'اليوم', icon: '☀️' },
+                      { key: 'week',  label: 'أسبوع', icon: '📆' },
+                      { key: 'month', label: 'شهر', icon: '🗓️' },
+                      { key: 'all',   label: 'الكل', icon: '📊' },
+                    ].map(({ key, label, icon }) => (
+                      <button
+                        key={key}
+                        onClick={() => setStatsFilter(key)}
+                        className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl font-bold text-xs transition duration-200 cursor-pointer ${
+                          statsFilter === key
+                            ? 'bg-emerald-600 text-white shadow-md'
+                            : 'text-slate-600 hover:text-slate-800'
+                        }`}
+                        style={{ fontFamily: "'Cairo', sans-serif" }}
+                      >
+                        <span>{icon}</span>
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* KPI Cards Grid */}
