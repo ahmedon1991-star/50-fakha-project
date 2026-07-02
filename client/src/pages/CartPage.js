@@ -32,11 +32,28 @@ export default function CartPage() {
   const [orderStatus, setOrderStatus] = useState('قيد الانتظار');
   const [whatsappSent, setWhatsappSent] = useState(false);
 
-  // Real-time subscription to track order approval status
+  // Real-time subscription to track order approval status (Postgres changes + Instant WebSocket Broadcast)
   useEffect(() => {
     if (!insertedOrderId) return;
 
-    const channel = supabase
+    // 1. Subscribe to Broadcast channel (Super fast instant WebSocket)
+    const broadcastChannel = supabase
+      .channel('order-status-broadcast')
+      .on(
+        'broadcast',
+        { event: 'status-update' },
+        (payload) => {
+          const { orderId, status } = payload.payload || {};
+          if (orderId === insertedOrderId) {
+            console.log('Received broadcast status update:', status);
+            setOrderStatus(status);
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Subscribe to Postgres Changes (Database replication fallback)
+    const postgresChannel = supabase
       .channel(`order-status-${insertedOrderId}`)
       .on(
         'postgres_changes',
@@ -57,7 +74,8 @@ export default function CartPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(broadcastChannel);
+      supabase.removeChannel(postgresChannel);
     };
   }, [insertedOrderId]);
 

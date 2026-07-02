@@ -148,6 +148,17 @@ export default function AdminDashboard() {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'تم التأكيد' } : o));
       stopAlarm();
       setLatestNewOrder(null);
+
+      // Broadcast status update instantly
+      try {
+        await supabase.channel('order-status-broadcast').send({
+          type: 'broadcast',
+          event: 'status-update',
+          payload: { orderId, status: 'تم التأكيد' }
+        });
+      } catch (broadcastErr) {
+        console.warn('Broadcast status update failed:', broadcastErr);
+      }
     } catch (err) {
       console.error('Error accepting order:', err);
     }
@@ -164,6 +175,17 @@ export default function AdminDashboard() {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'ملغي' } : o));
       stopAlarm();
       setLatestNewOrder(null);
+
+      // Broadcast status update instantly
+      try {
+        await supabase.channel('order-status-broadcast').send({
+          type: 'broadcast',
+          event: 'status-update',
+          payload: { orderId, status: 'ملغي' }
+        });
+      } catch (broadcastErr) {
+        console.warn('Broadcast status update failed:', broadcastErr);
+      }
     } catch (err) {
       console.error('Error rejecting order:', err);
     }
@@ -774,6 +796,17 @@ export default function AdminDashboard() {
       
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+
+      // Broadcast status update instantly
+      try {
+        await supabase.channel('order-status-broadcast').send({
+          type: 'broadcast',
+          event: 'status-update',
+          payload: { orderId, status: newStatus }
+        });
+      } catch (broadcastErr) {
+        console.warn('Broadcast status update failed:', broadcastErr);
+      }
     } catch (err) {
       alert('خطأ أثناء تعديل حالة الطلب: ' + err.message);
     }
