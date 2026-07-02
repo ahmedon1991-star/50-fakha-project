@@ -233,13 +233,13 @@ export default function Navbar() {
       {/* ─── SLIDING DRAWER MENU ─── */}
       {drawerOpen && user && (
         <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[250] flex justify-end"
+          className="fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-[250] flex justify-end"
           onClick={() => setDrawerOpen(false)}
         >
           {/* Drawer Panel */}
           <div 
-            className="w-72 sm:w-80 h-full bg-[#FFF7EC] p-6 shadow-2xl flex flex-col text-right overflow-y-auto animate-slide-left relative"
-            style={{ fontFamily: "'Tajawal', sans-serif" }}
+            className="w-72 sm:w-80 h-full bg-[#FCFAF7] p-6 shadow-2xl flex flex-col text-right overflow-y-auto animate-slide-left relative border-l border-slate-100"
+            style={{ fontFamily: "'Cairo', sans-serif" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Style tag for animations */}
@@ -251,123 +251,143 @@ export default function Navbar() {
               .animate-slide-left {
                 animation: slideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
               }
-              .drawer-link {
-                font-family: 'Cairo', sans-serif;
-                font-size: 15px;
-                font-weight: 800;
-                color: #C95A06;
-                padding: 10px 0;
-                display: block;
-                transition: color 0.15s ease, transform 0.15s ease;
-                text-decoration: none;
-                border-bottom: 1px solid #F0E1CC/30;
-              }
-              .drawer-link:hover {
-                color: #1B130D;
-                transform: translateX(-4px);
-              }
             `}</style>
 
-            {/* Close Button */}
-            <div className="flex justify-between items-center mb-6">
+            {/* Close Button & Brand Header */}
+            <div className="flex justify-between items-center mb-5 pb-1">
               <button 
                 onClick={() => setDrawerOpen(false)}
-                className="text-slate-400 hover:text-[#1B130D] text-xl font-bold transition"
+                className="text-slate-400 hover:text-slate-800 text-lg p-2 bg-slate-100 hover:bg-slate-200/80 rounded-full transition duration-150 flex items-center justify-center cursor-pointer"
               >
                 ✕
               </button>
-              <span className="font-black text-sm text-[#1B130D]" style={{ fontFamily: "'Cairo', sans-serif" }}>قائمة المستخدم</span>
+              <span className="font-extrabold text-sm text-[#1B130D]" style={{ fontFamily: "'Cairo', sans-serif" }}>قائمة المستخدم</span>
             </div>
 
-            {/* User Info Header Block */}
-            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#F0E1CC]">
-              {/* Initials Avatar */}
-              <div 
-                className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-black shadow-md flex-shrink-0"
-                style={{ background: 'radial-gradient(circle, #F3760C 0%, #C95A06 100%)' }}
-              >
-                {getInitials(user.name)}
-              </div>
+            {/* User Info Header Card */}
+            <div className="bg-white/80 border border-amber-100/50 shadow-xs p-4 rounded-2xl flex items-center gap-3.5 mb-6 text-right">
               {/* Text Info */}
               <div className="flex-grow min-w-0">
-                <div className="font-black text-base text-[#1B130D] truncate" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                <div className="font-black text-sm text-[#1B130D] truncate" style={{ fontFamily: "'Cairo', sans-serif" }}>
                   مرحبا {user.name}
                 </div>
                 {user.phone && (
-                  <div className="text-xs text-[#9C7A5A] font-mono mt-0.5" dir="ltr" style={{ textAlign: 'right' }}>
+                  <div className="text-[11px] text-[#9C7A5A] font-bold font-mono mt-0.5" dir="ltr" style={{ textAlign: 'right' }}>
                     {user.phone}
                   </div>
                 )}
-                <div className="text-xs text-[#6B5C4F] truncate font-mono mt-0.5" dir="ltr" style={{ textAlign: 'right' }}>
+                <div className="text-[10px] text-[#6B5C4F] truncate font-mono mt-0.5" dir="ltr" style={{ textAlign: 'right' }}>
                   {user.email}
                 </div>
+              </div>
+
+              {/* Initials Avatar */}
+              <div 
+                className="w-14 h-14 rounded-full flex items-center justify-center text-white text-base font-black shadow-sm flex-shrink-0 border-3 border-amber-50"
+                style={{ background: 'radial-gradient(circle, #F3760C 0%, #C95A06 100%)' }}
+              >
+                {getInitials(user.name)}
               </div>
             </div>
 
             {/* Menu Links */}
             <div className="flex-grow flex flex-col justify-between">
-              <div className="flex flex-col gap-1">
+              {/* Vertical Options List */}
+              <div className="flex flex-col gap-3">
                 {/* 1. ملفي الشخصي */}
-                <Link to="/profile" onClick={() => setDrawerOpen(false)} className="drawer-link">
-                  ملفي الشخصي
+                <Link 
+                  to="/profile" 
+                  onClick={() => setDrawerOpen(false)}
+                  className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-amber-50/40 border border-slate-100/80 rounded-2xl shadow-xs transition duration-200 group text-decoration-none"
+                >
+                  <span className="text-slate-400 font-bold transition group-hover:-translate-x-0.5">‹</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-xs sm:text-sm text-slate-700 group-hover:text-slate-900" style={{ fontFamily: "'Cairo', sans-serif" }}>ملفي الشخصي</span>
+                    <span className="text-base text-[#F3760C] transition group-hover:scale-110 flex-shrink-0">👤</span>
+                  </div>
                 </Link>
 
                 {/* 2. قائمتي المفضلة */}
-                <Link to="/products?favorites=true" onClick={() => setDrawerOpen(false)} className="drawer-link">
-                  قائمتي المفضلة
+                <Link 
+                  to="/products?favorites=true" 
+                  onClick={() => setDrawerOpen(false)}
+                  className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-amber-50/40 border border-slate-100/80 rounded-2xl shadow-xs transition duration-200 group text-decoration-none"
+                >
+                  <span className="text-slate-400 font-bold transition group-hover:-translate-x-0.5">‹</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-xs sm:text-sm text-slate-700 group-hover:text-slate-900" style={{ fontFamily: "'Cairo', sans-serif" }}>قائمتي المفضلة</span>
+                    <span className="text-base text-[#F3760C] transition group-hover:scale-110 flex-shrink-0">❤️</span>
+                  </div>
                 </Link>
 
                 {/* 3. طلباتي السابقة */}
-                <Link to="/orders" onClick={() => setDrawerOpen(false)} className="drawer-link">
-                  طلباتي السابقة
+                <Link 
+                  to="/orders" 
+                  onClick={() => setDrawerOpen(false)}
+                  className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-amber-50/40 border border-slate-100/80 rounded-2xl shadow-xs transition duration-200 group text-decoration-none"
+                >
+                  <span className="text-slate-400 font-bold transition group-hover:-translate-x-0.5">‹</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-xs sm:text-sm text-slate-700 group-hover:text-slate-900" style={{ fontFamily: "'Cairo', sans-serif" }}>طلباتي السابقة</span>
+                    <span className="text-base text-[#F3760C] transition group-hover:scale-110 flex-shrink-0">📦</span>
+                  </div>
                 </Link>
 
                 {/* 4. الإعدادات */}
-                <Link to="/profile" onClick={() => setDrawerOpen(false)} className="drawer-link">
-                  الإعدادات
+                <Link 
+                  to="/profile" 
+                  onClick={() => setDrawerOpen(false)}
+                  className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-amber-50/40 border border-slate-100/80 rounded-2xl shadow-xs transition duration-200 group text-decoration-none"
+                >
+                  <span className="text-slate-400 font-bold transition group-hover:-translate-x-0.5">‹</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-xs sm:text-sm text-slate-700 group-hover:text-slate-900" style={{ fontFamily: "'Cairo', sans-serif" }}>الإعدادات</span>
+                    <span className="text-base text-[#F3760C] transition group-hover:scale-110 flex-shrink-0">⚙️</span>
+                  </div>
                 </Link>
 
-                {/* 5. حذف الحساب */}
-                <Link to="/profile" onClick={() => setDrawerOpen(false)} className="drawer-link">
-                  حذف الحساب
-                </Link>
-
-                {/* 6. تواصل معنا */}
+                {/* 5. تواصل معنا */}
                 <button
                   onClick={() => {
                     setDrawerOpen(false);
                     setShowContactModal(true);
                   }}
-                  className="drawer-link text-right w-full flex items-center justify-between"
+                  className="w-full flex items-center justify-between p-3.5 bg-white hover:bg-amber-50/40 border border-slate-100/80 rounded-2xl shadow-xs transition duration-200 group text-right cursor-pointer"
                 >
-                  <span>📞 تواصل معنا</span>
+                  <span className="text-slate-400 font-bold transition group-hover:-translate-x-0.5">‹</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-xs sm:text-sm text-slate-700 group-hover:text-slate-900" style={{ fontFamily: "'Cairo', sans-serif" }}>تواصل معنا</span>
+                    <span className="text-base text-[#F3760C] transition group-hover:scale-110 flex-shrink-0">📞</span>
+                  </div>
                 </button>
 
-                {/* 6. دخول الإدارة (Admins only) */}
+                {/* 6. دخول الإدارة (Admin Panel Access Card) */}
                 {user.isAdmin && (
                   <Link 
                     to="/admin" 
-                    onClick={() => setDrawerOpen(false)} 
-                    className="drawer-link"
-                    style={{ color: '#E14133' }}
+                    onClick={() => setDrawerOpen(false)}
+                    className="w-full flex items-center justify-between p-3.5 bg-amber-50/30 hover:bg-amber-50/60 border border-amber-200 rounded-2xl shadow-xs transition duration-200 group text-decoration-none"
                   >
-                    🔐 دخول الإدارة
+                    <span className="text-amber-500 font-bold transition group-hover:-translate-x-0.5">‹</span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-extrabold text-xs sm:text-sm text-amber-900" style={{ fontFamily: "'Cairo', sans-serif" }}>دخول الإدارة</span>
+                      <span className="text-base text-amber-600 transition group-hover:scale-110 flex-shrink-0">🔐</span>
+                    </div>
                   </Link>
                 )}
               </div>
 
-              {/* Logout Button (Bottom of drawer) */}
-              <div className="border-t border-[#F0E1CC] pt-4 mt-6">
+              {/* Logout Button (Styled in red at the very bottom of the drawer) */}
+              <div className="border-t border-slate-200/80 pt-4 mt-6">
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-2.5 py-3 bg-[#E14133] hover:bg-[#c93024] text-white rounded-xl font-bold transition shadow-sm"
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-100 rounded-2xl font-bold transition shadow-xs cursor-pointer"
                   style={{ fontFamily: "'Cairo', sans-serif" }}
                 >
                   <span>🚪</span> تسجيل الخروج
                 </button>
               </div>
             </div>
-
           </div>
         </div>
       )}
