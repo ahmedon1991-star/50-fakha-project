@@ -112,7 +112,7 @@ function AppContent() {
   const { user, loading } = useAuth();
   
   // Array of admin-only emails that should never see the storefront
-  const ADMIN_ONLY_EMAILS = ['ahmedon1991@gmail.com', 'admin@50fakha.com'];
+  const ADMIN_ONLY_EMAILS = ['admin@50fakha.com'];
   const isAdminOnly = user?.isAdmin && ADMIN_ONLY_EMAILS.includes(user?.email?.toLowerCase());
 
   if (loading) {
