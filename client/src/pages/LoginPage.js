@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
 
 const STYLE = {
   bg: { background: '#EFE3CF', fontFamily: "'Tajawal', sans-serif" },
@@ -58,7 +59,20 @@ export default function LoginPage() {
     setLoading(true);
     try {
       localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
-      await login(email, password);
+      const loginData = await login(email, password);
+      
+      const sessionUser = loginData?.user;
+      if (sessionUser) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', sessionUser.id)
+          .single();
+        if (profile?.is_admin) {
+          navigate('/admin');
+          return;
+        }
+      }
       navigate('/');
     } catch (err) {
       setError(err.message || 'بيانات الدخول غير صحيحة');

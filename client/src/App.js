@@ -108,6 +108,63 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/login" />;
 }
 
+function AppContent() {
+  const { user, loading } = useAuth();
+  
+  // Array of admin-only emails that should never see the storefront
+  const ADMIN_ONLY_EMAILS = ['ahmedon1991@gmail.com', 'admin@50fakha.com'];
+  const isAdminOnly = user?.isAdmin && ADMIN_ONLY_EMAILS.includes(user?.email?.toLowerCase());
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-emerald-600 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (isAdminOnly) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: '#EFE3CF' }}>
+        <div className="flex-grow flex flex-col">
+          <Routes>
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Routes>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: '#EFE3CF' }}>
+      {/* Navbar — visible on all screens */}
+      <Navbar />
+      <div className="flex-grow flex flex-col">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><MemberDashboard /></ProtectedRoute>} />
+          <Route path="/orders" element={<ProtectedRoute><MemberOrdersPage /></ProtectedRoute>} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsConditions />} />
+        </Routes>
+      </div>
+      {/* Footer — desktop only */}
+      <div className="hidden md:block">
+        <Footer />
+      </div>
+      {/* Bottom Nav — mobile only */}
+      <BottomNav />
+    </div>
+  );
+}
+
 function App() {
   if (!supabase) {
     return <ConfigErrorPage />;
@@ -117,30 +174,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <BrowserRouter>
-          <div className="min-h-screen flex flex-col" style={{ background: '#EFE3CF' }}>
-            {/* Navbar — visible on all screens */}
-            <Navbar />
-            <div className="flex-grow flex flex-col">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/products" element={<ProductsPage />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-                <Route path="/profile" element={<ProtectedRoute><MemberDashboard /></ProtectedRoute>} />
-                <Route path="/orders" element={<ProtectedRoute><MemberOrdersPage /></ProtectedRoute>} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/terms" element={<TermsConditions />} />
-              </Routes>
-            </div>
-            {/* Footer — desktop only */}
-            <div className="hidden md:block">
-              <Footer />
-            </div>
-            {/* Bottom Nav — mobile only */}
-            <BottomNav />
-          </div>
+          <AppContent />
         </BrowserRouter>
       </CartProvider>
     </AuthProvider>
