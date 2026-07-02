@@ -77,8 +77,11 @@ export default function MemberDashboard() {
         setPassword('');
       }
 
-      // 3. Update Email if changed
+      // 3. Update Email if changed (Block for admin accounts)
       if (email !== user.email) {
+        if (user?.isAdmin) {
+          throw new Error('لا يمكن تغيير البريد الإلكتروني لحسابات الإدارة من داخل التطبيق.');
+        }
         const { error: emailErr } = await supabase.auth.updateUser({
           email: email
         });
@@ -150,6 +153,10 @@ export default function MemberDashboard() {
 
   const handleDeleteAccount = async (e) => {
     e.preventDefault();
+    if (user?.isAdmin) {
+      setDeleteError('لا يمكن حذف حساب الإدارة من داخل التطبيق.');
+      return;
+    }
     if (deleteConfirmText !== 'حذف') {
       setDeleteError('يرجى كتابة كلمة حذف بشكل صحيح');
       return;
@@ -379,9 +386,12 @@ export default function MemberDashboard() {
                   <input
                     type="email"
                     required
+                    disabled={user?.isAdmin}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-left font-medium"
+                    className={`w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#b8295b] focus:outline-none transition text-left font-medium ${
+                      user?.isAdmin ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''
+                    }`}
                     dir="ltr"
                   />
                 </div>
@@ -461,24 +471,26 @@ export default function MemberDashboard() {
                 </form>
               </div>
 
-              {/* Danger Zone: Delete Account */}
-              <div className="border-t border-rose-100 pt-5 mt-5 space-y-3">
-                <h4 className="font-black text-rose-800 text-sm flex items-center gap-1.5">
-                  <span>⚠️</span> منطقة الخطر
-                </h4>
-                <p className="text-[11px] text-slate-400">سيتم مسح حسابك وكافة بيانات الطلبات نهائياً.</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeleteConfirmText('');
-                    setDeleteError('');
-                    setShowDeleteModal(true);
-                  }}
-                  className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 transition text-xs"
-                >
-                  حذف الحساب نهائياً 🚨
-                </button>
-              </div>
+              {/* Danger Zone: Delete Account (Hide for admin accounts) */}
+              {!user?.isAdmin && (
+                <div className="border-t border-rose-100 pt-5 mt-5 space-y-3">
+                  <h4 className="font-black text-rose-800 text-sm flex items-center gap-1.5">
+                    <span>⚠️</span> منطقة الخطر
+                  </h4>
+                  <p className="text-[11px] text-slate-400">سيتم مسح حسابك وكافة بيانات الطلبات نهائياً.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteConfirmText('');
+                      setDeleteError('');
+                      setShowDeleteModal(true);
+                    }}
+                    className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 transition text-xs"
+                  >
+                    حذف الحساب نهائياً 🚨
+                  </button>
+                </div>
+              )}
 
             </div>
           )}
