@@ -320,7 +320,7 @@ export default function CartPage() {
           type: 'broadcast',
           event: 'new-order',
           payload: {
-            id: orderPayload.user_id + '-' + Date.now(),
+            id: insertedId,
             order_number: orderNumber,
             phone: cleanPhone,
             shipping_address: address,

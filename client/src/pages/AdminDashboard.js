@@ -494,14 +494,73 @@ export default function AdminDashboard() {
   }, [checkForNewOrders]);
 
   useEffect(() => {
-    // 0. Initialize shared status broadcast channel
-    const channel = supabase.channel('order-status-broadcast');
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('Admin subscribed to order-status-broadcast channel successfully! 📡');
+    let pgChannel = null;
+    let broadcastChannel = null;
+    let orderBroadcastChannel = null;
+
+    const setupSubscriptions = () => {
+      // Cleanup existing channels if they exist
+      try {
+        if (pgChannel) supabase.removeChannel(pgChannel);
+        if (broadcastChannel) supabase.removeChannel(broadcastChannel);
+        if (orderBroadcastChannel) supabase.removeChannel(orderBroadcastChannel);
+      } catch (e) {
+        console.warn('Error clearing existing channels:', e);
       }
-    });
-    statusBroadcastChannelRef.current = channel;
+
+      // 0. Initialize shared status broadcast channel
+      broadcastChannel = supabase.channel('order-status-broadcast');
+      broadcastChannel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Admin subscribed to order-status-broadcast channel successfully! 📡');
+        }
+      });
+      statusBroadcastChannelRef.current = broadcastChannel;
+
+      // 0b. Subscribe to admin-broadcast-orders (works even without database inserts/RLS replication)
+      orderBroadcastChannel = supabase.channel('admin-broadcast-orders');
+      orderBroadcastChannel
+        .on('broadcast', { event: 'new-order' }, (payload) => {
+          console.log('Received peer-to-peer new-order broadcast:', payload.payload);
+          const newOrder = payload.payload;
+          if (newOrder && !newOrder.admin_cleared) {
+            // Since this could be a peer-to-peer broadcast, check if we already alerted it
+            if (!alertedOrderIds.current.has(newOrder.id)) {
+              alertedOrderIds.current.add(newOrder.id);
+              setLatestNewOrder(newOrder);
+              startAlarm();
+              setTimeout(() => fetchData(), 1500);
+            }
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Admin subscribed to admin-broadcast-orders channel successfully! 📡');
+          }
+        });
+
+      // 3. Realtime INSERT listener (fires if database permissions/RLS allows it)
+      pgChannel = supabase
+        .channel('admin-realtime-orders-v5')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'orders' },
+          (payload) => {
+            const newOrder = payload.new;
+            if (newOrder && !newOrder.admin_cleared && newOrder.status === 'قيد الانتظار') {
+              if (!alertedOrderIds.current.has(newOrder.id)) {
+                alertedOrderIds.current.add(newOrder.id);
+                setLatestNewOrder(newOrder);
+                startAlarm();
+                setTimeout(() => fetchData(), 1500);
+              }
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    setupSubscriptions();
 
     // 1. Initialize by fetching existing pending orders to prevent alerting old orders
     const initializeAlerts = async () => {
@@ -550,26 +609,6 @@ export default function AdminDashboard() {
 
     worker.postMessage('start');
 
-    // 3. Realtime INSERT listener (fires if database permissions/RLS allows it)
-    const pgChannel = supabase
-      .channel('admin-realtime-orders-v5')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders' },
-        (payload) => {
-          const newOrder = payload.new;
-          if (newOrder && !newOrder.admin_cleared && newOrder.status === 'قيد الانتظار') {
-            if (!alertedOrderIds.current.has(newOrder.id)) {
-              alertedOrderIds.current.add(newOrder.id);
-              setLatestNewOrder(newOrder);
-              startAlarm();
-              setTimeout(() => fetchData(), 1500);
-            }
-          }
-        }
-      )
-      .subscribe();
-
     // 4. Screen Wake Lock implementation (keeps screen active / prevents sleep)
     const requestWakeLock = async () => {
       try {
@@ -598,7 +637,11 @@ export default function AdminDashboard() {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        console.log('Admin Dashboard became visible - refreshing subscriptions and scanning for new orders... 🔄');
         requestWakeLock();
+        setupSubscriptions();
+        fetchData();
+        checkForNewOrdersRef.current();
       }
     };
 
@@ -608,10 +651,13 @@ export default function AdminDashboard() {
       worker.postMessage('stop');
       worker.terminate();
       URL.revokeObjectURL(workerUrl);
-      supabase.removeChannel(pgChannel);
-      if (statusBroadcastChannelRef.current) {
-        supabase.removeChannel(statusBroadcastChannelRef.current);
-      }
+      
+      try {
+        if (pgChannel) supabase.removeChannel(pgChannel);
+        if (broadcastChannel) supabase.removeChannel(broadcastChannel);
+        if (orderBroadcastChannel) supabase.removeChannel(orderBroadcastChannel);
+      } catch (e) {}
+
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       releaseWakeLock();
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
