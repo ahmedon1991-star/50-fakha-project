@@ -712,7 +712,7 @@ export default function CartPage() {
     const isAccepted = orderStatus !== 'قيد الانتظار' && orderStatus !== 'ملغي';
 
     return (
-      <div className="flex-1 flex flex-col items-center justify-start p-4 pb-36 pt-10 bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen overflow-y-auto" style={{ fontFamily: "'Cairo', sans-serif" }}>
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-start p-4 pb-12 pt-10 bg-gradient-to-br from-slate-50 to-slate-100 w-screen h-screen overflow-y-auto" style={{ fontFamily: "'Cairo', sans-serif" }}>
         <div className="max-w-xl w-full bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-100 text-center space-y-6 animate-slideInUp">
           
           {/* 1. Icon & Status Banner */}
