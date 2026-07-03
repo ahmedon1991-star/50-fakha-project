@@ -118,6 +118,64 @@ export default function AdminDashboard() {
   const [latestNewOrder, setLatestNewOrder] = useState(null);
   const [latestNewOrderCustomerName, setLatestNewOrderCustomerName] = useState('عميل المتجر');
   const audioIntervalRef = useRef(null);
+  const [audioBlocked, setAudioBlocked] = useState(false);
+  const audioContextRef = useRef(null);
+
+  const initAudio = async () => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
+      if (ctx.state === 'running') {
+        setAudioBlocked(false);
+        console.log('AudioContext unlocked and running successfully! 🔊');
+      } else {
+        setAudioBlocked(true);
+      }
+    } catch (e) {
+      console.warn('Failed to initialize audio:', e);
+      setAudioBlocked(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleUnlock = () => {
+      initAudio();
+      // Remove listeners after first interaction
+      document.removeEventListener('click', handleUnlock);
+      document.removeEventListener('touchstart', handleUnlock);
+    };
+
+    document.addEventListener('click', handleUnlock);
+    document.addEventListener('touchstart', handleUnlock);
+
+    // Initial check for autoplay block after 1.5 seconds
+    const timer = setTimeout(() => {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        const tempCtx = new AudioContextClass();
+        if (tempCtx.state === 'suspended') {
+          setAudioBlocked(true);
+        }
+        tempCtx.close();
+      }
+    }, 1500);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleUnlock);
+      document.removeEventListener('touchstart', handleUnlock);
+    };
+  }, []);
 
   const [autoAcceptEnabled, setAutoAcceptEnabled] = useState(() => {
     return localStorage.getItem('auto_accept_orders') === 'true';
@@ -166,6 +224,13 @@ export default function AdminDashboard() {
   };
 
   const handleAcceptOrder = async (orderId, orderNumber) => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    stopAlarm();
+    setLatestNewOrder(null);
+
     try {
       const { error } = await supabase
         .from('orders')
@@ -174,8 +239,6 @@ export default function AdminDashboard() {
       
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'تم التأكيد' } : o));
-      stopAlarm();
-      setLatestNewOrder(null);
 
       // Broadcast status update instantly
       if (statusBroadcastChannelRef.current) {
@@ -192,6 +255,13 @@ export default function AdminDashboard() {
   };
 
   const handleRejectOrder = async (orderId) => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    stopAlarm();
+    setLatestNewOrder(null);
+
     try {
       const { error } = await supabase
         .from('orders')
@@ -200,8 +270,6 @@ export default function AdminDashboard() {
       
       if (error) throw error;
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'ملغي' } : o));
-      stopAlarm();
-      setLatestNewOrder(null);
 
       // Broadcast status update instantly
       if (statusBroadcastChannelRef.current) {
@@ -217,33 +285,47 @@ export default function AdminDashboard() {
     }
   };
 
-  const playLoudNotification = () => {
+  const playLoudNotification = async () => {
     try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') {
+        setAudioBlocked(true);
+        try {
+          await ctx.resume();
+        } catch (e) {
+          console.warn('Could not resume AudioContext:', e);
+          return;
+        }
+      }
+
+      if (ctx.state === 'running') {
+        setAudioBlocked(false);
+      }
+
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
       const gainNode = ctx.createGain();
       const lfo = ctx.createOscillator();
       const lfoGain = ctx.createGain();
       
-      // Standard old mechanical bell frequencies (slightly discordant for penetration)
       osc1.type = 'sine';
       osc1.frequency.setValueAtTime(853, ctx.currentTime);
       
       osc2.type = 'sine';
       osc2.frequency.setValueAtTime(960, ctx.currentTime);
       
-      // LFO modulates the striker speed (16 strikes per second)
       lfo.type = 'sine';
       lfo.frequency.setValueAtTime(16, ctx.currentTime);
       
-      // Set amplitude modulation depth
       lfoGain.gain.setValueAtTime(0.5, ctx.currentTime);
       
-      // Connect components
       lfo.connect(lfoGain);
       lfoGain.connect(gainNode.gain);
       
@@ -251,12 +333,10 @@ export default function AdminDashboard() {
       osc2.connect(gainNode);
       gainNode.connect(ctx.destination);
       
-      // Main envelope (bell sound duration 1.2s)
       gainNode.gain.setValueAtTime(0.01, ctx.currentTime);
       gainNode.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 0.05); // Attack
       gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2); // Decay
       
-      // Start/Stop
       lfo.start(ctx.currentTime);
       osc1.start(ctx.currentTime);
       osc2.start(ctx.currentTime);
@@ -266,6 +346,7 @@ export default function AdminDashboard() {
       osc2.stop(ctx.currentTime + 1.2);
     } catch (e) {
       console.error('Audio failed:', e);
+      setAudioBlocked(true);
     }
   };
 
@@ -1236,6 +1317,18 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex-1 min-h-screen bg-slate-50 flex flex-col pb-16">
+      {/* Audio Activation Banner if blocked */}
+      {audioBlocked && (
+        <div className="bg-amber-600 text-white font-bold p-3 text-center text-xs sm:text-sm animate-pulse flex flex-col sm:flex-row items-center justify-center gap-2 border-b border-amber-700 shadow-md sticky top-[60px] z-[200]" style={{ fontFamily: "'Cairo', sans-serif" }}>
+          <span>🔔 تنبيه: صوت تنبيهات الطلبات الجديدة مقيد بواسطة متصفحك. يرجى النقر على تفعيل أو الضغط على أي مكان في الصفحة للسماح بالأصوات.</span>
+          <button 
+            onClick={initAudio} 
+            className="bg-white text-amber-950 hover:bg-amber-50 px-3.5 py-1 rounded-xl text-xs font-black shadow-sm transition active:scale-95 cursor-pointer"
+          >
+            تفعيل التنبيهات الصوتية 🔊
+          </button>
+        </div>
+      )}
       {/* Top Banner Header */}
       <div className="bg-slate-900 text-white shadow-md p-5 border-b border-slate-800">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-5">
