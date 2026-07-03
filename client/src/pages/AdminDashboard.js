@@ -19,23 +19,28 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('stats');
 
   const handleLogoutClick = async () => {
-    // 1. Verify if there are any active/current orders
-    const activeOrders = orders.filter(o => o.status !== 'تم التوصيل' && o.status !== 'ملغي');
-    if (activeOrders.length > 0) {
-      alert(`⚠️ لا يمكنك تسجيل الخروج حالياً! هناك ${activeOrders.length} طلبات نشطة في لوحة التحكم. يرجى إكمالها (تم التوصيل) أو إلغاؤها (ملغي) أولاً قبل الخروج لحماية أعمالك.`);
-      return;
-    }
+    const currentEmail = user?.email?.toLowerCase();
+    const isDedicatedAdmin = currentEmail === 'admin@50fakha.com';
 
-    // 2. Automatically close receiving orders and disable auto-accept
-    try {
-      await supabase.from('app_settings').upsert({
-        id: 1,
-        accepting_orders: false,
-        updated_at: new Date().toISOString()
-      });
-      localStorage.setItem('auto_accept_orders', 'false');
-    } catch (err) {
-      console.error('Error disabling settings on logout:', err);
+    if (isDedicatedAdmin) {
+      // 1. Verify if there are any active/current orders
+      const activeOrders = orders.filter(o => o.status !== 'تم التوصيل' && o.status !== 'ملغي');
+      if (activeOrders.length > 0) {
+        alert(`⚠️ لا يمكنك تسجيل الخروج حالياً! هناك ${activeOrders.length} طلبات نشطة في لوحة التحكم. يرجى إكمالها (تم التوصيل) أو إلغاؤها (ملغي) أولاً قبل الخروج لحماية أعمالك.`);
+        return;
+      }
+
+      // 2. Automatically close receiving orders and disable auto-accept
+      try {
+        await supabase.from('app_settings').upsert({
+          id: 1,
+          accepting_orders: false,
+          updated_at: new Date().toISOString()
+        });
+        localStorage.setItem('auto_accept_orders', 'false');
+      } catch (err) {
+        console.error('Error disabling settings on logout:', err);
+      }
     }
 
     // 3. Perform logout
