@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
 
 const STYLE = {
   bg: { background: '#EFE3CF', fontFamily: "'Tajawal', sans-serif" },
@@ -64,10 +65,37 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(name, email, phone, password);
+      // 1. Check if the phone number is already registered in profiles
+      const { data: existingPhone, error: phoneCheckErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('phone', phone.trim())
+        .maybeSingle();
+
+      if (phoneCheckErr) {
+        console.warn('Phone validation check error:', phoneCheckErr);
+      }
+
+      if (existingPhone) {
+        setError('عذراً، رقم الهاتف هذا مسجل بالفعل لحساب آخر. يرجى استخدام رقم هاتف مختلف أو تسجيل الدخول 🚫');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Perform Supabase Sign Up
+      await register(name, email, phone.trim(), password);
       navigate('/');
     } catch (err) {
-      setError(err.message || 'حدث خطأ أثناء إنشاء الحساب. تأكد من البيانات والبريد');
+      let errMsg = err.message || '';
+      if (errMsg.toLowerCase().includes('user already registered') || 
+          errMsg.toLowerCase().includes('email already exists') || 
+          errMsg.toLowerCase().includes('already registered')) {
+        setError('عذراً، هذا البريد الإلكتروني مسجل بالفعل لحساب آخر. يرجى استخدام بريد مختلف أو تسجيل الدخول 🚫');
+      } else if (errMsg.toLowerCase().includes('phone number') || errMsg.toLowerCase().includes('phone')) {
+        setError('عذراً، رقم الهاتف هذا مسجل بالفعل لحساب آخر. يرجى استخدام رقم هاتف مختلف 🚫');
+      } else {
+        setError(errMsg || 'حدث خطأ أثناء إنشاء الحساب. يرجى مراجعة البيانات والمحاولة مرة أخرى.');
+      }
     } finally {
       setLoading(false);
     }
