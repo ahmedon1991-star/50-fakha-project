@@ -36,6 +36,27 @@ export default function CartPage() {
   useEffect(() => {
     if (!insertedOrderId) return;
 
+    let currentStatus = 'قيد الانتظار';
+    let stopped = false;
+
+    // Immediately fetch current status from DB to avoid missing updates
+    const fetchCurrentStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('status')
+          .eq('id', insertedOrderId)
+          .maybeSingle();
+        if (!error && data && data.status !== currentStatus) {
+          currentStatus = data.status;
+          setOrderStatus(data.status);
+        }
+      } catch (err) {
+        console.error('Initial status fetch error:', err);
+      }
+    };
+    fetchCurrentStatus();
+
     // 1. Subscribe to Broadcast channel (Super fast instant WebSocket)
     const broadcastChannel = supabase
       .channel('order-status-broadcast')
@@ -44,8 +65,10 @@ export default function CartPage() {
         { event: 'status-update' },
         (payload) => {
           const { orderId, status } = payload.payload || {};
-          if (orderId === insertedOrderId) {
+          // Compare as strings to handle type differences
+          if (String(orderId) === String(insertedOrderId)) {
             console.log('Received broadcast status update:', status);
+            currentStatus = status;
             setOrderStatus(status);
           }
         }
@@ -67,14 +90,16 @@ export default function CartPage() {
           const updatedOrder = payload.new;
           if (updatedOrder) {
             console.log('Realtime order update received:', updatedOrder);
+            currentStatus = updatedOrder.status;
             setOrderStatus(updatedOrder.status);
           }
         }
       )
       .subscribe();
 
-    // 3. Robust Polling Fallback (queries database every 3 seconds to guarantee updates)
+    // 3. Robust Polling Fallback - polls every 2 seconds, never stops until final status
     const pollInterval = setInterval(async () => {
+      if (stopped) return;
       try {
         const { data, error } = await supabase
           .from('orders')
@@ -83,18 +108,24 @@ export default function CartPage() {
           .maybeSingle();
         
         if (!error && data) {
-          if (data.status !== 'قيد الانتظار') {
+          if (data.status !== currentStatus) {
             console.log('Polling detected status update:', data.status);
+            currentStatus = data.status;
             setOrderStatus(data.status);
+          }
+          // Stop polling only when reaching a truly final state
+          if (data.status === 'ملغي' || data.status === 'تم التوصيل') {
+            stopped = true;
             clearInterval(pollInterval);
           }
         }
       } catch (err) {
         console.error('Error polling status:', err);
       }
-    }, 3000);
+    }, 2000);
 
     return () => {
+      stopped = true;
       supabase.removeChannel(broadcastChannel);
       supabase.removeChannel(postgresChannel);
       clearInterval(pollInterval);
