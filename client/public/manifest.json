@@ -3,6 +3,14 @@
   "name": "50 فاكهة - العصير الطبيعي والوجبات",
   "description": "تطبيق 50 فاكهة لطلب أشهى العصائر الطبيعية الطازجة والوجبات السريعة بأعلى جودة.",
   "id": "/?source=pwa",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": [
+    "food",
+    "shopping"
+  ],
   "icons": [
     {
       "src": "logo.png",
@@ -45,7 +53,6 @@
       "label": "تطبيق الويب - 50 فاكهة"
     }
   ],
-  "start_url": ".",
   "display": "standalone",
   "theme_color": "#FFF7EC",
   "background_color": "#FFF7EC",
