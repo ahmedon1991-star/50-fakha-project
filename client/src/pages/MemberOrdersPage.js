@@ -81,6 +81,7 @@ export default function MemberOrdersPage() {
 
     // 3. Load Logo
     const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
     logoImg.src = '/logo.png';
     await new Promise((resolve) => {
       logoImg.onload = resolve;
@@ -89,6 +90,7 @@ export default function MemberOrdersPage() {
 
     // 4. Load QR Code
     const qrImg = new Image();
+    qrImg.crossOrigin = 'anonymous';
     qrImg.src = '/qr_code.jpg';
     await new Promise((resolve) => {
       qrImg.onload = resolve;
@@ -217,6 +219,7 @@ export default function MemberOrdersPage() {
       // Load and draw product image thumbnail if exists
       if (prodImgUrl) {
         const prodImg = new Image();
+        prodImg.crossOrigin = 'anonymous';
         prodImg.src = prodImgUrl;
         await new Promise((resolve) => {
           prodImg.onload = resolve;
