@@ -656,7 +656,7 @@ export default function MemberOrdersPage() {
                         )}
 
                         {/* 4x4 Paper Invoice Preview */}
-                        <div className="bg-[#FFF7EC] border-2 border-[#F0E1CC] rounded-3xl p-5 sm:p-6 shadow-md max-w-md mx-auto aspect-square flex flex-col justify-between text-right text-slate-800 relative overflow-hidden select-none" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                        <div className="bg-[#FFF7EC] border-2 border-[#F0E1CC] rounded-3xl p-5 sm:p-6 shadow-md max-w-md mx-auto flex flex-col justify-between text-right text-slate-800 relative select-none gap-4" style={{ fontFamily: "'Cairo', sans-serif" }}>
                           
                           {/* Invoice Background Texture/Decor */}
                           <div className="absolute top-0 right-0 w-24 h-24 bg-[#FFE3C2]/20 rounded-full blur-xl -z-10" />
@@ -701,7 +701,7 @@ export default function MemberOrdersPage() {
                           <div className="border-t border-dashed border-[#F0E1CC] my-1.5" />
 
                           {/* Items Mini-Table */}
-                          <div className="flex-1 overflow-y-auto space-y-1.5 py-1">
+                          <div className="space-y-1.5 py-1">
                             {order.items?.map((item, idx) => {
                               const prodImg = getProductImage(item.name);
                               return (
