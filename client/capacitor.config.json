@@ -1,0 +1,6 @@
+{
+  "appId": "com.fakha50.app",
+  "appName": "50 فاكهة",
+  "webDir": "build",
+  "bundledWebRuntime": false
+}

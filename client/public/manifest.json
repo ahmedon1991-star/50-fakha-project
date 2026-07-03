@@ -1,12 +1,48 @@
 {
   "short_name": "50 فاكهة",
   "name": "50 فاكهة - العصير الطبيعي والوجبات",
+  "description": "تطبيق 50 فاكهة لطلب أشهى العصائر الطبيعية الطازجة والوجبات السريعة بأعلى جودة.",
+  "id": "/?source=pwa",
   "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
     {
       "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot_mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "تطبيق الهاتف - 50 فاكهة"
+    },
+    {
+      "src": "screenshot_desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "تطبيق الويب - 50 فاكهة"
     }
   ],
   "start_url": ".",
