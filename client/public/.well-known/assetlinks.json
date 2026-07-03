@@ -1,0 +1,22 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.onrender.five0_fakha_project.twa",
+      "sha256_cert_fingerprints": [
+        "CB:98:E2:9C:5C:46:A6:5B:6E:8F:7E:B1:DA:A7:E6:3C:58:52:4A:55:A2:3D:8E:21:95:05:CC:09:4B:AB:1A:8A"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.fakha50.app",
+      "sha256_cert_fingerprints": [
+        "CB:98:E2:9C:5C:46:A6:5B:6E:8F:7E:B1:DA:A7:E6:3C:58:52:4A:55:A2:3D:8E:21:95:05:CC:09:4B:AB:1A:8A"
+      ]
+    }
+  }
+]
