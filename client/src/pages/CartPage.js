@@ -32,7 +32,7 @@ export default function CartPage() {
   const [orderStatus, setOrderStatus] = useState('قيد الانتظار');
   const [whatsappSent, setWhatsappSent] = useState(false);
 
-  // Real-time subscription to track order approval status (Postgres changes + Instant WebSocket Broadcast)
+  // Real-time subscription to track order approval status (Postgres changes + Instant WebSocket Broadcast + Polling Fallback)
   useEffect(() => {
     if (!insertedOrderId) return;
 
@@ -73,9 +73,31 @@ export default function CartPage() {
       )
       .subscribe();
 
+    // 3. Robust Polling Fallback (queries database every 3 seconds to guarantee updates)
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('status')
+          .eq('id', insertedOrderId)
+          .maybeSingle();
+        
+        if (!error && data) {
+          if (data.status !== 'قيد الانتظار') {
+            console.log('Polling detected status update:', data.status);
+            setOrderStatus(data.status);
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (err) {
+        console.error('Error polling status:', err);
+      }
+    }, 3000);
+
     return () => {
       supabase.removeChannel(broadcastChannel);
       supabase.removeChannel(postgresChannel);
+      clearInterval(pollInterval);
     };
   }, [insertedOrderId]);
 

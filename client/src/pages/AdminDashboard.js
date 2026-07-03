@@ -126,6 +126,8 @@ export default function AdminDashboard() {
   const countdownIntervalRef = useRef(null);
   const alertedOrderIds = useRef(new Set());
   const hasInitializedAlerts = useRef(false);
+  const wakeLockRef = useRef(null);
+  const statusBroadcastChannelRef = useRef(null);
   const [sliderImages, setSliderImages] = useState([]);
   const [sliderUploading, setSliderUploading] = useState(false);
 
@@ -176,17 +178,16 @@ export default function AdminDashboard() {
       setLatestNewOrder(null);
 
       // Broadcast status update instantly
-      try {
-        await supabase.channel('order-status-broadcast').send({
+      if (statusBroadcastChannelRef.current) {
+        statusBroadcastChannelRef.current.send({
           type: 'broadcast',
           event: 'status-update',
           payload: { orderId, status: 'تم التأكيد' }
-        });
-      } catch (broadcastErr) {
-        console.warn('Broadcast status update failed:', broadcastErr);
+        }).catch(err => console.warn('Broadcast send error:', err));
       }
     } catch (err) {
       console.error('Error accepting order:', err);
+      alert('⚠️ عذراً، فشل قبول الطلب في قاعدة البيانات. يرجى التحقق من اتصالك بالإنترنت وإعادة المحاولة.');
     }
   };
 
@@ -203,17 +204,16 @@ export default function AdminDashboard() {
       setLatestNewOrder(null);
 
       // Broadcast status update instantly
-      try {
-        await supabase.channel('order-status-broadcast').send({
+      if (statusBroadcastChannelRef.current) {
+        statusBroadcastChannelRef.current.send({
           type: 'broadcast',
           event: 'status-update',
           payload: { orderId, status: 'ملغي' }
-        });
-      } catch (broadcastErr) {
-        console.warn('Broadcast status update failed:', broadcastErr);
+        }).catch(err => console.warn('Broadcast send error:', err));
       }
     } catch (err) {
       console.error('Error rejecting order:', err);
+      alert('⚠️ عذراً، فشل رفض وإلغاء الطلب في قاعدة البيانات. يرجى التحقق من اتصالك بالإنترنت وإعادة المحاولة.');
     }
   };
 
@@ -494,6 +494,15 @@ export default function AdminDashboard() {
   }, [checkForNewOrders]);
 
   useEffect(() => {
+    // 0. Initialize shared status broadcast channel
+    const channel = supabase.channel('order-status-broadcast');
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('Admin subscribed to order-status-broadcast channel successfully! 📡');
+      }
+    });
+    statusBroadcastChannelRef.current = channel;
+
     // 1. Initialize by fetching existing pending orders to prevent alerting old orders
     const initializeAlerts = async () => {
       try {
@@ -600,6 +609,9 @@ export default function AdminDashboard() {
       worker.terminate();
       URL.revokeObjectURL(workerUrl);
       supabase.removeChannel(pgChannel);
+      if (statusBroadcastChannelRef.current) {
+        supabase.removeChannel(statusBroadcastChannelRef.current);
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       releaseWakeLock();
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
@@ -824,14 +836,12 @@ export default function AdminDashboard() {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
 
       // Broadcast status update instantly
-      try {
-        await supabase.channel('order-status-broadcast').send({
+      if (statusBroadcastChannelRef.current) {
+        statusBroadcastChannelRef.current.send({
           type: 'broadcast',
           event: 'status-update',
           payload: { orderId, status: newStatus }
-        });
-      } catch (broadcastErr) {
-        console.warn('Broadcast status update failed:', broadcastErr);
+        }).catch(err => console.warn('Broadcast send error:', err));
       }
     } catch (err) {
       alert('خطأ أثناء تعديل حالة الطلب: ' + err.message);
