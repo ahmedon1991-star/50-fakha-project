@@ -695,14 +695,14 @@ export default function CartPage() {
   };
 
   const shareViaWhatsApp = async () => {
+    // Always send full invoice text via WhatsApp
+    sendToWhatsApp(lastOrderDetails);
+    // Attempt to also copy invoice image to clipboard silently (bonus feature)
     try {
       await copyInvoiceAsImageQuiet();
-      const cleanPhone = whatsappPhone.replace('+', '').trim();
-      const msg = `أهلاً بك! تم نسخ صورة الفاتورة الاحترافية للطلب رقم #${lastOrderDetails.orderNumber} تلقائياً. سأقوم بلصقها وإرسالها لك الآن 🧾💚`;
-      window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
     } catch (err) {
-      console.warn('Clipboard copy failed before redirection:', err);
-      sendToWhatsApp(lastOrderDetails);
+      // Clipboard copy is optional, don't block WhatsApp sharing
+      console.warn('Clipboard image copy failed (non-critical):', err);
     }
   };
 
