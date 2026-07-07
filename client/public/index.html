@@ -63,14 +63,42 @@
 <body class="h-full">
   <div id="root" class="min-h-full flex flex-col"></div>
   
-  <!-- Register PWA Service Worker -->
+  <!-- Register/Unregister PWA Service Worker depending on environment -->
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('PWA Service worker registered successfully!', reg))
-          .catch(err => console.error('PWA Service worker registration failed:', err));
-      });
+    const isCapacitor = window.hasOwnProperty('Capacitor') || 
+                        window.Capacitor || 
+                        navigator.userAgent.includes('Capacitor') || 
+                        window.location.href.startsWith('capacitor:') || 
+                        (window.location.hostname === 'localhost' && window.location.port === ''); // local Android WebView fallback
+
+    if (isCapacitor) {
+      console.log('Running inside Native App (Capacitor) — Disabling Service Worker.');
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          let found = false;
+          for (let reg of registrations) {
+            reg.unregister().then(success => {
+              if (success) {
+                console.log('Unregistered active service worker in native app context.');
+                found = true;
+              }
+            });
+          }
+          if (found) {
+            // Reload page to fetch clean assets directly from the Capacitor APK bundle
+            setTimeout(() => { window.location.reload(); }, 150);
+          }
+        });
+      }
+    } else {
+      // Standard PWA registration for web browsers
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('PWA Service worker registered successfully!', reg))
+            .catch(err => console.error('PWA Service worker registration failed:', err));
+        });
+      }
     }
   </script>
 </body>

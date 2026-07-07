@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -166,6 +167,24 @@ function AppContent() {
 }
 
 function App() {
+  useEffect(() => {
+    // Prevent service worker caching conflicts inside Capacitor Android/iOS wrappers
+    const isCapacitor = window.hasOwnProperty('Capacitor') || 
+                        window.Capacitor || 
+                        navigator.userAgent.includes('Capacitor') || 
+                        window.location.href.startsWith('capacitor:');
+
+    if (isCapacitor && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (let reg of registrations) {
+          reg.unregister().then(() => {
+            console.log('SW unregistered inside Capacitor context.');
+          });
+        }
+      });
+    }
+  }, []);
+
   if (!supabase) {
     return <ConfigErrorPage />;
   }
