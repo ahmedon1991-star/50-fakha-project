@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { supabase } from '../supabaseClient';
 import { Link, useNavigate } from 'react-router-dom';
+import { useOrderNotifications, requestNotificationPermission } from '../hooks/useOrderNotifications';
 
 export default function MemberOrdersPage() {
   const { user } = useAuth();
@@ -16,6 +17,23 @@ export default function MemberOrdersPage() {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [productsList, setProductsList] = useState([]);
+
+  // ─── Order Status Notification Toast State ───────────────────────────────
+  const [statusToast, setStatusToast] = useState(null); // { title, body, emoji, color, orderNumber, newStatus }
+  const toastTimerRef = useRef(null);
+
+  const handleStatusNotification = useCallback((orderNumber, newStatus, config) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setStatusToast({ orderNumber, newStatus, ...config });
+    toastTimerRef.current = setTimeout(() => setStatusToast(null), 7000);
+  }, []);
+
+  const { triggerNotification } = useOrderNotifications(handleStatusNotification);
+
+  // Request notification permission on first mount
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -373,6 +391,8 @@ export default function MemberOrdersPage() {
   useEffect(() => {
     if (!user) return;
 
+    const NOTIFIABLE_STATUSES = ['تم التأكيد', 'قيد التوصيل', 'تم التوصيل'];
+
     const channel = supabase
       .channel(`member-orders-realtime-${user.id}`)
       .on(
@@ -385,10 +405,21 @@ export default function MemberOrdersPage() {
         },
         (payload) => {
           const updatedOrder = payload.new;
+          const previousOrder = payload.old;
           if (updatedOrder) {
-            setOrders(prevOrders => 
+            // Update the orders list
+            setOrders(prevOrders =>
               prevOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o)
             );
+
+            // Fire notification if status changed to a notifiable status
+            const statusChanged = previousOrder?.status !== updatedOrder.status;
+            if (statusChanged && NOTIFIABLE_STATUSES.includes(updatedOrder.status)) {
+              triggerNotification(
+                updatedOrder.order_number || updatedOrder.id?.slice(0, 8),
+                updatedOrder.status
+              );
+            }
           }
         }
       )
@@ -397,7 +428,7 @@ export default function MemberOrdersPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, triggerNotification]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -829,6 +860,71 @@ export default function MemberOrdersPage() {
           </div>
         )}
       </div>
+
+      {/* ─── Order Status Toast Notification ─────────────────────────────── */}
+      {statusToast && (
+        <div
+          className="fixed top-4 left-1/2 z-[9999] w-[calc(100%-2rem)] max-w-sm"
+          style={{
+            transform: 'translateX(-50%)',
+            animation: 'slideDownFade 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards',
+          }}
+          dir="rtl"
+        >
+          <style>{`
+            @keyframes slideDownFade {
+              from { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.95); }
+              to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+            }
+            @keyframes shrink {
+              from { width: 100%; }
+              to   { width: 0%; }
+            }
+          `}</style>
+
+          <div
+            className="rounded-2xl shadow-2xl overflow-hidden border-2"
+            style={{ borderColor: statusToast.color, background: '#fff' }}
+          >
+            {/* Header */}
+            <div
+              className="px-4 pt-4 pb-3 flex items-start gap-3"
+            >
+              <span
+                className="text-3xl flex-shrink-0 leading-none"
+                style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}
+              >
+                {statusToast.emoji}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-slate-800 text-sm leading-snug">
+                  {statusToast.title}
+                </p>
+                <p className="text-slate-500 text-xs mt-1 leading-relaxed">
+                  {statusToast.body}
+                </p>
+              </div>
+              <button
+                onClick={() => setStatusToast(null)}
+                className="text-slate-300 hover:text-slate-500 text-lg leading-none flex-shrink-0 mt-0.5"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Progress bar */}
+            <div className="h-1" style={{ background: statusToast.color + '22' }}>
+              <div
+                className="h-full"
+                style={{
+                  background: statusToast.color,
+                  animation: 'shrink 7s linear forwards',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
