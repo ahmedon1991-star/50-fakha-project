@@ -189,9 +189,12 @@ export default function AdminDashboard() {
   const alertedOrderIds = useRef(new Set());
   const hasInitializedAlerts = useRef(false);
   const wakeLockRef = useRef(null);
+  const wakeLockRenewRef = useRef(null);  // interval for periodic wake lock renewal
+  const swRegistrationRef = useRef(null); // service worker registration for OS notifications
   const statusBroadcastChannelRef = useRef(null);
   const [sliderImages, setSliderImages] = useState([]);
   const [sliderUploading, setSliderUploading] = useState(false);
+
 
   const toggleAutoAccept = () => {
     const nextVal = !autoAcceptEnabled;
@@ -354,11 +357,47 @@ export default function AdminDashboard() {
     }
   };
 
-  const startAlarm = () => {
+  // Send OS notification via Service Worker (works even when tab is sleeping)
+  const sendAdminOsNotification = (orderNumber) => {
+    try {
+      const swReg = swRegistrationRef.current;
+      if (swReg && Notification.permission === 'granted') {
+        // Use SW's showNotification for a true OS-level alert
+        swReg.showNotification('🚨 طلب جديد وارد!', {
+          body: 'طلب جديد #' + orderNumber + ' بانتظار قبولك الآن',
+          icon: '/logo192.png',
+          badge: '/logo192.png',
+          dir: 'rtl',
+          lang: 'ar',
+          vibrate: [300, 100, 300, 100, 600],
+          tag: 'admin-new-order-' + orderNumber,
+          renotify: true,
+          requireInteraction: true,  // stays on screen until admin taps it
+          data: { url: '/admin' }
+        });
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+        // Fallback: standard browser notification
+        const n = new Notification('🚨 طلب جديد وارد!', {
+          body: 'طلب جديد #' + orderNumber + ' بانتظار قبولك',
+          icon: '/logo192.png',
+          dir: 'rtl',
+          tag: 'admin-order-' + orderNumber,
+          renotify: true,
+        });
+        n.onclick = () => { window.focus(); n.close(); };
+      }
+    } catch (e) {
+      console.warn('Admin OS notification error:', e);
+    }
+  };
+
+  const startAlarm = (orderNumber) => {
     playLoudNotification();
     if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     audioIntervalRef.current = setInterval(playLoudNotification, 2000);
     setAlarmActive(true);
+    // Fire OS notification so admin gets alerted even if tab is sleeping
+    if (orderNumber) sendAdminOsNotification(orderNumber);
   };
 
   const stopAlarm = () => {
@@ -368,6 +407,7 @@ export default function AdminDashboard() {
     }
     setAlarmActive(false);
   };
+
 
   useEffect(() => {
     fetchData();
@@ -550,7 +590,7 @@ export default function AdminDashboard() {
     };
     setLatestNewOrder(testOrder);
     setLatestNewOrderCustomerName('عميل تجريبي');
-    startAlarm();
+    startAlarm(testOrder.order_number);
   };
 
   const checkForNewOrders = async () => {
@@ -589,8 +629,25 @@ export default function AdminDashboard() {
     let broadcastChannel = null;
     let orderBroadcastChannel = null;
 
+    // ── A. Register Service Worker + Request Notification Permission ──────────
+    const setupServiceWorker = async () => {
+      try {
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.register('/sw.js');
+          swRegistrationRef.current = reg;
+          console.log('Admin SW registered ✅', reg.scope);
+        }
+        if ('Notification' in window && Notification.permission === 'default') {
+          const perm = await Notification.requestPermission();
+          console.log('Notification permission:', perm);
+        }
+      } catch (e) {
+        console.warn('SW/Notification setup error:', e);
+      }
+    };
+    setupServiceWorker();
+
     const setupSubscriptions = () => {
-      // Cleanup existing channels if they exist
       try {
         if (pgChannel) supabase.removeChannel(pgChannel);
         if (broadcastChannel) supabase.removeChannel(broadcastChannel);
@@ -608,18 +665,17 @@ export default function AdminDashboard() {
       });
       statusBroadcastChannelRef.current = broadcastChannel;
 
-      // 0b. Subscribe to admin-broadcast-orders (works even without database inserts/RLS replication)
+      // 0b. Subscribe to admin-broadcast-orders
       orderBroadcastChannel = supabase.channel('admin-broadcast-orders');
       orderBroadcastChannel
         .on('broadcast', { event: 'new-order' }, (payload) => {
           console.log('Received peer-to-peer new-order broadcast:', payload.payload);
           const newOrder = payload.payload;
           if (newOrder && !newOrder.admin_cleared) {
-            // Since this could be a peer-to-peer broadcast, check if we already alerted it
             if (!alertedOrderIds.current.has(newOrder.id)) {
               alertedOrderIds.current.add(newOrder.id);
               setLatestNewOrder(newOrder);
-              startAlarm();
+              startAlarm(newOrder.order_number);
               setTimeout(() => fetchData(), 1500);
             }
           }
@@ -630,7 +686,7 @@ export default function AdminDashboard() {
           }
         });
 
-      // 3. Realtime INSERT listener (fires if database permissions/RLS allows it)
+      // 3. Realtime INSERT listener
       pgChannel = supabase
         .channel('admin-realtime-orders-v5')
         .on(
@@ -642,7 +698,7 @@ export default function AdminDashboard() {
               if (!alertedOrderIds.current.has(newOrder.id)) {
                 alertedOrderIds.current.add(newOrder.id);
                 setLatestNewOrder(newOrder);
-                startAlarm();
+                startAlarm(newOrder.order_number);
                 setTimeout(() => fetchData(), 1500);
               }
             }
@@ -674,15 +730,15 @@ export default function AdminDashboard() {
 
     initializeAlerts();
 
-    // 2. Web Worker for background interval polling (prevents mobile/tab throttling when in background/sleep)
+    // 2. Web Worker for background interval polling (prevents mobile throttling)
     const blob = new Blob([
       `let timer = null;
        self.onmessage = function(e) {
          if (e.data === 'start') {
            if (timer) clearInterval(timer);
-           timer = setInterval(() => {
+           timer = setInterval(function() {
              self.postMessage('tick');
-           }, 6000);
+           }, 10000);
          } else if (e.data === 'stop') {
            if (timer) clearInterval(timer);
          }
@@ -700,12 +756,16 @@ export default function AdminDashboard() {
 
     worker.postMessage('start');
 
-    // 4. Screen Wake Lock implementation (keeps screen active / prevents sleep)
+    // 4. Screen Wake Lock — acquire and renew every 45s to prevent expiry
     const requestWakeLock = async () => {
       try {
         if ('wakeLock' in navigator) {
+          // Release old lock before requesting new one
+          if (wakeLockRef.current) {
+            try { await wakeLockRef.current.release(); } catch (_) {}
+          }
           wakeLockRef.current = await navigator.wakeLock.request('screen');
-          console.log('Screen Wake Lock acquired successfully! 🔓');
+          console.log('Screen Wake Lock acquired/renewed ✅');
         }
       } catch (err) {
         console.warn('Wake Lock request failed:', err.message);
@@ -717,7 +777,6 @@ export default function AdminDashboard() {
         if (wakeLockRef.current) {
           await wakeLockRef.current.release();
           wakeLockRef.current = null;
-          console.log('Screen Wake Lock released.');
         }
       } catch (err) {
         console.error('Wake Lock release error:', err);
@@ -726,13 +785,22 @@ export default function AdminDashboard() {
 
     requestWakeLock();
 
+    // Renew wake lock every 45 seconds (it can expire silently on some devices)
+    wakeLockRenewRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    }, 45000);
+
+    // 5. Visibility change — re-acquire wake lock + reconnect subscriptions + scan for new orders
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Admin Dashboard became visible - refreshing subscriptions and scanning for new orders... 🔄');
+        console.log('Admin Dashboard became visible — reconnecting & scanning for new orders 🔄');
         requestWakeLock();
         setupSubscriptions();
         fetchData();
-        checkForNewOrdersRef.current();
+        // Small delay before checking to let subscriptions re-establish
+        setTimeout(() => checkForNewOrdersRef.current(), 500);
       }
     };
 
@@ -742,7 +810,12 @@ export default function AdminDashboard() {
       worker.postMessage('stop');
       worker.terminate();
       URL.revokeObjectURL(workerUrl);
-      
+
+      if (wakeLockRenewRef.current) {
+        clearInterval(wakeLockRenewRef.current);
+        wakeLockRenewRef.current = null;
+      }
+
       try {
         if (pgChannel) supabase.removeChannel(pgChannel);
         if (broadcastChannel) supabase.removeChannel(broadcastChannel);
@@ -754,6 +827,7 @@ export default function AdminDashboard() {
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     };
   }, []); // eslint-disable-line
+
 
   // Countdown effect for auto-accepting orders
   useEffect(() => {
