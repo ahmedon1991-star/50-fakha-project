@@ -1519,23 +1519,49 @@ export default function AdminDashboard() {
       </div>
 
       {/* Mobile Drawer Navigation Trigger */}
-      <div className="bg-white border-b border-slate-200 sticky top-[60px] z-35 shadow-sm md:hidden p-3 flex justify-between items-center">
+      <div className="bg-white border-b border-slate-200 sticky top-[60px] z-35 shadow-sm md:hidden p-2.5 flex items-center justify-between gap-2 overflow-x-auto scrollbar-none" dir="rtl">
+        {/* Right side: Drawer Menu Button for all sections */}
         <button
           onClick={() => setMobileMenuOpen(true)}
-          className="bg-slate-100 hover:bg-slate-250 text-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition active:scale-95 border border-slate-200"
+          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold px-3 py-2 rounded-xl text-xs flex items-center gap-1 transition active:scale-95 border border-slate-200 shrink-0"
+          style={{ fontFamily: "'Cairo', sans-serif" }}
         >
-          <span>☰</span> تصفح الأقسام
+          <span>☰</span> الأقسام
         </button>
-        <div className="text-right text-xs font-bold text-slate-800 flex items-center gap-1">
-          <span className="text-slate-400 font-normal">القسم الحالي:</span>
-          <span>{
-            activeTab === 'stats' ? '📊 إحصائيات وتقارير' :
-            activeTab === 'orders' ? '📦 طلبات العملاء' :
-            activeTab === 'products' ? '🍉 إدارة المنيو' :
-            activeTab === 'settings' ? '⚙️ الإعدادات والأمان' : ''
-          }</span>
+
+        {/* Left side: Direct shortcuts to Orders & Stats */}
+        <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none">
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`font-black px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition active:scale-95 border shrink-0 ${
+              activeTab === 'orders'
+                ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm ring-2 ring-emerald-100'
+                : 'bg-rose-50 border-rose-100 text-[#b8295b] hover:bg-rose-100/70'
+            }`}
+            style={{ fontFamily: "'Cairo', sans-serif" }}
+          >
+            <span>📦 الطلبات الحالية</span>
+            {stats.pendingOrders > 0 && (
+              <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-black animate-pulse">
+                {stats.pendingOrders}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`font-black px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition active:scale-95 border shrink-0 ${
+              activeTab === 'stats'
+                ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm ring-2 ring-emerald-100'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+            style={{ fontFamily: "'Cairo', sans-serif" }}
+          >
+            <span>📊 الإحصائيات</span>
+          </button>
         </div>
       </div>
+
 
       {/* Mobile Side Drawer Modal Menu */}
       {mobileMenuOpen && (
