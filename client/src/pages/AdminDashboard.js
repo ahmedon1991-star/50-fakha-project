@@ -88,6 +88,10 @@ export default function AdminDashboard() {
   const [archiveSearch, setArchiveSearch] = useState('');
   const [archiveLoading, setArchiveLoading] = useState(false);
 
+  // Completed & Cancelled Orders (split from main orders list)
+  const [completedOrders, setCompletedOrders] = useState([]);
+  const [cancelledOrders, setCancelledOrders] = useState([]);
+
   // Settings State
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [contactPhone, setContactPhone] = useState('');
@@ -437,7 +441,7 @@ export default function AdminDashboard() {
         computeStatsFromOrders(allOrders || [], statsFilter);
 
       } else if (activeTab === 'orders') {
-        // Auto-archive previous day orders first
+        // Auto-archive previous day completed/cancelled orders
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
         await supabase
@@ -448,7 +452,7 @@ export default function AdminDashboard() {
           .eq('admin_cleared', false)
           .in('status', ['تم التوصيل', 'ملغي']);
 
-        // Fetch only today's non-archived non-cleared orders
+        // Fetch all non-archived, non-cleared orders in one query
         const { data, error } = await supabase
           .from('orders')
           .select('*, profiles:user_id(name, id)')
@@ -456,11 +460,17 @@ export default function AdminDashboard() {
           .eq('admin_cleared', false)
           .order('created_at', { ascending: false });
         if (error) throw error;
-        const formattedOrders = (data || []).map(order => ({
+
+        const formatted = (data || []).map(order => ({
           ...order,
           user: order.profiles ? { name: order.profiles.name, email: '' } : null
         }));
-        setOrders(formattedOrders);
+
+        // Split into current (active), completed, cancelled
+        const ACTIVE_STATUSES = ['قيد الانتظار', 'تم التأكيد', 'قيد التوصيل'];
+        setOrders(formatted.filter(o => ACTIVE_STATUSES.includes(o.status)));
+        setCompletedOrders(formatted.filter(o => o.status === 'تم التوصيل'));
+        setCancelledOrders(formatted.filter(o => o.status === 'ملغي'));
 
       } else if (activeTab === 'products') {
         const { data, error } = await supabase
@@ -748,6 +758,18 @@ export default function AdminDashboard() {
   // Countdown effect for auto-accepting orders
   useEffect(() => {
     if (latestNewOrder && autoAcceptEnabled) {
+      const orderTime = new Date(latestNewOrder.created_at);
+      const ageMs = new Date() - orderTime;
+      const isRecent = ageMs < 60000; // 60 seconds
+
+      if (!isRecent) {
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+        return;
+      }
+
       setCountdown(5);
       
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -953,16 +975,46 @@ export default function AdminDashboard() {
 
   // Orders Management
   const handleStatusChange = async (orderId, newStatus) => {
+    const ACTIVE_STATUSES = ['قيد الانتظار', 'تم التأكيد', 'قيد التوصيل'];
+
+    // Gather the order from whichever list currently holds it
+    const orderFromActive    = orders.find(o => o.id === orderId);
+    const orderFromCompleted = completedOrders.find(o => o.id === orderId);
+    const orderFromCancelled = cancelledOrders.find(o => o.id === orderId);
+    const existingOrder = orderFromActive || orderFromCompleted || orderFromCancelled;
+    if (!existingOrder) return;
+
+    const updatedOrder = { ...existingOrder, status: newStatus };
+
     try {
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
-      
-      if (error) throw error;
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
 
-      // Broadcast status update instantly
+      if (error) throw error;
+
+      // Remove the order from all three lists first
+      const removeFromAll = (setter) => setter(prev => prev.filter(o => o.id !== orderId));
+      removeFromAll(setOrders);
+      removeFromAll(setCompletedOrders);
+      removeFromAll(setCancelledOrders);
+
+      // Place it in the correct list based on newStatus
+      if (newStatus === 'تم التوصيل') {
+        setCompletedOrders(prev => [updatedOrder, ...prev]);
+      } else if (newStatus === 'ملغي') {
+        setCancelledOrders(prev => [updatedOrder, ...prev]);
+      } else if (ACTIVE_STATUSES.includes(newStatus)) {
+        setOrders(prev => [updatedOrder, ...prev.filter(o => o.id !== orderId)]);
+      }
+
+      // Keep the detail modal in sync if open
+      if (selectedOrderDetail?.id === orderId) {
+        setSelectedOrderDetail(updatedOrder);
+      }
+
+      // Broadcast status update to client dashboards instantly
       if (statusBroadcastChannelRef.current) {
         statusBroadcastChannelRef.current.send({
           type: 'broadcast',
@@ -1713,264 +1765,266 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {activeTab === 'orders' && (
-              <div className="space-y-4">
+            {activeTab === 'orders' && (() => {
+              // Helper: render an order card
+              const OrderCard = ({ order, isReadOnly }) => {
+                const timeStr = new Date(order.created_at).toLocaleTimeString('ar-SD', {
+                  hour: '2-digit', minute: '2-digit', hour12: true
+                });
+                const dateStr = new Date(order.created_at).toLocaleDateString('ar-SD', {
+                  day: 'numeric', month: 'short'
+                });
+                const itemsCount = order.items?.reduce((s, it) => s + Number(it.quantity), 0) || 0;
 
-                {/* Sub-tab switcher */}
-                <div className="flex gap-3 items-center">
-                  <button
-                    onClick={() => setOrdersSubTab('current')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${
-                      ordersSubTab === 'current'
-                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400'
-                    }`}
-                  >
-                    <span>🟢</span> طلبات اليوم
-                    {orders.length > 0 && (
-                      <span className="bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full font-black">{orders.length}</span>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => { setOrdersSubTab('archive'); fetchArchiveOrders(); }}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${
-                      ordersSubTab === 'archive'
-                        ? 'bg-slate-700 border-slate-700 text-white shadow-md'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                    }`}
-                  >
-                    <span>📁</span> الأرشيف
-                  </button>
-                  <span className="text-xs text-slate-400 mr-auto">
-                    {ordersSubTab === 'current' ? 'طلبات اليوم الحالي' : 'طلبات الأيام السابقة - تتم الأرشفة تلقائياً آخر كل يوم'}
-                  </span>
-                </div>
+                const statusColors = {
+                  'قيد الانتظار':  'bg-amber-50  border-amber-300  text-amber-700',
+                  'تم التأكيد':    'bg-blue-50   border-blue-300   text-blue-700',
+                  'قيد التوصيل':   'bg-purple-50 border-purple-300 text-purple-700',
+                  'تم التوصيل':    'bg-emerald-50 border-emerald-300 text-emerald-700',
+                  'ملغي':          'bg-rose-50   border-rose-300   text-rose-700',
+                };
+                const statusStyle = statusColors[order.status] || 'bg-slate-50 border-slate-200 text-slate-600';
 
-                {/* CURRENT ORDERS */}
-                {ordersSubTab === 'current' && (
-                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-                      <h3 className="text-lg font-bold text-slate-800">📦 طلبات اليوم</h3>
-                      <span className="text-xs text-slate-400">تُؤرشف تلقائياً عند بداية كل يوم جديد</span>
+                return (
+                  <button
+                    key={order.id}
+                    onClick={() => setSelectedOrderDetail(order)}
+                    className="w-full text-right bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all duration-200 p-4 group active:scale-[0.99]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      {/* Right: order info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="font-mono font-black text-slate-800 text-base group-hover:text-emerald-700 transition-colors">
+                            #{order.order_number || order.id?.slice(0, 8)}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusStyle}`}>
+                            {order.status}
+                          </span>
+                          {order.payment_method === 'bank' && (
+                            <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">🏦 تحويل</span>
+                          )}
+                        </div>
+                        <p className="font-bold text-slate-700 text-sm truncate">
+                          {order.user?.name || 'عميل المتجر'}
+                        </p>
+                        <p className="text-slate-400 text-xs mt-1 font-mono">{order.phone || '-'}</p>
+                        <p className="text-slate-400 text-xs mt-0.5">{itemsCount} صنف • {dateStr} {timeStr}</p>
+                      </div>
+                      {/* Left: amount + arrow */}
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <span className="font-extrabold text-emerald-700 text-lg leading-none">
+                          {order.total_amount}
+                          <span className="text-xs font-bold text-emerald-600 mr-0.5">ج.س</span>
+                        </span>
+                        <span className="text-slate-300 group-hover:text-emerald-400 transition-colors text-lg">←</span>
+                      </div>
                     </div>
-                    {orders.length === 0 ? (
-                      <div className="p-16 text-center text-slate-500 space-y-3">
-                        <span className="text-4xl block">📦</span>
-                        <p className="font-bold text-lg">لا توجد طلبات اليوم</p>
-                        <p className="text-sm text-slate-400">طلبات الأيام السابقة محفوظة في الأرشيف</p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-right border-collapse">
-                          <thead>
-                            <tr className="bg-slate-50 text-slate-600 text-sm font-bold border-b border-slate-100">
-                              <th className="p-4">رقم الطلب</th>
-                              <th className="p-4">العميل</th>
-                              <th className="p-4">رقم الهاتف</th>
-                              <th className="p-4">العنوان</th>
-                              <th className="p-4">الدفع</th>
-                              <th className="p-4">الطلب</th>
-                              <th className="p-4">المبلغ</th>
-                              <th className="p-4 text-center">الحالة</th>
-                              <th className="p-4 text-center">تعديل</th>
-                              <th className="p-4 text-center">التفاصيل</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {orders.map((order) => (
-                              <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
-                                <td className="p-4 font-mono text-sm text-slate-800 font-bold">
-                                  #{order.order_number || order.id?.slice(0, 8)}
-                                </td>
-                                <td className="p-4">
-                                  <span className="font-bold text-slate-800">{order.user?.name || 'مجهول'}</span>
-                                </td>
-                                <td className="p-4 font-mono text-slate-600 text-sm">{order.phone || '-'}</td>
-                                <td className="p-4 text-slate-600 text-sm max-w-[150px] truncate" title={order.shipping_address}>{order.shipping_address}</td>
-                                <td className="p-4 text-xs font-bold">
-                                  {order.payment_method === 'bank' ? (
-                                    <div className="flex flex-col gap-0.5">
-                                      <span className="text-amber-800">🏦 تحويل بنكي</span>
-                                      {order.transfer_receipt && (
-                                        <a
-                                          href={order.transfer_receipt}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-[10px] text-blue-600 underline hover:text-blue-800 flex items-center gap-0.5"
-                                        >
-                                          🖼️ عرض الإشعار
-                                        </a>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span className="text-slate-600">💵 عند الاستلام</span>
-                                  )}
-                                </td>
-                                <td className="p-4">
-                                  <div className="text-sm space-y-1">
-                                    {order.items?.map((it, idx) => (
-                                      <div key={idx} className="text-slate-700">
-                                        <span className="font-bold text-emerald-600">{it.quantity}x</span> {it.name}
-                                        {it.selectedSize && <span className="text-xs text-slate-400 mr-1">({it.selectedSize})</span>}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </td>
-                                <td className="p-4 font-extrabold text-emerald-700">{order.total_amount} ج.س</td>
-                                <td className="p-4 text-center">
-                                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
-                                    {order.status}
-                                  </span>
-                                </td>
-                                <td className="p-4 text-center">
-                                  <select
-                                    value={order.status}
-                                    onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                                    className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-bold"
-                                  >
-                                    <option value="قيد الانتظار">قيد الانتظار</option>
-                                    <option value="تم التأكيد">تم التأكيد</option>
-                                    <option value="قيد التوصيل">قيد التوصيل</option>
-                                    <option value="تم التوصيل">تم التوصيل</option>
-                                    <option value="ملغي">ملغي</option>
-                                  </select>
-                                </td>
-                                <td className="p-4 text-center">
-                                  <button
-                                    onClick={() => setSelectedOrderDetail(order)}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs transition duration-150 shadow-sm"
-                                  >
-                                    👁️ تفاصيل
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                  </button>
+                );
+              };
+
+              // Tab config
+              const tabs = [
+                {
+                  key: 'current',
+                  label: 'الحالية',
+                  emoji: '🟢',
+                  list: orders,
+                  emptyMsg: 'لا توجد طلبات نشطة حالياً',
+                  emptyIcon: '📦',
+                  activeClass: 'bg-emerald-600 border-emerald-600 text-white',
+                  badgeClass: 'bg-white/25 text-white',
+                },
+                {
+                  key: 'completed',
+                  label: 'المكتملة',
+                  emoji: '✅',
+                  list: completedOrders,
+                  emptyMsg: 'لا توجد طلبات مكتملة',
+                  emptyIcon: '✅',
+                  activeClass: 'bg-teal-600 border-teal-600 text-white',
+                  badgeClass: 'bg-white/25 text-white',
+                },
+                {
+                  key: 'cancelled',
+                  label: 'الملغية',
+                  emoji: '❌',
+                  list: cancelledOrders,
+                  emptyMsg: 'لا توجد طلبات ملغية',
+                  emptyIcon: '❌',
+                  activeClass: 'bg-rose-600 border-rose-600 text-white',
+                  badgeClass: 'bg-white/25 text-white',
+                },
+                {
+                  key: 'archive',
+                  label: 'الأرشيف',
+                  emoji: '📁',
+                  list: archiveOrders,
+                  emptyMsg: 'الأرشيف فارغ حالياً',
+                  emptyIcon: '📂',
+                  activeClass: 'bg-slate-700 border-slate-700 text-white',
+                  badgeClass: 'bg-white/20 text-white',
+                },
+              ];
+
+              const activeTabConfig = tabs.find(t => t.key === ordersSubTab);
+
+              return (
+                <div className="space-y-4" dir="rtl">
+
+                  {/* ─── 4-Tab Navigation Bar ─── */}
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 flex gap-2 overflow-x-auto">
+                    {tabs.map(tab => {
+                      const isActive = ordersSubTab === tab.key;
+                      const count = tab.key === 'archive' ? null : tab.list.length;
+                      return (
+                        <button
+                          key={tab.key}
+                          onClick={() => {
+                            setOrdersSubTab(tab.key);
+                            if (tab.key === 'archive') fetchArchiveOrders();
+                          }}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm border-2 transition-all whitespace-nowrap flex-shrink-0 ${
+                            isActive
+                              ? tab.activeClass + ' shadow-md'
+                              : 'bg-slate-50 border-transparent text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span>{tab.emoji}</span>
+                          <span>{tab.label}</span>
+                          {count !== null && count > 0 && (
+                            <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-black ${
+                              isActive ? tab.badgeClass : 'bg-slate-200 text-slate-700'
+                            }`}>
+                              {count}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
 
-                {/* ARCHIVE TAB */}
-                {ordersSubTab === 'archive' && (
-                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div className="p-5 border-b border-slate-100 space-y-3">
-                      <h3 className="text-lg font-bold text-slate-800">📁 أرشيف الطلبات السابقة</h3>
-                      {/* Search Box */}
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={archiveSearch}
-                          onChange={e => setArchiveSearch(e.target.value)}
-                          placeholder="🔍 ابحث برقم الطلب أو رقم الهاتف..."
-                          className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:outline-none text-right text-sm"
-                        />
-                        {archiveSearch && (
-                          <button onClick={() => setArchiveSearch('')} className="absolute left-3 top-3 text-slate-400 hover:text-slate-700">✕</button>
-                        )}
-                      </div>
-                    </div>
-
-                    {archiveLoading ? (
-                      <div className="p-12 text-center">
-                        <div className="w-8 h-8 border-4 border-slate-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                        <p className="text-slate-500 text-sm">جاري تحميل الأرشيف...</p>
-                      </div>
-                    ) : (() => {
-                      const filtered = archiveOrders.filter(o => {
-                        if (!archiveSearch.trim()) return true;
-                        const q = archiveSearch.trim().toLowerCase();
-                        return o.id?.toLowerCase().includes(q) || 
-                               o.order_number?.toLowerCase().includes(q) || 
-                               o.phone?.toLowerCase().includes(q);
-                      });
-                      return filtered.length === 0 ? (
-                        <div className="p-16 text-center text-slate-400 space-y-3">
-                          <span className="text-4xl block">📂</span>
-                          <p className="font-bold">{archiveSearch ? 'لا توجد نتائج مطابقة' : 'الأرشيف فارغ حالياً'}</p>
+                  {/* ─── Current (Active) Orders ─── */}
+                  {ordersSubTab === 'current' && (
+                    <div>
+                      {orders.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center space-y-3">
+                          <span className="text-5xl block">📦</span>
+                          <p className="font-bold text-lg text-slate-600">لا توجد طلبات نشطة حالياً</p>
+                          <p className="text-sm text-slate-400">الطلبات المكتملة والملغية في تبويباتها الخاصة</p>
                         </div>
                       ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-right border-collapse">
-                            <thead>
-                              <tr className="bg-slate-50 text-slate-600 text-sm font-bold border-b border-slate-100">
-                                <th className="p-4">رقم الطلب</th>
-                                <th className="p-4">التاريخ</th>
-                                <th className="p-4">العميل</th>
-                                <th className="p-4">رقم الهاتف</th>
-                                <th className="p-4">الدفع</th>
-                                <th className="p-4">الطلب</th>
-                                <th className="p-4">المبلغ</th>
-                                <th className="p-4 text-center">الحالة</th>
-                                <th className="p-4 text-center">التفاصيل</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filtered.map((order) => (
-                                <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/40 transition">
-                                  <td className="p-4">
-                                    <span className="font-mono text-sm bg-slate-100 px-2 py-1 rounded-lg text-slate-700 font-bold">
-                                      #{order.order_number || order.id?.slice(0, 8)}
-                                    </span>
-                                  </td>
-                                  <td className="p-4 text-slate-500 text-xs">{new Date(order.created_at).toLocaleDateString('ar-SD')}</td>
-                                  <td className="p-4 font-bold text-slate-800">{order.user?.name || 'مجهول'}</td>
-                                  <td className="p-4 font-mono text-slate-600 text-sm">{order.phone || '-'}</td>
-                                  <td className="p-4 text-xs font-bold">
-                                    {order.payment_method === 'bank' ? (
-                                      <div className="flex flex-col gap-0.5">
-                                        <span className="text-amber-800">🏦 تحويل بنكي</span>
-                                        {order.transfer_receipt && (
-                                          <a
-                                            href={order.transfer_receipt}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[10px] text-blue-600 underline hover:text-blue-800"
-                                          >
-                                            🖼️ عرض الإشعار
-                                          </a>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <span className="text-slate-600">💵 عند الاستلام</span>
-                                    )}
-                                  </td>
-                                  <td className="p-4">
-                                    <div className="text-sm space-y-1">
-                                      {order.items?.map((it, idx) => (
-                                        <div key={idx} className="text-slate-600">
-                                          <span className="font-bold text-slate-400">{it.quantity}x</span> {it.name}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </td>
-                                  <td className="p-4 font-extrabold text-slate-700">{order.total_amount} ج.س</td>
-                                  <td className="p-4 text-center">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(order.status)}`}>
-                                      {order.status}
-                                    </span>
-                                  </td>
-                                  <td className="p-4 text-center">
-                                    <button
-                                      onClick={() => setSelectedOrderDetail(order)}
-                                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl font-bold text-xs transition duration-150 shadow-sm"
-                                    >
-                                      👁️ تفاصيل
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                        <div className="grid gap-3">
+                          {orders.map(order => <OrderCard key={order.id} order={order} isReadOnly={false} />)}
                         </div>
-                      );
-                    })()}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
 
-              </div>
-            )}
+                  {/* ─── Completed Orders ─── */}
+                  {ordersSubTab === 'completed' && (
+                    <div>
+                      {completedOrders.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center space-y-3">
+                          <span className="text-5xl block">✅</span>
+                          <p className="font-bold text-lg text-slate-600">لا توجد طلبات مكتملة</p>
+                          <p className="text-sm text-slate-400">ستظهر هنا الطلبات بعد تحديث حالتها إلى "تم التوصيل"</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-3">
+                          {completedOrders.map(order => <OrderCard key={order.id} order={order} isReadOnly={true} />)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ─── Cancelled Orders ─── */}
+                  {ordersSubTab === 'cancelled' && (
+                    <div>
+                      {cancelledOrders.length === 0 ? (
+                        <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center space-y-3">
+                          <span className="text-5xl block">❌</span>
+                          <p className="font-bold text-lg text-slate-600">لا توجد طلبات ملغية</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-3">
+                          {cancelledOrders.map(order => <OrderCard key={order.id} order={order} isReadOnly={true} />)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ─── Archive Tab ─── */}
+                  {ordersSubTab === 'archive' && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="p-5 border-b border-slate-100 space-y-3">
+                        <h3 className="text-lg font-bold text-slate-800">📁 أرشيف الطلبات السابقة</h3>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={archiveSearch}
+                            onChange={e => setArchiveSearch(e.target.value)}
+                            placeholder="🔍 ابحث برقم الطلب أو رقم الهاتف..."
+                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 focus:outline-none text-right text-sm"
+                          />
+                          {archiveSearch && (
+                            <button onClick={() => setArchiveSearch('')} className="absolute left-3 top-3 text-slate-400 hover:text-slate-700">✕</button>
+                          )}
+                        </div>
+                      </div>
+
+                      {archiveLoading ? (
+                        <div className="p-12 text-center">
+                          <div className="w-8 h-8 border-4 border-slate-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                          <p className="text-slate-500 text-sm">جاري تحميل الأرشيف...</p>
+                        </div>
+                      ) : (() => {
+                        const filtered = archiveOrders.filter(o => {
+                          if (!archiveSearch.trim()) return true;
+                          const q = archiveSearch.trim().toLowerCase();
+                          return o.id?.toLowerCase().includes(q) ||
+                                 o.order_number?.toLowerCase().includes(q) ||
+                                 o.phone?.toLowerCase().includes(q);
+                        });
+                        return filtered.length === 0 ? (
+                          <div className="p-16 text-center text-slate-400 space-y-3">
+                            <span className="text-4xl block">📂</span>
+                            <p className="font-bold">{archiveSearch ? 'لا توجد نتائج مطابقة' : 'الأرشيف فارغ حالياً'}</p>
+                          </div>
+                        ) : (
+                          <div className="p-4 grid gap-3">
+                            {filtered.map(order => (
+                              <button
+                                key={order.id}
+                                onClick={() => setSelectedOrderDetail(order)}
+                                className="w-full text-right bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-white transition p-4 group"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <span className="font-mono font-bold text-slate-700">#{order.order_number || order.id?.slice(0, 8)}</span>
+                                    <span className="text-slate-400 text-xs mr-3">
+                                      {new Date(order.created_at).toLocaleDateString('ar-SD', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-bold text-slate-600">{order.user?.name || 'مجهول'}</span>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusColor(order.status)}`}>{order.status}</span>
+                                    <span className="font-extrabold text-slate-700">{order.total_amount} ج.س</span>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                </div>
+              );
+            })()}
+
 
             {/* TAB 3: PRODUCT & CATEGORIES MANAGEMENT */}
             {activeTab === 'products' && (() => {
@@ -3041,24 +3095,47 @@ export default function AdminDashboard() {
               </div>
 
               {/* Footer Actions */}
-              <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 flex-shrink-0">
-                {ordersSubTab === 'current' && (
-                  <div className="flex-1 flex items-center gap-2">
-                    <label className="text-xs font-bold text-slate-500 whitespace-nowrap">تعديل حالة الطلب:</label>
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 flex-shrink-0 flex-wrap">
+                {/* Status change — only shown for active (non-completed, non-cancelled) orders */}
+                {order.status !== 'تم التوصيل' && order.status !== 'ملغي' ? (
+                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                    <label className="text-xs font-bold text-slate-500 whitespace-nowrap">تعديل الحالة:</label>
                     <select
                       value={order.status}
                       onChange={(e) => {
                         handleStatusChange(order.id, e.target.value);
-                        setSelectedOrderDetail({ ...order, status: e.target.value });
                       }}
                       className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
-                      <option value="قيد الانتظار">قيد الانتظار</option>
-                      <option value="تم التأكيد">تم التأكيد</option>
-                      <option value="قيد التوصيل">قيد التوصيل</option>
-                      <option value="تم التوصيل">تم التوصيل</option>
-                      <option value="ملغي">ملغي</option>
+                      {/* Only show valid next statuses based on current status */}
+                      {order.status === 'قيد الانتظار' && <>
+                        <option value="قيد الانتظار">قيد الانتظار</option>
+                        <option value="تم التأكيد">✅ تم التأكيد</option>
+                        <option value="ملغي">❌ ملغي</option>
+                      </>}
+                      {order.status === 'تم التأكيد' && <>
+                        <option value="تم التأكيد">تم التأكيد</option>
+                        <option value="قيد التوصيل">🚚 قيد التوصيل</option>
+                        <option value="ملغي">❌ ملغي</option>
+                      </>}
+                      {order.status === 'قيد التوصيل' && <>
+                        <option value="قيد التوصيل">قيد التوصيل</option>
+                        <option value="تم التوصيل">✅ تم التوصيل</option>
+                      </>}
                     </select>
+                  </div>
+                ) : (
+                  /* Read-only status badge for completed/cancelled */
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500">الحالة:</span>
+                    <span className={`px-3 py-1.5 rounded-xl text-xs font-black border ${
+                      order.status === 'تم التوصيل'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        : 'bg-rose-50 border-rose-200 text-rose-700'
+                    }`}>
+                      {order.status === 'تم التوصيل' ? '✅ ' : '❌ '}{order.status}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium">• للقراءة فقط</span>
                   </div>
                 )}
                 
@@ -3066,7 +3143,7 @@ export default function AdminDashboard() {
                   onClick={() => setSelectedOrderDetail(null)}
                   className="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-sm"
                 >
-                  إغلاق التفاصيل 🚪
+                  إغلاق 🚪
                 </button>
               </div>
             </div>
