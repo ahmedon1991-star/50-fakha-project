@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 // Emoji fallback map by category name
 const CATEGORY_EMOJI = {
@@ -50,6 +51,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(() => products.length === 0);
   const [error, setError] = useState('');
   const { addToCart } = useCart();
+  const navigate = useNavigate();
 
   const [favorites, setFavorites] = useState(() => {
     try {
@@ -569,6 +571,75 @@ export default function HomePage() {
             ));
           })()}
         </div>
+
+        {/* ─── MY ORDERS QUICK ACCESS (logged-in users only) ─── */}
+        {user && (
+          <div
+            onClick={() => navigate('/orders')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'linear-gradient(135deg, #1B130D 0%, #3D2B1F 100%)',
+              borderRadius: '18px',
+              padding: '14px 18px',
+              marginBottom: '20px',
+              cursor: 'pointer',
+              boxShadow: '0 6px 20px rgba(27,19,13,0.22)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Decorative circles */}
+            <div style={{
+              position: 'absolute', right: '-18px', top: '-18px',
+              width: '80px', height: '80px',
+              borderRadius: '50%',
+              background: 'rgba(243,118,12,0.15)',
+              pointerEvents: 'none',
+            }} />
+            <div style={{
+              position: 'absolute', right: '20px', bottom: '-24px',
+              width: '60px', height: '60px',
+              borderRadius: '50%',
+              background: 'rgba(243,118,12,0.10)',
+              pointerEvents: 'none',
+            }} />
+
+            {/* Left: Arrow */}
+            <div style={{
+              width: '36px', height: '36px',
+              borderRadius: '50%',
+              background: 'rgba(243,118,12,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <span style={{ color: '#F3760C', fontSize: '18px', fontWeight: 900 }}>←</span>
+            </div>
+
+            {/* Right: Text */}
+            <div style={{ textAlign: 'right', flex: 1, marginRight: '12px' }}>
+              <div style={{
+                fontFamily: "'Cairo', sans-serif",
+                fontSize: '15px',
+                fontWeight: 900,
+                color: '#FFFFFF',
+                marginBottom: '2px',
+              }}>
+                📦 طلباتي
+              </div>
+              <div style={{
+                fontFamily: "'Cairo', sans-serif",
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.60)',
+              }}>
+                تتبّع طلباتك الحالية والسابقة
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ─── SECTION HEADER ─── */}
         <div style={{
