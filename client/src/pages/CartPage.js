@@ -15,8 +15,21 @@ export default function CartPage() {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const [deliveryFee, setDeliveryFee] = useState(15);
+  const [baseDeliveryFee, setBaseDeliveryFee] = useState(15);
+  const [userOrderCount, setUserOrderCount] = useState(null);
   const [acceptingOrders, setAcceptingOrders] = useState(true);
+
+  // Compute delivery fee with new user tier discount rules:
+  // - 1st order: Free delivery (0 fee)
+  // - 2nd order: 50% off
+  // - 3rd order onwards: Full fee
+  const deliveryFee = (() => {
+    if (!user) return baseDeliveryFee; // Guests get standard base fee
+    if (userOrderCount === null) return baseDeliveryFee;
+    if (userOrderCount === 0) return 0;
+    if (userOrderCount === 1) return baseDeliveryFee * 0.5;
+    return baseDeliveryFee;
+  })();
 
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [bankName, setBankName] = useState('');
@@ -142,7 +155,7 @@ export default function CartPage() {
           .maybeSingle();
         if (data) {
           if (data.delivery_fee !== null && data.delivery_fee !== undefined) {
-            setDeliveryFee(Number(data.delivery_fee));
+            setBaseDeliveryFee(Number(data.delivery_fee));
           }
           if (data.accepting_orders !== null && data.accepting_orders !== undefined) {
             setAcceptingOrders(data.accepting_orders);
@@ -158,6 +171,29 @@ export default function CartPage() {
     };
     fetchSettings();
   }, []);
+
+  // Fetch the logged-in user's previous orders count to determine delivery tier
+  useEffect(() => {
+    const fetchUserOrderCount = async () => {
+      if (!user) {
+        setUserOrderCount(null);
+        return;
+      }
+      try {
+        const { count, error } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        if (!error) {
+          setUserOrderCount(count || 0);
+        }
+      } catch (err) {
+        console.error('Error fetching order count:', err);
+      }
+    };
+    fetchUserOrderCount();
+  }, [user]);
 
   const compressImage = (file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) => {
     return new Promise((resolve, reject) => {
@@ -959,13 +995,34 @@ export default function CartPage() {
                 <span>المجموع الفرعي:</span>
                 <span className="font-semibold">{totalAmount} ج.س</span>
               </div>
-              <div className="flex justify-between text-slate-600">
-                <span>تكلفة التوصيل:</span>
-                <span className="font-semibold">{deliveryFee} ج.س</span>
+              <div className="flex justify-between items-center text-slate-600">
+                <span className="flex items-center gap-1.5">
+                  تكلفة التوصيل:
+                  {userOrderCount === 0 && (
+                    <span className="bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black">
+                      🆓 أول طلب مجاني!
+                    </span>
+                  )}
+                  {userOrderCount === 1 && (
+                    <span className="bg-orange-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black">
+                      🔥 ثاني طلب 50%-
+                    </span>
+                  )}
+                </span>
+                <span className="font-semibold flex items-center gap-1">
+                  {(userOrderCount === 0 || userOrderCount === 1) && (
+                    <span className="text-slate-400 line-through text-xs font-normal">
+                      {baseDeliveryFee} ج.س
+                    </span>
+                  )}
+                  <span className={userOrderCount === 0 ? "text-emerald-600 font-bold" : ""}>
+                    {deliveryFee} ج.س
+                  </span>
+                </span>
               </div>
               <div className="flex justify-between text-slate-900 font-extrabold text-lg border-t pt-3">
                 <span>الإجمالي الكلي:</span>
-                <span className="text-emerald-700">{grandTotal} gl.s</span>
+                <span className="text-emerald-700">{grandTotal} ج.س</span>
               </div>
             </div>
 

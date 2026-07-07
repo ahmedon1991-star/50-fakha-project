@@ -84,6 +84,7 @@ export default function RegisterPage() {
 
       // 2. Perform Supabase Sign Up
       await register(name, email, phone.trim(), password);
+      localStorage.setItem('show_welcome_free_delivery', 'true');
       navigate('/');
     } catch (err) {
       let errMsg = err.message || '';

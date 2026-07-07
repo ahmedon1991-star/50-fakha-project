@@ -80,6 +80,10 @@ export default function HomePage() {
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSlideIsPortrait, setActiveSlideIsPortrait] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
+    return localStorage.getItem('show_welcome_free_delivery') === 'true';
+  });
+
 
   useEffect(() => {
     const fetchSliderImages = async () => {
@@ -973,6 +977,99 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── NEW USER WELCOME SPLASH MODAL ─── */}
+      {showWelcomeModal && (
+        <div
+          className="fixed inset-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center z-[9999] p-6"
+          style={{ animation: 'fadeIn 0.35s ease-out forwards' }}
+          onClick={() => {
+            localStorage.removeItem('show_welcome_free_delivery');
+            setShowWelcomeModal(false);
+          }}
+        >
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to   { opacity: 1; }
+            }
+            @keyframes popIn {
+              0% { transform: scale(0.85); opacity: 0; }
+              70% { transform: scale(1.02); }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes floatEmoji {
+              0%, 100% { transform: translateY(0px) rotate(0deg); }
+              50% { transform: translateY(-10px) rotate(5deg); }
+            }
+          `}</style>
+          <div
+            className="bg-white border-2 border-orange-500 rounded-[32px] p-8 max-w-md w-full text-center shadow-2xl relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #FFFDF9 0%, #FFF7EC 100%)',
+              animation: 'popIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Top decorative icons */}
+            <div className="flex justify-center gap-3 mb-5">
+              <span className="text-5xl" style={{ animation: 'floatEmoji 3s ease-in-out infinite' }}>🎉</span>
+              <span className="text-5xl" style={{ animation: 'floatEmoji 3s ease-in-out infinite 0.5s' }}>🍹</span>
+              <span className="text-5xl" style={{ animation: 'floatEmoji 3s ease-in-out infinite 1s' }}>🎁</span>
+            </div>
+
+            {/* Content */}
+            <h2 className="font-black text-2xl text-slate-900 mb-2.5 leading-snug" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              ألف مبروك يا فنان!
+              <br />
+              <span className="text-orange-500">أهلاً بك في عائلة 50 فاكهة</span>
+            </h2>
+
+            <p className="text-xs font-bold text-slate-500 mb-6 leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              سعداء جداً بانضمامك إلينا! وتكريماً لك، قمنا بإضافة عرض ترحيبي خاص جداً على حسابك تلقائياً:
+            </p>
+
+            {/* Discount Cards container */}
+            <div className="flex flex-col gap-3 mb-7">
+              {/* Card 1: Free shipping */}
+              <div 
+                className="text-white p-4 rounded-2xl flex items-center justify-between shadow-md border border-white/10"
+                style={{ background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)' }}
+              >
+                <span className="text-3xl">🆓</span>
+                <div className="flex-1 text-right mr-4">
+                  <div className="text-sm font-black" style={{ fontFamily: "'Cairo', sans-serif" }}>الطلب الأول</div>
+                  <div className="text-[10px] opacity-90" style={{ fontFamily: "'Cairo', sans-serif" }}>توصيل مجاني 100% بالكامل!</div>
+                </div>
+              </div>
+
+              {/* Card 2: 50% discount */}
+              <div 
+                className="text-white p-4 rounded-2xl flex items-center justify-between shadow-md border border-white/10"
+                style={{ background: 'linear-gradient(135deg, #F3760C 0%, #D97706 100%)' }}
+              >
+                <span className="text-3xl">🔥</span>
+                <div className="flex-1 text-right mr-4">
+                  <div className="text-sm font-black" style={{ fontFamily: "'Cairo', sans-serif" }}>الطلب الثاني</div>
+                  <div className="text-[10px] opacity-90" style={{ fontFamily: "'Cairo', sans-serif" }}>خصم 50% نصف قيمة التوصيل!</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action button */}
+            <button
+              onClick={() => {
+                localStorage.removeItem('show_welcome_free_delivery');
+                setShowWelcomeModal(false);
+              }}
+              className="w-full bg-slate-900 text-amber-50 border-none rounded-2xl py-4 font-black text-sm cursor-pointer shadow-lg active:scale-[0.98] transition"
+              style={{ fontFamily: "'Cairo', sans-serif" }}
+            >
+              ابدأ طلبك الأول الآن 🍊
+            </button>
           </div>
         </div>
       )}
