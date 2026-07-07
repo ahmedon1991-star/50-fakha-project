@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
@@ -8,12 +8,25 @@ export default function Navbar() {
   const { totalItems } = useCart();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactInfo, setContactInfo] = useState({ phone: '', email: '' });
   const [statusNotification, setStatusNotification] = useState(null);
   const [showMoreOpen, setShowMoreOpen] = useState(false);
   const orderStatusCache = useRef({});
+
+  const searchQuery = searchParams.get('q') || '';
+
+  const handleSearchChange = (val) => {
+    if (location.pathname !== '/') {
+      navigate(`/?q=${encodeURIComponent(val)}`);
+    } else {
+      setSearchParams(val ? { q: val } : {});
+    }
+  };
+
 
   // Custom 0.8s melodic chime (Sine wave double tone)
   const playMelodicChime = () => {
@@ -161,17 +174,37 @@ export default function Navbar() {
       <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
         
         {/* Brand Logo */}
-        <Link to="/" className="flex items-center hover:opacity-90 transition-opacity duration-200">
+        <Link to="/" className="flex items-center hover:opacity-90 transition-opacity duration-200 shrink-0">
           <img
             src="/logo.png"
             alt="50 فاكهة"
-            className="h-12 w-auto object-contain"
+            className="h-10 sm:h-12 w-auto object-contain"
             style={{ maxWidth: '140px' }}
           />
         </Link>
 
+        {/* Central Search Input (Flexible & Responsive) */}
+        <div className="flex-grow max-w-[260px] xs:max-w-xs sm:max-w-md mx-2 sm:mx-6 relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="ابحث عن عصير، وجبة... 🔍"
+            className="w-full py-2 px-3 pr-8 rounded-xl border border-[#F0E1CC] text-[11px] sm:text-xs text-[#1B130D] bg-white focus:outline-none focus:ring-1 focus:ring-[#F3760C] focus:border-[#F3760C] text-right placeholder-[#9C7A5A]/70"
+            style={{ fontFamily: "'Cairo', sans-serif" }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => handleSearchChange('')}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer p-0.5"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
         {/* Navigation Links */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
 
           {/* Cart Icon */}
           <Link

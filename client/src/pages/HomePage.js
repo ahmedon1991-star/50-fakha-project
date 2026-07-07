@@ -78,11 +78,13 @@ export default function HomePage() {
 
   const [sliderImages, setSliderImages] = useState([]);
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeSlideIsPortrait, setActiveSlideIsPortrait] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') || '';
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
     return localStorage.getItem('show_welcome_free_delivery') === 'true';
   });
+
 
 
   useEffect(() => {
@@ -504,49 +506,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* ─── SEARCH BAR ─── */}
-        <div style={{ position: 'relative', marginBottom: '16px' }}>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث عن عصير، وجبة، بيتزا... 🔍"
-            style={{
-              width: '100%',
-              padding: '12px 16px 12px 42px',
-              borderRadius: '16px',
-              border: '1.5px solid #F0E1CC',
-              background: '#FFFFFF',
-              fontSize: '13px',
-              color: '#1B130D',
-              outline: 'none',
-              boxSizing: 'border-box',
-              fontFamily: "'Cairo', sans-serif",
-              textAlign: 'right',
-              transition: 'all 0.2s ease',
-            }}
-            className="search-input"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              style={{
-                position: 'absolute',
-                left: '14px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                color: '#9C7A5A',
-                fontSize: '16px',
-                cursor: 'pointer',
-                padding: 0,
-              }}
-            >
-              ✕
-            </button>
-          )}
-        </div>
 
         {/* ─── CATEGORY CHIPS ─── */}
         <div className="chip-scroll" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginBottom: '20px' }}>
@@ -576,74 +535,6 @@ export default function HomePage() {
           })()}
         </div>
 
-        {/* ─── MY ORDERS QUICK ACCESS (logged-in users only) ─── */}
-        {user && (
-          <div
-            onClick={() => navigate('/orders')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: 'linear-gradient(135deg, #1B130D 0%, #3D2B1F 100%)',
-              borderRadius: '18px',
-              padding: '14px 18px',
-              marginBottom: '20px',
-              cursor: 'pointer',
-              boxShadow: '0 6px 20px rgba(27,19,13,0.22)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            {/* Decorative circles */}
-            <div style={{
-              position: 'absolute', right: '-18px', top: '-18px',
-              width: '80px', height: '80px',
-              borderRadius: '50%',
-              background: 'rgba(243,118,12,0.15)',
-              pointerEvents: 'none',
-            }} />
-            <div style={{
-              position: 'absolute', right: '20px', bottom: '-24px',
-              width: '60px', height: '60px',
-              borderRadius: '50%',
-              background: 'rgba(243,118,12,0.10)',
-              pointerEvents: 'none',
-            }} />
-
-            {/* Left: Arrow */}
-            <div style={{
-              width: '36px', height: '36px',
-              borderRadius: '50%',
-              background: 'rgba(243,118,12,0.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <span style={{ color: '#F3760C', fontSize: '18px', fontWeight: 900 }}>←</span>
-            </div>
-
-            {/* Right: Text */}
-            <div style={{ textAlign: 'right', flex: 1, marginRight: '12px' }}>
-              <div style={{
-                fontFamily: "'Cairo', sans-serif",
-                fontSize: '15px',
-                fontWeight: 900,
-                color: '#FFFFFF',
-                marginBottom: '2px',
-              }}>
-                📦 طلباتي
-              </div>
-              <div style={{
-                fontFamily: "'Cairo', sans-serif",
-                fontSize: '11px',
-                fontWeight: 600,
-                color: 'rgba(255,255,255,0.60)',
-              }}>
-                تتبّع طلباتك الحالية والسابقة
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ─── SECTION HEADER ─── */}
         <div style={{
