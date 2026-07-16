@@ -73,6 +73,7 @@ export default function AdminDashboard() {
   const [productForm, setProductForm] = useState({
     name: '',
     price: '',
+    discount_price: '',
     description: '',
     category: 'عصائر طازجة',
     image: '',
@@ -113,6 +114,15 @@ export default function AdminDashboard() {
 
   // Order Acceptance Global Toggle State
   const [acceptingOrders, setAcceptingOrders] = useState(true);
+
+  // Campaign Settings State
+  const [campaignActive, setCampaignActive] = useState(false);
+  const [campaignTitle, setCampaignTitle] = useState('');
+  const [campaignMarqueeText, setCampaignMarqueeText] = useState('');
+  const [campaignDiscountPercentage, setCampaignDiscountPercentage] = useState(15);
+  const [campaignFreeDelivery, setCampaignFreeDelivery] = useState(true);
+  const [campaignStartDate, setCampaignStartDate] = useState('');
+  const [campaignEndDate, setCampaignEndDate] = useState('');
 
   // Mobile Drawer Menu State
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -1115,7 +1125,16 @@ export default function AdminDashboard() {
         ? Math.min(...cleanedSizes.map(s => s.price))
         : (Number(productForm.price) || 0);
 
-      const formData = { ...productForm, sizes: cleanedSizes, price: autoPrice };
+      const discountVal = (productForm.discount_price === '' || productForm.discount_price === null || productForm.discount_price === undefined)
+        ? null
+        : (Number(productForm.discount_price) || null);
+
+      const formData = {
+        ...productForm,
+        sizes: cleanedSizes,
+        price: autoPrice,
+        discount_price: discountVal
+      };
 
       if (editingProduct) {
         // Update product
@@ -1151,6 +1170,7 @@ export default function AdminDashboard() {
     setProductForm({
       name: product.name,
       price: product.price,
+      discount_price: product.discount_price !== undefined && product.discount_price !== null ? String(product.discount_price) : '',
       description: product.description || '',
       category: product.category || 'عصائر طازجة',
       image: product.image || '',
@@ -1196,6 +1216,7 @@ export default function AdminDashboard() {
     setProductForm({
       name: '',
       price: '',
+      discount_price: '',
       description: '',
       category: 'عصائر طازجة',
       image: '',
@@ -1227,6 +1248,22 @@ export default function AdminDashboard() {
         setBankHolderName(data.bank_holder_name || '');
         setDeliveryFee(data.delivery_fee !== undefined && data.delivery_fee !== null ? String(data.delivery_fee) : '15');
         setAcceptingOrders(data.accepting_orders ?? true);
+
+        // Campaign fields mapping
+        setCampaignActive(data.campaign_active ?? false);
+        setCampaignTitle(data.campaign_title || 'مرور عام على الافتتاح!');
+        setCampaignMarqueeText(data.campaign_marquee_text || 'بمناسبة مرور عام على الافتتاح! خصم 15% وتوصيل مجاني لمدة 3 أيام');
+        setCampaignDiscountPercentage(data.campaign_discount_percentage !== undefined && data.campaign_discount_percentage !== null ? data.campaign_discount_percentage : 15);
+        setCampaignFreeDelivery(data.campaign_free_delivery ?? true);
+
+        const formatDatetimeLocal = (isoStr) => {
+          if (!isoStr) return '';
+          const d = new Date(isoStr);
+          const pad = (n) => String(n).padStart(2, '0');
+          return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+        setCampaignStartDate(formatDatetimeLocal(data.campaign_start_date));
+        setCampaignEndDate(formatDatetimeLocal(data.campaign_end_date));
       }
 
       const { data: contactData } = await supabase.from('app_settings').select('*').eq('id', 2).maybeSingle();
@@ -1326,6 +1363,30 @@ export default function AdminDashboard() {
       setSettingsSuccess('تم حفظ الإعدادات ومعلومات التواصل بنجاح ✅');
     } catch (err) { setSettingsError(err.message || 'خطأ أثناء حفظ الإعدادات'); }
     finally { setSettingsLoading(false); }
+  };
+
+  const handleSaveCampaignSettings = async (e) => {
+    e.preventDefault();
+    setSettingsLoading(true); setSettingsError(''); setSettingsSuccess('');
+    try {
+      const { error } = await supabase.from('app_settings').upsert({
+        id: 1,
+        campaign_active: campaignActive,
+        campaign_title: campaignTitle,
+        campaign_marquee_text: campaignMarqueeText,
+        campaign_discount_percentage: Number(campaignDiscountPercentage) || 0,
+        campaign_free_delivery: campaignFreeDelivery,
+        campaign_start_date: campaignStartDate ? new Date(campaignStartDate).toISOString() : null,
+        campaign_end_date: campaignEndDate ? new Date(campaignEndDate).toISOString() : null,
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      setSettingsSuccess('تم حفظ إعدادات حملة العروض بنجاح! 🚀');
+    } catch (err) {
+      setSettingsError(err.message || 'خطأ أثناء حفظ إعدادات الحملة');
+    } finally {
+      setSettingsLoading(false);
+    }
   };
 
   const handleSaveSliderSettings = async () => {
@@ -1657,6 +1718,20 @@ export default function AdminDashboard() {
                   <span className="text-lg">⚙️</span>
                   <span className="font-extrabold text-sm">الإعدادات والأمان</span>
                 </button>
+
+                {/* 5. Campaign Card */}
+                <button
+                  onClick={() => { setActiveTab('campaign'); setMobileMenuOpen(false); }}
+                  className={`w-full text-right p-4 rounded-2xl font-bold text-sm transition duration-200 flex items-center justify-between gap-3 border cursor-pointer shadow-xs hover:shadow-sm ${
+                    activeTab === 'campaign' 
+                      ? 'bg-white border-emerald-500 text-emerald-700 shadow-sm ring-2 ring-emerald-50' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
+                  }`}
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
+                >
+                  <span className="text-lg">📢</span>
+                  <span className="font-extrabold text-sm">حملة العروض (مرور عام)</span>
+                </button>
               </div>
             </div>
 
@@ -1733,6 +1808,16 @@ export default function AdminDashboard() {
             }`}
           >
             ⚙️ الإعدادات والأمان
+          </button>
+          <button
+            onClick={() => setActiveTab('campaign')}
+            className={`py-4 px-3 font-extrabold text-sm border-b-4 transition-all duration-200 ${
+              activeTab === 'campaign'
+                ? 'border-orange-600 text-orange-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            📢 حملة العروض (مرور عام)
           </button>
         </div>
       </div>
@@ -2665,6 +2750,158 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {/* TAB 5: PROMOTIONAL CAMPAIGN */}
+            {activeTab === 'campaign' && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-3xl">📢</span>
+                  <div>
+                    <h2 className="text-2xl font-extrabold text-slate-900">إدارة حملة العروض (مرور عام)</h2>
+                    <p className="text-slate-500 text-sm">تفعيل وإدارة الحملات الترويجية والخصومات والتوصيل المجاني التلقائي</p>
+                  </div>
+                </div>
+
+                {/* Feedback Messages */}
+                {settingsSuccess && (
+                  <div className="bg-emerald-50 border-r-4 border-emerald-500 text-emerald-800 p-4 rounded-xl flex items-center gap-3">
+                    <span className="text-2xl">✅</span>
+                    <span className="font-semibold text-sm">{settingsSuccess}</span>
+                  </div>
+                )}
+                {settingsError && (
+                  <div className="bg-rose-50 border-r-4 border-rose-500 text-rose-800 p-4 rounded-xl flex items-center gap-3">
+                    <span className="text-2xl">❌</span>
+                    <span className="font-semibold text-sm">{settingsError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveCampaignSettings} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* LEFT: General Info & Timing */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+                    <h3 className="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
+                      <span>⚙️</span> الإعدادات الأساسية والجدولة الزمنية
+                    </h3>
+
+                    {/* Campaign Title */}
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-slate-700">عنوان الحملة الترحيبية</label>
+                      <input
+                        type="text"
+                        required
+                        value={campaignTitle}
+                        onChange={e => setCampaignTitle(e.target.value)}
+                        placeholder="مثال: احتفلوا معنا بمرور عام على الافتتاح!"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Start Date */}
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-slate-700">تاريخ ووقت بدء العرض</label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={campaignStartDate}
+                        onChange={e => setCampaignStartDate(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* End Date */}
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-slate-700">تاريخ ووقت انتهاء العرض</label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={campaignEndDate}
+                        onChange={e => setCampaignEndDate(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Campaign Active Switch */}
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                      <div>
+                        <span className="block text-sm font-bold text-slate-850">تفعيل الحملة ترويجياً</span>
+                        <span className="block text-[11px] text-slate-400">عند إلغاء هذا الخيار لن يظهر العرض حتى لو كان الزمن مناسباً</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={campaignActive}
+                          onChange={e => setCampaignActive(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* RIGHT: Offer discounts & Marquee banner */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+                    <h3 className="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2">
+                      <span>💸</span> نسبة الخصم والشريط المتحرك
+                    </h3>
+
+                    {/* Discount percentage */}
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-slate-700">نسبة الخصم التلقائي على السلة (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        required
+                        value={campaignDiscountPercentage}
+                        onChange={e => setCampaignDiscountPercentage(e.target.value)}
+                        placeholder="15"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Free Delivery Switch */}
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                      <div>
+                        <span className="block text-sm font-bold text-slate-850">توصيل مجاني بالكامل</span>
+                        <span className="block text-[11px] text-slate-400">تصفير تكلفة التوصيل لجميع الطلبات أثناء تشغيل الحملة</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={campaignFreeDelivery}
+                          onChange={e => setCampaignFreeDelivery(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+
+                    {/* Marquee Banner Text */}
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-slate-700">نص الشريط الإعلاني المتحرك</label>
+                      <textarea
+                        required
+                        rows="3"
+                        value={campaignMarqueeText}
+                        onChange={e => setCampaignMarqueeText(e.target.value)}
+                        placeholder="اكتب هنا نص التهنئة الذي سيتحرك في أعلى شاشة المتجر..."
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Save Button */}
+                    <button
+                      type="submit"
+                      disabled={settingsLoading}
+                      className="w-full bg-[#F3760C] hover:bg-[#D97706] disabled:bg-orange-350 text-white font-extrabold py-3.5 rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
+                      style={{ fontFamily: "'Cairo', sans-serif" }}
+                    >
+                      <span>💾</span> حفظ إعدادات حملة العروض الترويجية
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
           </>
         )}
       </div>
@@ -2754,6 +2991,18 @@ export default function AdminDashboard() {
                         value={productForm.price}
                         onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
                         placeholder="مثال: 150"
+                        className="w-full px-4 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-700 text-xs font-semibold mb-1">السعر بعد الخصم (ج.س) - اختياري</label>
+                      <input
+                        id="client-prod-discount-price"
+                        type="number"
+                        min="0"
+                        value={productForm.discount_price}
+                        onChange={(e) => setProductForm({ ...productForm, discount_price: e.target.value })}
+                        placeholder="اتركه فارغاً في حال عدم وجود خصم"
                         className="w-full px-4 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-bold"
                       />
                     </div>

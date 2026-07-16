@@ -24,7 +24,11 @@ export const CartProvider = ({ children }) => {
   const addToCart = (product, selectedSize = null, selectedPrice = null) => {
     const pid = (product.id || product._id)?.toString();
     const cartKey = selectedSize ? `${pid}_${selectedSize}` : pid;
-    const itemPrice = selectedPrice !== null ? Number(selectedPrice) : Number(product.price);
+    
+    let itemPrice = selectedPrice !== null ? Number(selectedPrice) : Number(product.price);
+    if (selectedPrice === null && product.discount_price !== undefined && product.discount_price !== null && Number(product.discount_price) > 0) {
+      itemPrice = Number(product.discount_price);
+    }
 
     setCartItems(prev => {
       const exist = prev.find(p => p.cartKey === cartKey);

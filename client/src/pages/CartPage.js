@@ -145,15 +145,18 @@ export default function CartPage() {
     };
   }, [insertedOrderId]);
 
+  const [campaign, setCampaign] = useState(null);
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         const { data } = await supabase
           .from('app_settings')
-          .select('delivery_fee, accepting_orders, whatsapp_phone, bank_name, bank_account, bank_holder_name')
+          .select('*')
           .eq('id', 1)
           .maybeSingle();
         if (data) {
+          setCampaign(data);
           if (data.delivery_fee !== null && data.delivery_fee !== undefined) {
             setBaseDeliveryFee(Number(data.delivery_fee));
           }
@@ -247,7 +250,17 @@ export default function CartPage() {
     });
   };
 
-  const grandTotal = totalAmount + deliveryFee;
+  const isCampaignActive = campaign && campaign.campaign_active &&
+    campaign.campaign_start_date && campaign.campaign_end_date &&
+    Date.now() >= new Date(campaign.campaign_start_date).getTime() &&
+    Date.now() <= new Date(campaign.campaign_end_date).getTime();
+
+  const discountPercentage = isCampaignActive ? (campaign.campaign_discount_percentage || 0) : 0;
+  const campaignDiscount = Math.round(totalAmount * (discountPercentage / 100));
+  const finalSubtotal = totalAmount - campaignDiscount;
+
+  const actualDeliveryFee = (isCampaignActive && campaign.campaign_free_delivery) ? 0 : deliveryFee;
+  const grandTotal = finalSubtotal + actualDeliveryFee;
 
   const handleCheckout = async (e) => {
     e.preventDefault();
@@ -377,7 +390,8 @@ export default function CartPage() {
         orderNumber,
         items: cartItems,
         totalAmount,
-        deliveryFee,
+        discount: campaignDiscount,
+        deliveryFee: actualDeliveryFee,
         grandTotal,
         address,
         phone: cleanPhone,
@@ -428,6 +442,7 @@ export default function CartPage() {
       `${divider}\n` +
       `📊 *تفاصيل الحساب:*\n` +
       `▫️ المجموع الفرعي: ${details.totalAmount} ج.س\n` +
+      (details.discount > 0 ? `▫️ خصم العرض: -${details.discount} ج.س\n` : '') +
       `▫️ تكلفة التوصيل: ${details.deliveryFee} ج.س\n` +
       `💰 *الإجمالي الكلي:* *${details.grandTotal} ج.س*\n` +
       `${divider}\n` +
@@ -636,8 +651,9 @@ export default function CartPage() {
     startY += 20;
     
     // 5. Totals Box
+    const hasDiscount = details.discount && Number(details.discount) > 0;
     const totalsBoxY = startY;
-    const totalsBoxHeight = 110;
+    const totalsBoxHeight = hasDiscount ? 135 : 110;
     ctx.fillStyle = '#FFF7EC';
     ctx.strokeStyle = '#FFE3C2';
     ctx.lineWidth = 1;
@@ -659,22 +675,44 @@ export default function CartPage() {
     ctx.fillStyle = '#6B5C4F';
     ctx.font = '15px Cairo, Arial, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('المجموع الفرعي:', width - 50, totalsBoxY + 30);
-    ctx.fillText('تكلفة التوصيل:', width - 50, totalsBoxY + 60);
     
-    ctx.fillStyle = '#E14133';
-    ctx.font = 'bold 18px Cairo, Arial, sans-serif';
-    ctx.fillText('الإجمالي الكلي:', width - 50, totalsBoxY + 92);
-    
-    ctx.fillStyle = '#1B130D';
-    ctx.font = 'bold 15px Courier New, monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(`${details.totalAmount} ج.س`, 50, totalsBoxY + 30);
-    ctx.fillText(`${details.deliveryFee} ج.س`, 50, totalsBoxY + 60);
-    
-    ctx.fillStyle = '#E14133';
-    ctx.font = 'bold 20px Courier New, monospace';
-    ctx.fillText(`${details.grandTotal} ج.س`, 50, totalsBoxY + 92);
+    if (hasDiscount) {
+      ctx.fillText('المجموع الفرعي:', width - 50, totalsBoxY + 28);
+      ctx.fillText('خصم العرض:', width - 50, totalsBoxY + 54);
+      ctx.fillText('تكلفة التوصيل:', width - 50, totalsBoxY + 80);
+      
+      ctx.fillStyle = '#E14133';
+      ctx.font = 'bold 18px Cairo, Arial, sans-serif';
+      ctx.fillText('الإجمالي الكلي:', width - 50, totalsBoxY + 112);
+      
+      ctx.fillStyle = '#1B130D';
+      ctx.font = 'bold 15px Courier New, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${details.totalAmount} ج.س`, 50, totalsBoxY + 28);
+      ctx.fillText(`-${details.discount} ج.س`, 50, totalsBoxY + 54);
+      ctx.fillText(`${details.deliveryFee} ج.س`, 50, totalsBoxY + 80);
+      
+      ctx.fillStyle = '#E14133';
+      ctx.font = 'bold 20px Courier New, monospace';
+      ctx.fillText(`${details.grandTotal} ج.س`, 50, totalsBoxY + 112);
+    } else {
+      ctx.fillText('المجموع الفرعي:', width - 50, totalsBoxY + 30);
+      ctx.fillText('تكلفة التوصيل:', width - 50, totalsBoxY + 60);
+      
+      ctx.fillStyle = '#E14133';
+      ctx.font = 'bold 18px Cairo, Arial, sans-serif';
+      ctx.fillText('الإجمالي الكلي:', width - 50, totalsBoxY + 92);
+      
+      ctx.fillStyle = '#1B130D';
+      ctx.font = 'bold 15px Courier New, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${details.totalAmount} ج.س`, 50, totalsBoxY + 30);
+      ctx.fillText(`${details.deliveryFee} ج.س`, 50, totalsBoxY + 60);
+      
+      ctx.fillStyle = '#E14133';
+      ctx.font = 'bold 20px Courier New, monospace';
+      ctx.fillText(`${details.grandTotal} ج.س`, 50, totalsBoxY + 92);
+    }
     
     // Footer
     ctx.fillStyle = '#6B5C4F';
@@ -995,29 +1033,54 @@ export default function CartPage() {
                 <span>المجموع الفرعي:</span>
                 <span className="font-semibold">{totalAmount} ج.س</span>
               </div>
+              {isCampaignActive && campaignDiscount > 0 && (
+                <div className="flex justify-between text-rose-700 font-bold">
+                  <span>خصم العرض ({campaign.campaign_discount_percentage}%):</span>
+                  <span className="font-semibold">-{campaignDiscount} ج.س</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-slate-600">
                 <span className="flex items-center gap-1.5">
                   تكلفة التوصيل:
-                  {userOrderCount === 0 && (
+                  {isCampaignActive && campaign.campaign_free_delivery ? (
                     <span className="bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black">
-                      🆓 أول طلب مجاني!
+                      🆓 عرض التوصيل المجاني!
                     </span>
-                  )}
-                  {userOrderCount === 1 && (
-                    <span className="bg-orange-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black">
-                      🔥 ثاني طلب 50%-
-                    </span>
+                  ) : (
+                    <>
+                      {userOrderCount === 0 && (
+                        <span className="bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black">
+                          🆓 أول طلب مجاني!
+                        </span>
+                      )}
+                      {userOrderCount === 1 && (
+                        <span className="bg-orange-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black">
+                          🔥 ثاني طلب 50%-
+                        </span>
+                      )}
+                    </>
                   )}
                 </span>
                 <span className="font-semibold flex items-center gap-1">
-                  {(userOrderCount === 0 || userOrderCount === 1) && (
-                    <span className="text-slate-400 line-through text-xs font-normal">
-                      {baseDeliveryFee} ج.س
-                    </span>
+                  {(isCampaignActive && campaign.campaign_free_delivery) ? (
+                    <>
+                      <span className="text-slate-400 line-through text-xs font-normal">
+                        {baseDeliveryFee} ج.س
+                      </span>
+                      <span className="text-emerald-600 font-bold">0 ج.س</span>
+                    </>
+                  ) : (
+                    <>
+                      {(userOrderCount === 0 || userOrderCount === 1) && (
+                        <span className="text-slate-400 line-through text-xs font-normal">
+                          {baseDeliveryFee} ج.س
+                        </span>
+                      )}
+                      <span className={userOrderCount === 0 ? "text-emerald-600 font-bold" : ""}>
+                        {deliveryFee} ج.س
+                      </span>
+                    </>
                   )}
-                  <span className={userOrderCount === 0 ? "text-emerald-600 font-bold" : ""}>
-                    {deliveryFee} ج.س
-                  </span>
                 </span>
               </div>
               <div className="flex justify-between text-slate-900 font-extrabold text-lg border-t pt-3">

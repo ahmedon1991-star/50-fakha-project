@@ -261,12 +261,30 @@ export default function ProductsPage() {
             >+</button>
             <div style={{ textAlign: 'left' }}>
               {hasSizes && <div style={{ fontSize: '9px', color: '#9C7A5A' }}>يبدأ من</div>}
-              <span style={{
-                fontFamily: "'Cairo', sans-serif",
-                fontWeight: 800, fontSize: '13px', color: '#C95A06',
-              }}>
-                {minPrice} <span style={{ fontSize: '10px', color: '#9C7A5A', fontWeight: 600 }}>ج.س</span>
-              </span>
+              {(!hasSizes && p.discount_price !== undefined && p.discount_price !== null && Number(p.discount_price) > 0) ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <span style={{
+                    fontFamily: "'Cairo', sans-serif",
+                    fontSize: '11px', color: '#9C7A5A', textDecoration: 'line-through',
+                  }}>
+                    {p.price} ج.س
+                  </span>
+                  <span style={{
+                    fontFamily: "'Cairo', sans-serif",
+                    fontWeight: 800, fontSize: '13px', color: '#F3760C',
+                  }}>
+                    {p.discount_price}{' '}
+                    <span style={{ fontSize: '10px', fontWeight: 600 }}>ج.س</span>
+                  </span>
+                </div>
+              ) : (
+                <span style={{
+                  fontFamily: "'Cairo', sans-serif",
+                  fontWeight: 800, fontSize: '13px', color: '#C95A06',
+                }}>
+                  {minPrice} <span style={{ fontSize: '10px', color: '#9C7A5A', fontWeight: 600 }}>ج.س</span>
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -620,9 +638,23 @@ export default function ProductsPage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '14px', borderTop: '1px solid #F0E1CC' }}>
                 <div>
                   <div style={{ fontSize: '11px', color: '#9C7A5A' }}>السعر</div>
-                  <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: '24px', fontWeight: 900, color: '#C95A06' }}>
-                    {getModalPrice()} <span style={{ fontSize: '13px', color: '#9C7A5A', fontWeight: 600 }}>ج.س</span>
-                  </div>
+                  {(!selectedProduct.sizes || selectedProduct.sizes.length === 0) && selectedProduct.discount_price !== undefined && selectedProduct.discount_price !== null && Number(selectedProduct.discount_price) > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '11px', color: '#9C7A5A', textDecoration: 'line-through' }}>
+                        {selectedProduct.price} ج.س
+                      </span>
+                      <div style={{
+                        fontFamily: "'Cairo', sans-serif",
+                        fontSize: '24px', fontWeight: 900, color: '#F3760C',
+                      }}>
+                        {selectedProduct.discount_price} <span style={{ fontSize: '13px', fontWeight: 600 }}>ج.س</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: '24px', fontWeight: 900, color: '#C95A06' }}>
+                      {getModalPrice()} <span style={{ fontSize: '13px', color: '#9C7A5A', fontWeight: 600 }}>ج.س</span>
+                    </div>
+                  )}
                 </div>
                 <button onClick={handleAddToCart} style={{
                   background: '#F3760C', color: 'white', border: 'none',

@@ -85,6 +85,64 @@ export default function HomePage() {
     return localStorage.getItem('show_welcome_free_delivery') === 'true';
   });
 
+  const [campaign, setCampaign] = useState(null);
+  const [showCampaignSplash, setShowCampaignSplash] = useState(false);
+  const [campaignTimeLeft, setCampaignTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+
+  const isCampaignActive = campaign && campaign.campaign_active && 
+    campaign.campaign_start_date && campaign.campaign_end_date &&
+    Date.now() >= new Date(campaign.campaign_start_date).getTime() && 
+    Date.now() <= new Date(campaign.campaign_end_date).getTime();
+
+  useEffect(() => {
+    const fetchCampaignSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle();
+        if (!error && data) {
+          setCampaign(data);
+        }
+      } catch (err) {
+        console.error('Error fetching campaign settings:', err);
+      }
+    };
+    fetchCampaignSettings();
+  }, []);
+
+  useEffect(() => {
+    if (isCampaignActive && campaign?.campaign_start_date) {
+      const seenStart = localStorage.getItem('campaign_splash_seen_start');
+      if (seenStart !== campaign.campaign_start_date) {
+        setShowCampaignSplash(true);
+      }
+    }
+  }, [isCampaignActive, campaign]);
+
+  useEffect(() => {
+    if (!isCampaignActive || !campaign?.campaign_end_date) return;
+
+    const updateTimer = () => {
+      const difference = new Date(campaign.campaign_end_date).getTime() - Date.now();
+      if (difference <= 0) {
+        setCampaignTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      } else {
+        const totalSeconds = Math.floor(difference / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        setCampaignTimeLeft({ hours, minutes, seconds });
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(timer);
+  }, [isCampaignActive, campaign]);
+
 
 
   useEffect(() => {
@@ -228,6 +286,37 @@ export default function HomePage() {
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=Tajawal:wght@400;500;700&display=swap');
+        
+        /* Campaign Marquee Styles */
+        .marquee-wrapper {
+          overflow: hidden;
+          white-space: nowrap;
+          background: linear-gradient(90deg, #F3760C 0%, #C95A06 100%);
+          border-bottom: 2px solid #C95A06;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+          padding: 8px 0;
+          position: relative;
+          z-index: 50;
+        }
+        .marquee-container {
+          display: inline-block;
+          white-space: nowrap;
+          padding-left: 100%;
+          animation: marquee-anim 25s linear infinite;
+        }
+        @keyframes marquee-anim {
+          0% { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(-100%, 0, 0); }
+        }
+        .marquee-item {
+          font-family: 'Cairo', sans-serif;
+          font-size: 13px;
+          font-weight: 800;
+          color: #FFF7EC;
+          margin-left: 50px;
+          display: inline-block;
+        }
+
         .chip-scroll::-webkit-scrollbar { display: none; }
         .product-card {
           background: #FFFFFF;
@@ -349,6 +438,17 @@ export default function HomePage() {
           background-position: center;
         }
       `}</style>
+
+      {/* ─── SCROLLING MARQUEE ─── */}
+      {isCampaignActive && campaign?.campaign_marquee_text && (
+        <div className="marquee-wrapper">
+          <div className="marquee-container">
+            <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
+            <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
+            <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
+          </div>
+        </div>
+      )}
 
       {/* ─── MAIN CONTENT WRAPPER ─── */}
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 16px 0' }}>
@@ -721,13 +821,31 @@ export default function HomePage() {
                         {hasSizes && (
                           <div style={{ fontSize: '9px', color: '#9C7A5A' }}>يبدأ من</div>
                         )}
-                        <span style={{
-                          fontFamily: "'Cairo', sans-serif",
-                          fontWeight: 800, fontSize: '14px', color: '#C95A06',
-                        }}>
-                          {minPrice}{' '}
-                          <span style={{ fontSize: '11px', color: '#9C7A5A', fontWeight: 600 }}>ج.س</span>
-                        </span>
+                        {(!hasSizes && p.discount_price !== undefined && p.discount_price !== null && Number(p.discount_price) > 0) ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                            <span style={{
+                              fontFamily: "'Cairo', sans-serif",
+                              fontSize: '11px', color: '#9C7A5A', textDecoration: 'line-through',
+                            }}>
+                              {p.price} ج.س
+                            </span>
+                            <span style={{
+                              fontFamily: "'Cairo', sans-serif",
+                              fontWeight: 800, fontSize: '14px', color: '#F3760C',
+                            }}>
+                              {p.discount_price}{' '}
+                              <span style={{ fontSize: '11px', fontWeight: 600 }}>ج.س</span>
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{
+                            fontFamily: "'Cairo', sans-serif",
+                            fontWeight: 800, fontSize: '14px', color: '#C95A06',
+                          }}>
+                            {minPrice}{' '}
+                            <span style={{ fontSize: '11px', color: '#9C7A5A', fontWeight: 600 }}>ج.س</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -847,12 +965,26 @@ export default function HomePage() {
               }}>
                 <div>
                   <div style={{ fontSize: '11px', color: '#9C7A5A' }}>السعر</div>
-                  <div style={{
-                    fontFamily: "'Cairo', sans-serif",
-                    fontSize: '26px', fontWeight: 900, color: '#C95A06',
-                  }}>
-                    {getModalPrice()} <span style={{ fontSize: '13px', color: '#9C7A5A', fontWeight: 600 }}>ج.س</span>
-                  </div>
+                  {(!selectedProduct.sizes || selectedProduct.sizes.length === 0) && selectedProduct.discount_price !== undefined && selectedProduct.discount_price !== null && Number(selectedProduct.discount_price) > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '11px', color: '#9C7A5A', textDecoration: 'line-through' }}>
+                        {selectedProduct.price} ج.س
+                      </span>
+                      <div style={{
+                        fontFamily: "'Cairo', sans-serif",
+                        fontSize: '26px', fontWeight: 900, color: '#F3760C',
+                      }}>
+                        {selectedProduct.discount_price} <span style={{ fontSize: '13px', fontWeight: 600 }}>ج.س</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      fontFamily: "'Cairo', sans-serif",
+                      fontSize: '26px', fontWeight: 900, color: '#C95A06',
+                    }}>
+                      {getModalPrice()} <span style={{ fontSize: '13px', color: '#9C7A5A', fontWeight: 600 }}>ج.س</span>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={handleAddToCart}
@@ -960,6 +1092,136 @@ export default function HomePage() {
               style={{ fontFamily: "'Cairo', sans-serif" }}
             >
               ابدأ طلبك الأول الآن 🍊
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── PROMOTIONAL CAMPAIGN WELCOME SPLASH MODAL ─── */}
+      {showCampaignSplash && isCampaignActive && (
+        <div
+          className="fixed inset-0 bg-slate-900/75 backdrop-blur-md flex items-center justify-center z-[9999] p-6"
+          style={{ animation: 'fadeIn 0.35s ease-out forwards' }}
+          onClick={() => {
+            if (campaign?.campaign_start_date) {
+              localStorage.setItem('campaign_splash_seen_start', campaign.campaign_start_date);
+            }
+            setShowCampaignSplash(false);
+          }}
+        >
+          <div
+            className="bg-white border-2 border-orange-500 rounded-[32px] p-8 max-w-md w-full text-center shadow-2xl relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #FFFDF9 0%, #FFF7EC 100%)',
+              animation: 'popIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                if (campaign?.campaign_start_date) {
+                  localStorage.setItem('campaign_splash_seen_start', campaign.campaign_start_date);
+                }
+                setShowCampaignSplash(false);
+              }}
+              style={{
+                position: 'absolute', top: '16px', right: '16px',
+                background: 'none', border: 'none', fontSize: '20px',
+                color: '#9C7A5A', cursor: 'pointer', fontWeight: 800,
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Top decorative icons */}
+            <div className="flex justify-center gap-3 mb-4">
+              <span className="text-5xl" style={{ animation: 'floatEmoji 3s ease-in-out infinite' }}>🎉</span>
+              <span className="text-5xl" style={{ animation: 'floatEmoji 3s ease-in-out infinite 0.5s' }}>🍹</span>
+              <span className="text-5xl" style={{ animation: 'floatEmoji 3s ease-in-out infinite 1s' }}>🎁</span>
+            </div>
+
+            {/* Content */}
+            <h2 className="font-black text-2xl text-slate-900 mb-2.5 leading-snug" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              {campaign?.campaign_title || 'مرور عام على الافتتاح!'}
+              <br />
+              <span className="text-orange-500">احتفلوا معنا بعروضنا الخاصة!</span>
+            </h2>
+
+            <p className="text-xs font-bold text-slate-500 mb-5 leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+              بمناسبة مرور سنة على افتتاح فرع 50 فاكهة، يسعدنا أن نقدم لكم عروضاً وخصومات مميزة لفترة محدودة جداً:
+            </p>
+
+            {/* Discount Cards container */}
+            <div className="flex flex-col gap-3 mb-6">
+              {campaign?.campaign_discount_percentage > 0 && (
+                <div 
+                  className="text-white p-4 rounded-2xl flex items-center justify-between shadow-md border border-white/10"
+                  style={{ background: 'linear-gradient(135deg, #F3760C 0%, #D97706 100%)' }}
+                >
+                  <span className="text-3xl">🔥</span>
+                  <div className="flex-1 text-right mr-4">
+                    <div className="text-sm font-black" style={{ fontFamily: "'Cairo', sans-serif" }}>خصم {campaign.campaign_discount_percentage}% بالكامل</div>
+                    <div className="text-[10px] opacity-90" style={{ fontFamily: "'Cairo', sans-serif" }}>خصم تلقائي يطبق على إجمالي الفاتورة لجميع المشروبات والمنتجات!</div>
+                  </div>
+                </div>
+              )}
+
+              {campaign?.campaign_free_delivery && (
+                <div 
+                  className="text-white p-4 rounded-2xl flex items-center justify-between shadow-md border border-white/10"
+                  style={{ background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)' }}
+                >
+                  <span className="text-3xl">🆓</span>
+                  <div className="flex-1 text-right mr-4">
+                    <div className="text-sm font-black" style={{ fontFamily: "'Cairo', sans-serif" }}>توصيل مجاني 100%</div>
+                    <div className="text-[10px] opacity-90" style={{ fontFamily: "'Cairo', sans-serif" }}>خدمة التوصيل لجميع الطلبات مجانية بالكامل طوال فترة العرض!</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Countdown Timer */}
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: '#9C7A5A', marginBottom: '8px', fontFamily: "'Cairo', sans-serif" }}>ينتهي العرض التلقائي خلال:</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', direction: 'ltr' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ background: '#1B130D', color: '#FFF7EC', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 900, fontFamily: 'monospace' }}>
+                    {String(campaignTimeLeft.seconds).padStart(2, '0')}
+                  </div>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: '#9C7A5A', marginTop: '4px', fontFamily: "'Cairo', sans-serif" }}>ثانية</span>
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: 900, color: '#1B130D', paddingTop: '4px' }}>:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ background: '#1B130D', color: '#FFF7EC', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 900, fontFamily: 'monospace' }}>
+                    {String(campaignTimeLeft.minutes).padStart(2, '0')}
+                  </div>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: '#9C7A5A', marginTop: '4px', fontFamily: "'Cairo', sans-serif" }}>دقيقة</span>
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: 900, color: '#1B130D', paddingTop: '4px' }}>:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ background: '#1B130D', color: '#FFF7EC', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 900, fontFamily: 'monospace' }}>
+                    {String(campaignTimeLeft.hours).padStart(2, '0')}
+                  </div>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: '#9C7A5A', marginTop: '4px', fontFamily: "'Cairo', sans-serif" }}>ساعة</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action button */}
+            <button
+              onClick={() => {
+                if (campaign?.campaign_start_date) {
+                  localStorage.setItem('campaign_splash_seen_start', campaign.campaign_start_date);
+                }
+                setShowCampaignSplash(false);
+                const el = document.querySelector('.chip-scroll');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="w-full bg-[#F3760C] hover:bg-[#D97706] text-white border-none rounded-2xl py-3.5 font-black text-sm cursor-pointer shadow-lg active:scale-[0.98] transition"
+              style={{ fontFamily: "'Cairo', sans-serif" }}
+            >
+              ابدأ الطلب الآن واستفد من العرض! 🍹
             </button>
           </div>
         </div>
