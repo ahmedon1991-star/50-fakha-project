@@ -202,6 +202,7 @@ export default function AdminDashboard() {
   const wakeLockRenewRef = useRef(null);  // interval for periodic wake lock renewal
   const swRegistrationRef = useRef(null); // service worker registration for OS notifications
   const statusBroadcastChannelRef = useRef(null);
+  const alarmAutoStopRef = useRef(null);  // auto-stop timeout for alarm after 60s
   const [sliderImages, setSliderImages] = useState([]);
   const [sliderUploading, setSliderUploading] = useState(false);
 
@@ -408,12 +409,27 @@ export default function AdminDashboard() {
     setAlarmActive(true);
     // Fire OS notification so admin gets alerted even if tab is sleeping
     if (orderNumber) sendAdminOsNotification(orderNumber);
+
+    // ── Auto-stop: تلقائياً يوقف الصوت بعد 60 ثانية ──────────────────
+    if (alarmAutoStopRef.current) clearTimeout(alarmAutoStopRef.current);
+    alarmAutoStopRef.current = setTimeout(() => {
+      if (audioIntervalRef.current) {
+        clearInterval(audioIntervalRef.current);
+        audioIntervalRef.current = null;
+      }
+      setAlarmActive(false);
+      alarmAutoStopRef.current = null;
+    }, 60000);
   };
 
   const stopAlarm = () => {
     if (audioIntervalRef.current) {
       clearInterval(audioIntervalRef.current);
       audioIntervalRef.current = null;
+    }
+    if (alarmAutoStopRef.current) {
+      clearTimeout(alarmAutoStopRef.current);
+      alarmAutoStopRef.current = null;
     }
     setAlarmActive(false);
   };
