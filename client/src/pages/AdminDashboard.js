@@ -241,12 +241,16 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAcceptOrder = async (orderId, orderNumber) => {
+  const handleAcceptOrder = async (orderId, orderNumber, autoAccepted = false) => {
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
     }
-    stopAlarm();
+    // في حالة القبول اليدوي نوقف الصوت فوراً
+    // في حالة القبول التلقائي نترك الصوت يكمل حتى يعلم الأدمن بالطلب
+    if (!autoAccepted) {
+      stopAlarm();
+    }
     setLatestNewOrder(null);
 
     try {
@@ -878,7 +882,7 @@ export default function AdminDashboard() {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(countdownIntervalRef.current);
-            handleAcceptOrder(latestNewOrder.id, latestNewOrder.order_number);
+            handleAcceptOrder(latestNewOrder.id, latestNewOrder.order_number, true);
             return 0;
           }
           return prev - 1;
