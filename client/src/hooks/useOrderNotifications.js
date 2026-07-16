@@ -37,6 +37,7 @@ function playNotificationSound(type = 'success') {
 
     const notes = {
       success:  [523, 659, 784],   // C5 E5 G5 — happy chord
+      prep:     [587, 698, 880],   // D5 F5 A5 — active prep alert
       delivery: [440, 554, 659],   // A4 C#5 E5 — warm
       done:     [784, 987, 1175],  // G5 B5 D6 — celebratory
     };
@@ -126,7 +127,8 @@ export function useOrderNotifications(onNotification) {
     const body = config.body.replace('#ORDER#', `#${orderNumber}`);
     const soundType =
       newStatus === 'تم التوصيل' ? 'done' :
-      newStatus === 'قيد التوصيل' ? 'delivery' : 'success';
+      newStatus === 'قيد التوصيل' ? 'delivery' :
+      newStatus === 'قيد التجهيز' ? 'prep' : 'success';
 
     // 1. Play sound
     playNotificationSound(soundType);
