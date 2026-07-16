@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -111,6 +113,55 @@ function ProtectedRoute({ children }) {
 
 function AppContent() {
   const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+
+    const setupPushNotifications = async () => {
+      try {
+        if (!Capacitor.isNativePlatform()) return;
+
+        let permStatus = await PushNotifications.checkPermissions();
+        if (permStatus.receive === 'prompt') {
+          permStatus = await PushNotifications.requestPermissions();
+        }
+        if (permStatus.receive !== 'granted') {
+          console.warn('Push permission not granted');
+          return;
+        }
+
+        await PushNotifications.register();
+
+        PushNotifications.addListener('registration', async (token) => {
+          console.log('FCM registration success, token:', token.value);
+          const { error } = await supabase
+            .from('profiles')
+            .update({ fcm_token: token.value })
+            .eq('id', user.id);
+          if (error) {
+            console.error('Error updating fcm_token in Supabase:', error);
+          }
+        });
+
+        PushNotifications.addListener('registrationError', (error) => {
+          console.error('FCM registration error:', error);
+        });
+
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          console.log('FCM Notification received:', notification);
+        });
+
+        PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+          console.log('FCM Action performed:', action);
+        });
+
+      } catch (err) {
+        console.warn('FCM registration skipped or not supported:', err);
+      }
+    };
+
+    setupPushNotifications();
+  }, [user]);
   
   // Array of admin-only emails that should never see the storefront
   const ADMIN_ONLY_EMAILS = ['admin@50fakha.com'];
