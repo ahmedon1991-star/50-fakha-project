@@ -391,7 +391,7 @@ export default function MemberOrdersPage() {
   useEffect(() => {
     if (!user) return;
 
-    const NOTIFIABLE_STATUSES = ['تم التأكيد', 'قيد التوصيل', 'تم التوصيل'];
+    const NOTIFIABLE_STATUSES = ['تم التأكيد', 'قيد التجهيز', 'قيد التوصيل', 'تم التوصيل'];
 
     const channel = supabase
       .channel(`member-orders-realtime-${user.id}`)
@@ -475,8 +475,9 @@ export default function MemberOrdersPage() {
     switch (status) {
       case 'قيد الانتظار': return 0;
       case 'تم التأكيد': return 1;
-      case 'قيد التوصيل': return 2;
-      case 'تم التوصيل': return 3;
+      case 'قيد التجهيز': return 2;
+      case 'قيد التوصيل': return 3;
+      case 'تم التوصيل': return 4;
       default: return -1;
     }
   };
@@ -485,6 +486,7 @@ export default function MemberOrdersPage() {
     switch (status) {
       case 'قيد الانتظار': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'تم التأكيد': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'قيد التجهيز': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'قيد التوصيل': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'تم التوصيل': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       default: return 'bg-rose-100 text-rose-800 border-rose-200';
@@ -494,6 +496,7 @@ export default function MemberOrdersPage() {
   const steps = [
     { label: 'قيد الانتظار', icon: '⏳' },
     { label: 'تم التأكيد', icon: '📋' },
+    { label: 'قيد التجهيز', icon: '👨‍🍳' },
     { label: 'قيد التوصيل', icon: '🛵' },
     { label: 'تم التوصيل', icon: '📦' }
   ];

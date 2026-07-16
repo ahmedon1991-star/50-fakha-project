@@ -517,7 +517,7 @@ export default function AdminDashboard() {
         }));
 
         // Split into current (active), completed, cancelled
-        const ACTIVE_STATUSES = ['قيد الانتظار', 'تم التأكيد', 'قيد التوصيل'];
+        const ACTIVE_STATUSES = ['قيد الانتظار', 'تم التأكيد', 'قيد التجهيز', 'قيد التوصيل'];
         setOrders(formatted.filter(o => ACTIVE_STATUSES.includes(o.status)));
         setCompletedOrders(formatted.filter(o => o.status === 'تم التوصيل'));
         setCancelledOrders(formatted.filter(o => o.status === 'ملغي'));
@@ -1059,7 +1059,7 @@ export default function AdminDashboard() {
 
   // Orders Management
   const handleStatusChange = async (orderId, newStatus) => {
-    const ACTIVE_STATUSES = ['قيد الانتظار', 'تم التأكيد', 'قيد التوصيل'];
+    const ACTIVE_STATUSES = ['قيد الانتظار', 'تم التأكيد', 'قيد التجهيز', 'قيد التوصيل'];
 
     // Gather the order from whichever list currently holds it
     const orderFromActive    = orders.find(o => o.id === orderId);
@@ -1230,6 +1230,7 @@ export default function AdminDashboard() {
     switch (status) {
       case 'قيد الانتظار': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'تم التأكيد': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'قيد التجهيز': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'قيد التوصيل': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'تم التوصيل': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'ملغي': return 'bg-rose-100 text-rose-800 border-rose-200';
@@ -1964,6 +1965,7 @@ export default function AdminDashboard() {
                 const statusColors = {
                   'قيد الانتظار':  'bg-amber-50  border-amber-300  text-amber-700',
                   'تم التأكيد':    'bg-blue-50   border-blue-300   text-blue-700',
+                  'قيد التجهيز':   'bg-indigo-50  border-indigo-300  text-indigo-700',
                   'قيد التوصيل':   'bg-purple-50 border-purple-300 text-purple-700',
                   'تم التوصيل':    'bg-emerald-50 border-emerald-300 text-emerald-700',
                   'ملغي':          'bg-rose-50   border-rose-300   text-rose-700',
@@ -3464,6 +3466,11 @@ export default function AdminDashboard() {
                       </>}
                       {order.status === 'تم التأكيد' && <>
                         <option value="تم التأكيد">تم التأكيد</option>
+                        <option value="قيد التجهيز">👨‍🍳 قيد التجهيز</option>
+                        <option value="ملغي">❌ ملغي</option>
+                      </>}
+                      {order.status === 'قيد التجهيز' && <>
+                        <option value="قيد التجهيز">قيد التجهيز</option>
                         <option value="قيد التوصيل">🚚 قيد التوصيل</option>
                         <option value="ملغي">❌ ملغي</option>
                       </>}
