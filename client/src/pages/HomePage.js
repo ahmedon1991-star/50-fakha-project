@@ -297,14 +297,21 @@ export default function HomePage() {
           padding: 8px 0;
           position: relative;
           z-index: 50;
+          display: flex;
         }
-        .marquee-container {
-          display: inline-block;
+        .marquee-content-container {
+          display: flex;
+          white-space: nowrap;
+          width: max-content;
+        }
+        .marquee-scroll-block {
+          display: flex;
+          align-items: center;
           white-space: nowrap;
           animation: marquee-anim 25s linear infinite;
         }
         @keyframes marquee-anim {
-          0% { transform: translate3d(100vw, 0, 0); }
+          0% { transform: translate3d(0, 0, 0); }
           100% { transform: translate3d(-100%, 0, 0); }
         }
         .marquee-item {
@@ -312,7 +319,7 @@ export default function HomePage() {
           font-size: 13px;
           font-weight: 800;
           color: #FFF7EC;
-          margin-left: 50px;
+          padding: 0 20px;
           display: inline-block;
         }
 
@@ -441,10 +448,15 @@ export default function HomePage() {
       {/* ─── SCROLLING MARQUEE ─── */}
       {isCampaignActive && campaign?.campaign_marquee_text && (
         <div className="marquee-wrapper">
-          <div className="marquee-container">
-            <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
-            <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
-            <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
+          <div className="marquee-content-container">
+            <div className="marquee-scroll-block">
+              <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
+              <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
+            </div>
+            <div className="marquee-scroll-block">
+              <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
+              <span className="marquee-item">✨ {campaign.campaign_marquee_text} ✨</span>
+            </div>
           </div>
         </div>
       )}
