@@ -301,11 +301,10 @@ export default function HomePage() {
         .marquee-container {
           display: inline-block;
           white-space: nowrap;
-          padding-left: 100%;
           animation: marquee-anim 25s linear infinite;
         }
         @keyframes marquee-anim {
-          0% { transform: translate3d(0, 0, 0); }
+          0% { transform: translate3d(100vw, 0, 0); }
           100% { transform: translate3d(-100%, 0, 0); }
         }
         .marquee-item {
