@@ -3229,7 +3229,7 @@ export default function AdminDashboard() {
                                   </span>
                                 )}
                               </h5>
-                              <p className="text-slate-400 text-xs mt-1">
+                              <p className="text-slate-600 font-bold text-xs mt-1">
                                 {it.price} ج.س × {it.quantity}
                               </p>
                             </div>
@@ -3412,7 +3412,7 @@ export default function AdminDashboard() {
                                   </span>
                                 )}
                               </h5>
-                              <p className="text-slate-400 text-xs mt-1">
+                              <p className="text-slate-600 font-bold text-xs mt-1">
                                 {it.price} ج.س × {it.quantity}
                               </p>
                             </div>
