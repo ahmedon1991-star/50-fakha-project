@@ -1092,6 +1092,9 @@ export default function AdminDashboard() {
   const handleStatusChange = async (orderId, newStatus) => {
     const ACTIVE_STATUSES = ['قيد الانتظار', 'تم التأكيد', 'قيد التجهيز', 'قيد التوصيل'];
 
+    // أوقف الصوت فوراً عند أي تغيير يدوي للحالة
+    stopAlarm();
+
     // Gather the order from whichever list currently holds it
     const orderFromActive    = orders.find(o => o.id === orderId);
     const orderFromCompleted = completedOrders.find(o => o.id === orderId);
