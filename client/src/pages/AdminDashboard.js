@@ -247,9 +247,20 @@ export default function AdminDashboard() {
       countdownIntervalRef.current = null;
     }
     // في حالة القبول اليدوي نوقف الصوت فوراً
-    // في حالة القبول التلقائي نترك الصوت يكمل حتى يعلم الأدمن بالطلب
+    // في حالة القبول التلقائي نوقف الصوت بعد 10 ثوانٍ فقط
     if (!autoAccepted) {
       stopAlarm();
+    } else {
+      // إلغاء المؤقت الطويل (60 ثانية) واستبداله بمؤقت 10 ثوانٍ
+      if (alarmAutoStopRef.current) clearTimeout(alarmAutoStopRef.current);
+      alarmAutoStopRef.current = setTimeout(() => {
+        if (audioIntervalRef.current) {
+          clearInterval(audioIntervalRef.current);
+          audioIntervalRef.current = null;
+        }
+        setAlarmActive(false);
+        alarmAutoStopRef.current = null;
+      }, 10000);
     }
     setLatestNewOrder(null);
 
