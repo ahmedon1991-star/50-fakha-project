@@ -247,22 +247,23 @@ export default function AdminDashboard() {
       clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
     }
-    // في حالة القبول اليدوي نوقف الصوت فوراً
-    // في حالة القبول التلقائي نوقف الصوت بعد 10 ثوانٍ فقط
-    if (!autoAccepted) {
-      stopAlarm();
-    } else {
-      // إلغاء المؤقت الطويل (60 ثانية) واستبداله بمؤقت 10 ثوانٍ
-      if (alarmAutoStopRef.current) clearTimeout(alarmAutoStopRef.current);
-      alarmAutoStopRef.current = setTimeout(() => {
-        if (audioIntervalRef.current) {
-          clearInterval(audioIntervalRef.current);
-          audioIntervalRef.current = null;
+    
+    // إيقاف الصوت فوراً في جميع الحالات (سواء يدوي أو تلقائي)
+    stopAlarm();
+    
+    // مسح الإشعارات المستلمة من شريط إشعارات الهاتف
+    try {
+      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        const { PushNotifications } = window.Capacitor.Plugins;
+        if (PushNotifications) {
+          await PushNotifications.removeAllDeliveredNotifications();
+          console.log('Mobile notifications cleared successfully ✅');
         }
-        setAlarmActive(false);
-        alarmAutoStopRef.current = null;
-      }, 10000);
+      }
+    } catch (e) {
+      console.warn('Failed to clear delivered notifications:', e);
     }
+
     setLatestNewOrder(null);
 
     try {
@@ -425,8 +426,18 @@ export default function AdminDashboard() {
       return;
     }
 
+    // تأمين: إذا كان التنبيه يعمل بالفعل، أوقفه أولاً لتجنب تراكم الـ Intervals
+    if (audioIntervalRef.current) {
+      clearInterval(audioIntervalRef.current);
+      audioIntervalRef.current = null;
+    }
+
+    // استئناف الـ AudioContext لضمان خروج الصوت
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch(e => console.warn('Could not resume audio:', e));
+    }
+
     playLoudNotification();
-    if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     audioIntervalRef.current = setInterval(playLoudNotification, 2000);
     setAlarmActive(true);
     // Fire OS notification so admin gets alerted even if tab is sleeping
@@ -434,26 +445,45 @@ export default function AdminDashboard() {
 
     // ── Auto-stop: تلقائياً يوقف الصوت بعد 60 ثانية ──────────────────
     if (alarmAutoStopRef.current) clearTimeout(alarmAutoStopRef.current);
-    alarmAutoStopRef.current = setTimeout(() => {
-      if (audioIntervalRef.current) {
-        clearInterval(audioIntervalRef.current);
-        audioIntervalRef.current = null;
-      }
-      setAlarmActive(false);
-      alarmAutoStopRef.current = null;
+    alarmAutoStopRef.current = setTimeout(async () => {
+      stopAlarm();
+      console.log('Mobile notifications auto-cleared after 60s timeout ✅');
     }, 60000);
   };
 
   const stopAlarm = () => {
+    console.log('🔔 Stopping all alarms in AdminDashboard...');
+    
+    // 1. مسح الـ Interval الخاص بالصوت البرمجي
     if (audioIntervalRef.current) {
       clearInterval(audioIntervalRef.current);
       audioIntervalRef.current = null;
     }
+    
+    // 2. مسح مؤقت الإيقاف التلقائي
     if (alarmAutoStopRef.current) {
       clearTimeout(alarmAutoStopRef.current);
       alarmAutoStopRef.current = null;
     }
-    alarmCoolingRef.current = Date.now(); // سجّل وقت الإيقاف اليدوي
+    
+    // 3. تعليق الـ AudioContext لإيقاف أي صوت خارج فوراً
+    if (audioContextRef.current && audioContextRef.current.state === 'running') {
+      audioContextRef.current.suspend().catch(e => console.warn('Could not suspend AudioContext:', e));
+    }
+    
+    // 4. مسح الإشعارات المستلمة من شريط إشعارات الهاتف
+    try {
+      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        const { PushNotifications } = window.Capacitor.Plugins;
+        if (PushNotifications) {
+          PushNotifications.removeAllDeliveredNotifications();
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to clear notifications in stopAlarm:', e);
+    }
+
+    alarmCoolingRef.current = Date.now(); // سجّل وقت الإيقاف
     setAlarmActive(false);
   };
 
@@ -654,13 +684,22 @@ export default function AdminDashboard() {
 
       if (error) throw error;
       if (data && data.length > 0) {
-        // Find the first order that hasn't been alerted yet
-        const unalertedOrder = data.find(order => !alertedOrderIds.current.has(order.id));
+        // نقوم بالتحقق من الطلبات غير المنبهة، مع التأكد من أنها حديثة (خلال آخر 5 دقائق) لتجنب تعليق الصوت على طلبات قديمة
+        const unalertedOrder = data.find(order => {
+          if (alertedOrderIds.current.has(order.id)) return false;
+          // التحقق من تاريخ الإنشاء
+          const orderAgeMs = Date.now() - new Date(order.created_at).getTime();
+          return orderAgeMs < 300000; // 5 دقائق (300,000 مللي ثانية)
+        });
+
         if (unalertedOrder) {
           alertedOrderIds.current.add(unalertedOrder.id);
           setLatestNewOrder(unalertedOrder);
-          startAlarm();
+          startAlarm(unalertedOrder.order_number);
           setTimeout(() => fetchData(), 1500);
+        } else {
+          // إذا كان الطلب قديماً جداً، نقوم فقط بإضافته لـ alerted لكي لا نعيد فحصه وتنبيهه
+          data.forEach(order => alertedOrderIds.current.add(order.id));
         }
       }
     } catch (err) {
@@ -694,6 +733,13 @@ export default function AdminDashboard() {
         console.warn('SW/Notification setup error:', e);
       }
     };
+
+    // ── إيقاف الإنذار عند النقر على الإشعار الأصيل من الهاتف ───────────
+    const handleFcmTapped = () => {
+      console.log('FCM notification tapped — stopping alarm');
+      stopAlarm();
+    };
+    window.addEventListener('fcm-notification-tapped', handleFcmTapped);
     setupServiceWorker();
 
     const setupSubscriptions = () => {
@@ -750,6 +796,21 @@ export default function AdminDashboard() {
                 startAlarm(newOrder.order_number);
                 setTimeout(() => fetchData(), 1500);
               }
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'orders' },
+          (payload) => {
+            const updatedOrder = payload.new;
+            console.log('Realtime order update received:', updatedOrder);
+            // إذا تغيرت حالة الطلب الحالى ولم يعد "قيد الانتظار" (تم قبوله أو إلغاؤه)
+            if (updatedOrder && (updatedOrder.status !== 'قيد الانتظار' || updatedOrder.admin_cleared)) {
+              // أوقف التنبيه فوراً
+              stopAlarm();
+              setLatestNewOrder(null);
+              fetchData();
             }
           }
         )
@@ -872,6 +933,7 @@ export default function AdminDashboard() {
       } catch (e) {}
 
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('fcm-notification-tapped', handleFcmTapped);
       releaseWakeLock();
       if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     };

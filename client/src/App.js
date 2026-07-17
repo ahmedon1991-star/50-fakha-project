@@ -163,12 +163,22 @@ function AppContent() {
           console.error('FCM registration error:', error);
         });
 
+        // عند وصول إشعار FCM والتطبيق مفتوح — أرسل حدثاً لـ AdminDashboard
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          console.log('FCM Notification received:', notification);
+          console.log('FCM Notification received in foreground:', notification);
+          // أرسل حدثاً عاماً يُمكن AdminDashboard من الاستجابة له
+          window.dispatchEvent(new CustomEvent('fcm-new-order', {
+            detail: notification.data
+          }));
         });
 
+        // عند نقر الأدمن على الإشعار الأصيل — أوقف الإنذار فوراً
         PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-          console.log('FCM Action performed:', action);
+          console.log('FCM Action performed (notification tapped):', action);
+          // أرسل حدثاً لإيقاف الإنذار عند النقر على الإشعار
+          window.dispatchEvent(new CustomEvent('fcm-notification-tapped', {
+            detail: action.notification?.data
+          }));
         });
 
       } catch (err) {
