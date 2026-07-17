@@ -203,6 +203,7 @@ export default function AdminDashboard() {
   const swRegistrationRef = useRef(null); // service worker registration for OS notifications
   const statusBroadcastChannelRef = useRef(null);
   const alarmAutoStopRef = useRef(null);  // auto-stop timeout for alarm after 60s
+  const alarmCoolingRef = useRef(0);      // timestamp of last manual stop (30s cooling-off)
   const [sliderImages, setSliderImages] = useState([]);
   const [sliderUploading, setSliderUploading] = useState(false);
 
@@ -418,6 +419,12 @@ export default function AdminDashboard() {
   };
 
   const startAlarm = (orderNumber) => {
+    // ── Cooling-off: لا نعيد الإنذار خلال 30 ثانية من آخر إيقاف يدوي ──
+    if (Date.now() - alarmCoolingRef.current < 30000) {
+      console.log('Alarm skipped — cooling off period active');
+      return;
+    }
+
     playLoudNotification();
     if (audioIntervalRef.current) clearInterval(audioIntervalRef.current);
     audioIntervalRef.current = setInterval(playLoudNotification, 2000);
@@ -446,6 +453,7 @@ export default function AdminDashboard() {
       clearTimeout(alarmAutoStopRef.current);
       alarmAutoStopRef.current = null;
     }
+    alarmCoolingRef.current = Date.now(); // سجّل وقت الإيقاف اليدوي
     setAlarmActive(false);
   };
 

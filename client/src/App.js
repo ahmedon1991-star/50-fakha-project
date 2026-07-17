@@ -130,6 +130,22 @@ function AppContent() {
           return;
         }
 
+        // ── إنشاء قناة إشعارات Android بأعلى أولوية وصوت ──────────────
+        if (Capacitor.getPlatform() === 'android') {
+          await PushNotifications.createChannel({
+            id: 'new_orders',
+            name: 'طلبات جديدة',
+            description: 'تنبيهات الطلبات الجديدة للمسؤول',
+            importance: 5,        // IMPORTANCE_HIGH
+            visibility: 1,        // PUBLIC
+            sound: 'default',
+            vibration: true,
+            lights: true,
+            lightColor: '#FF4500',
+          });
+          console.log('Android notification channel "new_orders" created ✅');
+        }
+
         await PushNotifications.register();
 
         PushNotifications.addListener('registration', async (token) => {
