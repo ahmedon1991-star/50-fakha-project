@@ -124,6 +124,15 @@ export default function AdminDashboard() {
   const [campaignStartDate, setCampaignStartDate] = useState('');
   const [campaignEndDate, setCampaignEndDate] = useState('');
 
+  // Draw Settings State
+  const [drawActive, setDrawActive] = useState(false);
+  const [drawTitle, setDrawTitle] = useState('🎉 نتائج السحب لاحتفالية 50 فاكهة!');
+  const [drawSubtitle, setDrawSubtitle] = useState('ألف مبروك لكل فائز معنا في سحب أمس، وشكراً لكل من شاركنا. إليكم قائمة الفائزين:');
+  const [drawWinners, setDrawWinners] = useState([
+    { prize: "📱 جوال هونر", name: "" },
+    { prize: "💵 جائزة نقدية (150 ألف)", name: "" }
+  ]);
+
   // Mobile Drawer Menu State
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -1392,6 +1401,21 @@ export default function AdminDashboard() {
           setSliderImages([]);
         }
       }
+
+      // جلب إعدادات السحب من السجل رقم 4
+      const { data: drawData } = await supabase.from('app_settings').select('*').eq('id', 4).maybeSingle();
+      if (drawData) {
+        setDrawActive(drawData.accepting_orders ?? false);
+        setDrawTitle(drawData.campaign_title || '🎉 نتائج السحب لاحتفالية 50 فاكهة!');
+        setDrawSubtitle(drawData.campaign_marquee_text || 'ألف مبروك لكل فائز معنا في سحب أمس، وشكراً لكل من شاركنا. إليكم قائمة الفائزين:');
+        if (drawData.bank_account) {
+          try {
+            setDrawWinners(JSON.parse(drawData.bank_account) || []);
+          } catch (e) {
+            console.warn('Failed to parse draw winners:', e);
+          }
+        }
+      }
     } catch (err) { console.error('Settings fetch error:', err); }
   };
 
@@ -1489,6 +1513,29 @@ export default function AdminDashboard() {
       setSettingsSuccess('تم حفظ إعدادات حملة العروض بنجاح! 🚀');
     } catch (err) {
       setSettingsError(err.message || 'خطأ أثناء حفظ إعدادات الحملة');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleSaveDrawSettings = async (e) => {
+    if (e) e.preventDefault();
+    setSettingsLoading(true);
+    setSettingsError('');
+    setSettingsSuccess('');
+    try {
+      const { error } = await supabase.from('app_settings').upsert({
+        id: 4,
+        accepting_orders: drawActive,
+        campaign_title: drawTitle,
+        campaign_marquee_text: drawSubtitle,
+        bank_account: JSON.stringify(drawWinners.filter(w => w.name.trim() !== '')),
+        updated_at: new Date().toISOString()
+      });
+      if (error) throw error;
+      setSettingsSuccess('تم حفظ إعدادات ونتائج السحب بنجاح! 🚀🏆');
+    } catch (err) {
+      setSettingsError(err.message || 'خطأ أثناء حفظ إعدادات السحب');
     } finally {
       setSettingsLoading(false);
     }
@@ -1837,6 +1884,20 @@ export default function AdminDashboard() {
                   <span className="text-lg">📢</span>
                   <span className="font-extrabold text-sm">حملة العروض (مرور عام)</span>
                 </button>
+
+                {/* 6. Draw Card */}
+                <button
+                  onClick={() => { setActiveTab('draw'); setMobileMenuOpen(false); }}
+                  className={`w-full text-right p-4 rounded-2xl font-bold text-sm transition duration-200 flex items-center justify-between gap-3 border cursor-pointer shadow-xs hover:shadow-sm ${
+                    activeTab === 'draw' 
+                      ? 'bg-white border-amber-500 text-amber-700 shadow-sm ring-2 ring-amber-50' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
+                  }`}
+                  style={{ fontFamily: "'Cairo', sans-serif" }}
+                >
+                  <span className="text-lg">🏆</span>
+                  <span className="font-extrabold text-sm">إعلان وجوائز السحب</span>
+                </button>
               </div>
             </div>
 
@@ -1923,6 +1984,16 @@ export default function AdminDashboard() {
             }`}
           >
             📢 حملة العروض (مرور عام)
+          </button>
+          <button
+            onClick={() => setActiveTab('draw')}
+            className={`py-4 px-3 font-extrabold text-sm border-b-4 transition-all duration-200 ${
+              activeTab === 'draw'
+                ? 'border-amber-600 text-amber-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            🏆 إعلان وجوائز السحب
           </button>
         </div>
       </div>
@@ -3003,6 +3074,170 @@ export default function AdminDashboard() {
                     >
                       <span>💾</span> حفظ إعدادات حملة العروض الترويجية
                     </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* TAB 6: DRAW RESULTS SETTINGS */}
+            {activeTab === 'draw' && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-3xl">🏆</span>
+                  <div>
+                    <h2 className="text-2xl font-extrabold text-slate-900" style={{ fontFamily: "'Cairo', sans-serif" }}>إدارة إعلان وجوائز السحب</h2>
+                    <p className="text-slate-500 text-sm" style={{ fontFamily: "'Cairo', sans-serif" }}>تفعيل وتعطيل نافذة التهنئة المنبثقة، وتحديث أسماء الفائزين بالجوائز ديناميكياً</p>
+                  </div>
+                </div>
+
+                {/* Feedback Messages */}
+                {settingsSuccess && (
+                  <div className="bg-emerald-50 border-r-4 border-emerald-500 text-emerald-800 p-4 rounded-xl flex items-center gap-3 animate-fadeIn">
+                    <span className="text-2xl">✅</span>
+                    <span className="font-semibold text-sm" style={{ fontFamily: "'Cairo', sans-serif" }}>{settingsSuccess}</span>
+                  </div>
+                )}
+                {settingsError && (
+                  <div className="bg-rose-50 border-r-4 border-rose-500 text-rose-800 p-4 rounded-xl flex items-center gap-3 animate-fadeIn">
+                    <span className="text-2xl">❌</span>
+                    <span className="font-semibold text-sm" style={{ fontFamily: "'Cairo', sans-serif" }}>{settingsError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveDrawSettings} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left: General Settings */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+                    <h3 className="text-lg font-bold text-slate-800 border-b pb-3 flex items-center gap-2" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                      <span>⚙️</span> التحكم بالإعلان والعنوان
+                    </h3>
+
+                    {/* Active Switch */}
+                    <div className="flex items-center justify-between p-4 bg-amber-50/50 rounded-xl border border-amber-100">
+                      <div>
+                        <span className="block text-sm font-bold text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>تفعيل نافذة الفائزين</span>
+                        <span className="block text-[11px] text-slate-400" style={{ fontFamily: "'Cairo', sans-serif" }}>إظهار نافذة تهنئة الفائزين المنبثقة فوراً للعملاء عند فتح التطبيق</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={drawActive}
+                          onChange={e => setDrawActive(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                      </label>
+                    </div>
+
+                    {/* Draw Title */}
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-slate-700" style={{ fontFamily: "'Cairo', sans-serif" }}>عنوان نافذة السحب</label>
+                      <input
+                        type="text"
+                        required
+                        value={drawTitle}
+                        onChange={e => setDrawTitle(e.target.value)}
+                        placeholder="مثال: 🎉 نتائج السحب الثاني لاحتفالية 50 فاكهة!"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none font-bold"
+                        style={{ fontFamily: "'Cairo', sans-serif" }}
+                      />
+                      <span className="block text-[10px] text-amber-600" style={{ fontFamily: "'Cairo', sans-serif" }}>تغيير العنوان يمسح حالة المشاهدة لجميع المستخدمين لتظهر لهم من جديد.</span>
+                    </div>
+
+                    {/* Draw Subtitle */}
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-slate-700" style={{ fontFamily: "'Cairo', sans-serif" }}>النص التمهيدي للتهنئة</label>
+                      <textarea
+                        required
+                        rows="3"
+                        value={drawSubtitle}
+                        onChange={e => setDrawSubtitle(e.target.value)}
+                        placeholder="اكتب هنا النص الترحيبي لتهنئة الفائزين..."
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        style={{ fontFamily: "'Cairo', sans-serif" }}
+                      />
+                    </div>
+
+                    {/* Save Button */}
+                    <button
+                      type="submit"
+                      disabled={settingsLoading}
+                      className="w-full bg-[#F3760C] hover:bg-[#D97706] disabled:bg-orange-350 text-white font-extrabold py-3.5 rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
+                      style={{ fontFamily: "'Cairo', sans-serif" }}
+                    >
+                      <span>💾</span> حفظ إعدادات وعناوين السحب
+                    </button>
+                  </div>
+
+                  {/* Right: Winners Management */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+                    <div className="flex items-center justify-between border-b pb-3">
+                      <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                        <span>🎁</span> قائمة وجوائز الفائزين
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => setDrawWinners([...drawWinners, { prize: "💵 جائزة نقدية", name: "" }])}
+                        className="bg-amber-100 hover:bg-amber-200 text-amber-900 border-none font-bold px-3 py-1.5 rounded-xl text-xs cursor-pointer transition"
+                        style={{ fontFamily: "'Cairo', sans-serif" }}
+                      >
+                        ＋ إضافة جائزة/فائز
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                      {drawWinners.map((winner, idx) => (
+                        <div key={idx} className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center gap-2.5">
+                          <div className="flex-1 space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 mb-1" style={{ fontFamily: "'Cairo', sans-serif" }}>نوع الجائزة</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={winner.prize}
+                                  placeholder="مثال: 📱 جوال هونر"
+                                  onChange={e => {
+                                    const next = [...drawWinners];
+                                    next[idx].prize = e.target.value;
+                                    setDrawWinners(next);
+                                  }}
+                                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-bold"
+                                  style={{ fontFamily: "'Cairo', sans-serif" }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 mb-1" style={{ fontFamily: "'Cairo', sans-serif" }}>اسم الفائز</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={winner.name}
+                                  placeholder="مثال: أحمد محمد"
+                                  onChange={e => {
+                                    const next = [...drawWinners];
+                                    next[idx].name = e.target.value;
+                                    setDrawWinners(next);
+                                  }}
+                                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-bold"
+                                  style={{ fontFamily: "'Cairo', sans-serif" }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setDrawWinners(drawWinners.filter((_, i) => i !== idx))}
+                            className="bg-rose-100 hover:bg-rose-200 text-rose-700 border-none font-bold w-7 h-7 rounded-full cursor-pointer flex items-center justify-center transition mt-4 self-center"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      {drawWinners.length === 0 && (
+                        <div className="text-center text-xs text-slate-400 py-8" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                          لا توجد أي جوائز مضافة حالياً. اضغط "إضافة جائزة/فائز" للبدء.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </form>
               </div>

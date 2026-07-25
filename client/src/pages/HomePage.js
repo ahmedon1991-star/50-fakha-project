@@ -84,9 +84,8 @@ export default function HomePage() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => {
     return localStorage.getItem('show_welcome_free_delivery') === 'true';
   });
-  const [showDrawModal, setShowDrawModal] = useState(() => {
-    return localStorage.getItem('seen_first_draw_results_v1') !== 'true';
-  });
+  const [showDrawModal, setShowDrawModal] = useState(false);
+  const [drawSettings, setDrawSettings] = useState(null);
 
   const [campaign, setCampaign] = useState(null);
   const [showCampaignSplash, setShowCampaignSplash] = useState(false);
@@ -112,7 +111,47 @@ export default function HomePage() {
         console.error('Error fetching campaign settings:', err);
       }
     };
+
+    const fetchDrawSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('app_settings')
+          .select('*')
+          .eq('id', 4)
+          .maybeSingle();
+        if (!error && data) {
+          // جلب الفائزين من حقل bank_account
+          let winners = [];
+          if (data.bank_account) {
+            try {
+              winners = JSON.parse(data.bank_account);
+            } catch (e) {
+              console.warn('Failed to parse draw winners:', e);
+            }
+          }
+          const drawInfo = {
+            active: data.accepting_orders ?? false,
+            title: data.campaign_title || '🎉 نتائج السحب لاحتفالية 50 فاكهة!',
+            subtitle: data.campaign_marquee_text || 'إليكم قائمة الفائزين:',
+            winners: winners
+          };
+          setDrawSettings(drawInfo);
+
+          // التحقق من ظهور الإشعار (إذا كان السحب فعالاً والعنوان لم يشاهده المستخدم مسبقاً)
+          if (drawInfo.active) {
+            const lastSeenTitle = localStorage.getItem('seen_draw_title_v2');
+            if (lastSeenTitle !== drawInfo.title) {
+              setShowDrawModal(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching draw settings:', err);
+      }
+    };
+
     fetchCampaignSettings();
+    fetchDrawSettings();
   }, []);
 
   useEffect(() => {
@@ -1315,7 +1354,9 @@ export default function HomePage() {
             {/* Close Button */}
             <button
               onClick={() => {
-                localStorage.setItem('seen_first_draw_results_v1', 'true');
+                if (drawSettings) {
+                  localStorage.setItem('seen_draw_title_v2', drawSettings.title);
+                }
                 setShowDrawModal(false);
               }}
               style={{
@@ -1334,113 +1375,66 @@ export default function HomePage() {
             <div className="text-center mt-3 mb-5">
               <span className="text-5xl inline-block" style={{ animation: 'floatEmoji 3s ease-in-out infinite' }}>🏆</span>
               <h2 className="font-black text-xl text-slate-900 mt-2 mb-1 leading-snug" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                🎉 نتائج السحب الأول
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-600">لاحتفالية 50 فاكهة!</span>
+                {drawSettings?.title || '🎉 نتائج السحب!'}
               </h2>
               <div className="w-16 h-1 bg-amber-400 mx-auto rounded-full mt-2"></div>
             </div>
 
             <p className="text-center text-xs font-bold text-slate-600 mb-4 leading-relaxed px-2" style={{ fontFamily: "'Cairo', sans-serif" }}>
-              ألف مبروك لكل فائز معنا في سحب أمس، وشكراً لكل من شاركنا. إليكم قائمة الفائزين:
+              {drawSettings?.subtitle || 'ألف مبروك لكل فائز معنا، وشكراً لكل من شاركنا. إليكم قائمة الفائزين:'}
             </p>
 
             {/* Winners List */}
             <div className="flex flex-col gap-3 mb-5">
-              {/* Winner 1: Honor Mobile */}
-              <div 
-                className="winner-card p-3 rounded-2xl flex items-center justify-between border border-amber-200/50 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl p-2 bg-amber-400/20 rounded-xl">📱</span>
-                  <div className="text-right">
-                    <div className="text-xs font-bold text-amber-900" style={{ fontFamily: "'Cairo', sans-serif" }}>الجائزة الكبرى</div>
-                    <div className="text-sm font-black text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>جوال هونر</div>
-                  </div>
-                </div>
-                <div className="text-left">
-                  <span className="bg-amber-600 text-white text-xs font-black px-3 py-1.5 rounded-full" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                    تامر محمد
-                  </span>
-                </div>
-              </div>
+              {Array.isArray(drawSettings?.winners) && drawSettings.winners.map((winner, index) => {
+                // Determine layout/color styles based on prize keyword
+                const isPhone = (winner.prize || '').includes('📱') || (winner.prize || '').includes('جوال') || (winner.prize || '').includes('هاتف');
+                const isGift = (winner.prize || '').includes('🎁') || (winner.prize || '').includes('هدية') || (winner.prize || '').includes('بوكس');
+                
+                let bgGradient = 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)'; // Orange default (Cash/standard)
+                let borderTheme = 'border-orange-200/50';
+                let iconColorBg = 'bg-orange-400/20';
+                let icon = '💵';
+                let tagColor = 'bg-orange-500';
+                let badgeTitle = 'جائزة نقدية';
 
-              {/* Winner 2: Cash 150K */}
-              <div 
-                className="winner-card p-3 rounded-2xl flex items-center justify-between border border-orange-200/50 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl p-2 bg-orange-400/20 rounded-xl">💵</span>
-                  <div className="text-right">
-                    <div className="text-xs font-bold text-orange-950" style={{ fontFamily: "'Cairo', sans-serif" }}>جائزة نقدية</div>
-                    <div className="text-sm font-black text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>150 ألف ج.س</div>
-                  </div>
-                </div>
-                <div className="text-left">
-                  <span className="bg-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-full" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                    رهام سليمان
-                  </span>
-                </div>
-              </div>
+                if (isPhone) {
+                  bgGradient = 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)'; // Gold (Phone)
+                  borderTheme = 'border-amber-200/50';
+                  iconColorBg = 'bg-amber-400/20';
+                  icon = '📱';
+                  tagColor = 'bg-amber-600';
+                  badgeTitle = 'الجائزة الكبرى';
+                } else if (isGift) {
+                  bgGradient = 'linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%)'; // Purple (Gift)
+                  borderTheme = 'border-purple-200/50';
+                  iconColorBg = 'bg-purple-400/20';
+                  icon = '🎁';
+                  tagColor = 'bg-purple-600';
+                  badgeTitle = 'هدية قيمة';
+                }
 
-              {/* Winner 3: Cash 150K */}
-              <div 
-                className="winner-card p-3 rounded-2xl flex items-center justify-between border border-orange-200/50 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl p-2 bg-orange-400/20 rounded-xl">💵</span>
-                  <div className="text-right">
-                    <div className="text-xs font-bold text-orange-950" style={{ fontFamily: "'Cairo', sans-serif" }}>جائزة نقدية</div>
-                    <div className="text-sm font-black text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>150 ألف ج.س</div>
+                return (
+                  <div 
+                    key={index}
+                    className="winner-card p-3 rounded-2xl flex items-center justify-between border shadow-sm"
+                    style={{ background: bgGradient, borderColor: borderTheme }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl p-2 rounded-xl" style={{ backgroundColor: iconColorBg.includes('bg-') ? undefined : iconColorBg }}>{icon}</span>
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-500" style={{ fontFamily: "'Cairo', sans-serif" }}>{badgeTitle}</div>
+                        <div className="text-sm font-black text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>{winner.prize}</div>
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <span className={`text-white text-xs font-black px-3 py-1.5 rounded-full ${tagColor}`} style={{ fontFamily: "'Cairo', sans-serif" }}>
+                        {winner.name}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="text-left">
-                  <span className="bg-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-full" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                    أمجد سليمان
-                  </span>
-                </div>
-              </div>
-
-              {/* Winner 4: Cash 150K */}
-              <div 
-                className="winner-card p-3 rounded-2xl flex items-center justify-between border border-orange-200/50 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl p-2 bg-orange-400/20 rounded-xl">💵</span>
-                  <div className="text-right">
-                    <div className="text-xs font-bold text-orange-950" style={{ fontFamily: "'Cairo', sans-serif" }}>جائزة نقدية</div>
-                    <div className="text-sm font-black text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>150 ألف ج.س</div>
-                  </div>
-                </div>
-                <div className="text-left">
-                  <span className="bg-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-full" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                    عبدالرحمن ابراهيم
-                  </span>
-                </div>
-              </div>
-
-              {/* Winner 5: Luxury Gift Box */}
-              <div 
-                className="winner-card p-3 rounded-2xl flex items-center justify-between border border-amber-200/50 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl p-2 bg-purple-400/20 rounded-xl">🎁</span>
-                  <div className="text-right">
-                    <div className="text-xs font-bold text-purple-900" style={{ fontFamily: "'Cairo', sans-serif" }}>هدية قيمة</div>
-                    <div className="text-sm font-black text-slate-800" style={{ fontFamily: "'Cairo', sans-serif" }}>بوكس هدايا فاخر</div>
-                  </div>
-                </div>
-                <div className="text-left">
-                  <span className="bg-purple-600 text-white text-xs font-black px-3 py-1.5 rounded-full" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                    عمار
-                  </span>
-                </div>
-              </div>
+                );
+              })}
             </div>
 
             {/* Footer message */}
@@ -1451,7 +1445,9 @@ export default function HomePage() {
             {/* Action button */}
             <button
               onClick={() => {
-                localStorage.setItem('seen_first_draw_results_v1', 'true');
+                if (drawSettings) {
+                  localStorage.setItem('seen_draw_title_v2', drawSettings.title);
+                }
                 setShowDrawModal(false);
               }}
               className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-none rounded-2xl py-3.5 font-black text-sm cursor-pointer shadow-lg active:scale-[0.98] transition"
