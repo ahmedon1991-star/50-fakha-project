@@ -132,7 +132,7 @@ export default function AdminDashboard() {
     { prize: "📱 جوال هونر", name: "" },
     { prize: "💵 جائزة نقدية (150 ألف)", name: "" }
   ]);
-  const [drawApkUrl, setDrawApkUrl] = useState('');
+  const [apkUrl, setApkUrl] = useState('');
 
   // Mobile Drawer Menu State
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -1363,6 +1363,7 @@ export default function AdminDashboard() {
         setBankHolderName(data.bank_holder_name || '');
         setDeliveryFee(data.delivery_fee !== undefined && data.delivery_fee !== null ? String(data.delivery_fee) : '15');
         setAcceptingOrders(data.accepting_orders ?? true);
+        setApkUrl(data.apk_download_url || '');
 
         // Campaign fields mapping
         setCampaignActive(data.campaign_active ?? false);
@@ -1409,7 +1410,6 @@ export default function AdminDashboard() {
         setDrawActive(drawData.accepting_orders ?? false);
         setDrawTitle(drawData.campaign_title || '🎉 نتائج السحب لاحتفالية 50 فاكهة!');
         setDrawSubtitle(drawData.campaign_marquee_text || 'ألف مبروك لكل فائز معنا في سحب أمس، وشكراً لكل من شاركنا. إليكم قائمة الفائزين:');
-        setDrawApkUrl(drawData.whatsapp_phone || '');
         if (drawData.bank_account) {
           try {
             setDrawWinners(JSON.parse(drawData.bank_account) || []);
@@ -1479,6 +1479,7 @@ export default function AdminDashboard() {
         bank_holder_name: bankHolderName,
         delivery_fee: Number(deliveryFee) || 0,
         accepting_orders: acceptingOrders,
+        apk_download_url: apkUrl,
         updated_at: new Date().toISOString()
       });
       if (error) throw error;
@@ -2882,6 +2883,20 @@ export default function AdminDashboard() {
                         />
                       </div>
 
+                      {/* APK Download Link */}
+                      <div className="space-y-1 bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100">
+                        <label className="block text-sm font-bold text-emerald-800">🤖 رابط تحميل تطبيق الأندرويد (APK)</label>
+                        <p className="text-[10px] text-slate-550">رابط التحميل المباشر للزر الأخضر التفاعلي في واجهة العملاء</p>
+                        <input
+                          type="url"
+                          value={apkUrl}
+                          onChange={e => setApkUrl(e.target.value)}
+                          placeholder="مثال: https://bxfxwzthalglvcsbkwfo.supabase.co/storage/v1/object/public/..."
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-semibold text-slate-700 text-left"
+                          style={{ fontFamily: "'Cairo', sans-serif", direction: 'ltr' }}
+                        />
+                      </div>
+
                       {/* Delivery Fee */}
                       <div className="space-y-1 bg-amber-50 p-3 rounded-xl border border-amber-200">
                         <label className="block text-sm font-bold text-amber-800">🚚 سعر التوصيل (ج.س)</label>
@@ -3160,19 +3175,6 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    {/* APK Download Link */}
-                    <div className="space-y-1">
-                      <label className="block text-sm font-bold text-slate-700" style={{ fontFamily: "'Cairo', sans-serif" }}>رابط التحميل المباشر لتطبيق الأندرويد</label>
-                      <input
-                        type="url"
-                        value={drawApkUrl}
-                        onChange={e => setDrawApkUrl(e.target.value)}
-                        placeholder="مثال: https://bxfxwzthalglvcsbkwfo.supabase.co/storage/v1/object/public/..."
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-semibold text-slate-700"
-                        style={{ fontFamily: "'Cairo', sans-serif", direction: 'ltr' }}
-                      />
-                      <span className="block text-[10px] text-slate-400" style={{ fontFamily: "'Cairo', sans-serif", direction: 'rtl' }}>هذا الرابط سيظهر كأيقونة وزر أخضر زمردي جذاب تحت السلايدر للتحميل المباشر.</span>
-                    </div>
 
                     {/* Save Button */}
                     <button

@@ -86,6 +86,7 @@ export default function HomePage() {
   });
   const [showDrawModal, setShowDrawModal] = useState(false);
   const [drawSettings, setDrawSettings] = useState(null);
+  const [apkUrl, setApkUrl] = useState('');
 
   const [campaign, setCampaign] = useState(null);
   const [showCampaignSplash, setShowCampaignSplash] = useState(false);
@@ -106,6 +107,7 @@ export default function HomePage() {
           .maybeSingle();
         if (!error && data) {
           setCampaign(data);
+          setApkUrl(data.apk_download_url || '');
         }
       } catch (err) {
         console.error('Error fetching campaign settings:', err);
@@ -133,8 +135,7 @@ export default function HomePage() {
             active: data.accepting_orders ?? false,
             title: data.campaign_title || '🎉 نتائج السحب لاحتفالية 50 فاكهة!',
             subtitle: data.campaign_marquee_text || 'إليكم قائمة الفائزين:',
-            winners: winners,
-            apkUrl: data.whatsapp_phone || 'https://github.com/ahmedon1991-star/50-fakha-project/releases/latest'
+            winners: winners
           };
           setDrawSettings(drawInfo);
 
@@ -664,7 +665,7 @@ export default function HomePage() {
         {(!window.Capacitor || !window.Capacitor.isNativePlatform()) && (
           <div style={{ marginBottom: '20px', marginTop: '14px' }}>
             <a
-              href={drawSettings?.apkUrl || "https://github.com/ahmedon1991-star/50-fakha-project/releases/latest"}
+              href={apkUrl || "https://github.com/ahmedon1991-star/50-fakha-project/releases/latest"}
               target="_blank"
               rel="noopener noreferrer"
               style={{
