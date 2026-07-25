@@ -132,6 +132,7 @@ export default function AdminDashboard() {
     { prize: "📱 جوال هونر", name: "" },
     { prize: "💵 جائزة نقدية (150 ألف)", name: "" }
   ]);
+  const [drawApkUrl, setDrawApkUrl] = useState('');
 
   // Mobile Drawer Menu State
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -1408,6 +1409,7 @@ export default function AdminDashboard() {
         setDrawActive(drawData.accepting_orders ?? false);
         setDrawTitle(drawData.campaign_title || '🎉 نتائج السحب لاحتفالية 50 فاكهة!');
         setDrawSubtitle(drawData.campaign_marquee_text || 'ألف مبروك لكل فائز معنا في سحب أمس، وشكراً لكل من شاركنا. إليكم قائمة الفائزين:');
+        setDrawApkUrl(drawData.whatsapp_phone || '');
         if (drawData.bank_account) {
           try {
             setDrawWinners(JSON.parse(drawData.bank_account) || []);
@@ -1529,6 +1531,7 @@ export default function AdminDashboard() {
         accepting_orders: drawActive,
         campaign_title: drawTitle,
         campaign_marquee_text: drawSubtitle,
+        whatsapp_phone: drawApkUrl,
         bank_account: JSON.stringify(drawWinners.filter(w => w.name.trim() !== '')),
         updated_at: new Date().toISOString()
       });
@@ -3155,6 +3158,20 @@ export default function AdminDashboard() {
                         className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
                         style={{ fontFamily: "'Cairo', sans-serif" }}
                       />
+                    </div>
+
+                    {/* APK Download Link */}
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-slate-700" style={{ fontFamily: "'Cairo', sans-serif" }}>رابط التحميل المباشر لتطبيق الأندرويد</label>
+                      <input
+                        type="url"
+                        value={drawApkUrl}
+                        onChange={e => setDrawApkUrl(e.target.value)}
+                        placeholder="مثال: https://bxfxwzthalglvcsbkwfo.supabase.co/storage/v1/object/public/..."
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-semibold text-slate-700"
+                        style={{ fontFamily: "'Cairo', sans-serif", direction: 'ltr' }}
+                      />
+                      <span className="block text-[10px] text-slate-400" style={{ fontFamily: "'Cairo', sans-serif", direction: 'rtl' }}>هذا الرابط سيظهر كأيقونة وزر أخضر زمردي جذاب تحت السلايدر للتحميل المباشر.</span>
                     </div>
 
                     {/* Save Button */}

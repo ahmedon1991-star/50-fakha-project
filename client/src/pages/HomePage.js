@@ -133,7 +133,8 @@ export default function HomePage() {
             active: data.accepting_orders ?? false,
             title: data.campaign_title || '🎉 نتائج السحب لاحتفالية 50 فاكهة!',
             subtitle: data.campaign_marquee_text || 'إليكم قائمة الفائزين:',
-            winners: winners
+            winners: winners,
+            apkUrl: data.whatsapp_phone || 'https://github.com/ahmedon1991-star/50-fakha-project/releases/latest'
           };
           setDrawSettings(drawInfo);
 
@@ -656,6 +657,38 @@ export default function HomePage() {
               {/* Right Side (Dessert Photo) */}
               <div className="default-slide-right" />
             </div>
+          </div>
+        )}
+
+        {/* زر تحميل تطبيق أندرويد (يظهر فقط عند التصفح من الويب وليس بداخل التطبيق) */}
+        {(!window.Capacitor || !window.Capacitor.isNativePlatform()) && (
+          <div style={{ marginBottom: '20px', marginTop: '14px' }}>
+            <a
+              href={drawSettings?.apkUrl || "https://github.com/ahmedon1991-star/50-fakha-project/releases/latest"}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                color: 'white',
+                textDecoration: 'none',
+                fontFamily: "'Cairo', sans-serif",
+                fontWeight: 900,
+                fontSize: '14px',
+                padding: '14px',
+                borderRadius: '16px',
+                boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)',
+                transition: 'all 0.2s ease',
+                textAlign: 'center'
+              }}
+              className="hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <span style={{ fontSize: '20px' }}>🤖</span>
+              <span>تحميل تطبيق 50 فاكهة للاندرويد (آخر نسخة)</span>
+            </a>
           </div>
         )}
 
