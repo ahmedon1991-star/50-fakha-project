@@ -2883,19 +2883,6 @@ export default function AdminDashboard() {
                         />
                       </div>
 
-                      {/* APK Download Link */}
-                      <div className="space-y-1 bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100">
-                        <label className="block text-sm font-bold text-emerald-800">🤖 رابط تحميل تطبيق الأندرويد (APK)</label>
-                        <p className="text-[10px] text-slate-550">رابط التحميل المباشر للزر الأخضر التفاعلي في واجهة العملاء</p>
-                        <input
-                          type="url"
-                          value={apkUrl}
-                          onChange={e => setApkUrl(e.target.value)}
-                          placeholder="مثال: https://bxfxwzthalglvcsbkwfo.supabase.co/storage/v1/object/public/..."
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-semibold text-slate-700 text-left"
-                          style={{ fontFamily: "'Cairo', sans-serif", direction: 'ltr' }}
-                        />
-                      </div>
 
                       {/* Delivery Fee */}
                       <div className="space-y-1 bg-amber-50 p-3 rounded-xl border border-amber-200">
