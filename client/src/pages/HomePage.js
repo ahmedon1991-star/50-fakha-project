@@ -87,6 +87,19 @@ export default function HomePage() {
   const [showDrawModal, setShowDrawModal] = useState(false);
   const [drawSettings, setDrawSettings] = useState(null);
   const [apkUrl, setApkUrl] = useState('');
+  
+  // PWA Installation States
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showPwaModal, setShowPwaModal] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
 
   const [campaign, setCampaign] = useState(null);
   const [showCampaignSplash, setShowCampaignSplash] = useState(false);
@@ -661,21 +674,31 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* زر تحميل تطبيق أندرويد (يظهر فقط عند التصفح من الويب وليس بداخل التطبيق) */}
+        {/* زر تثبيت تطبيق الويب PWA (يظهر فقط عند التصفح من الويب وليس بداخل التطبيق) */}
         {(!window.Capacitor || !window.Capacitor.isNativePlatform()) && (
           <div style={{ marginBottom: '20px', marginTop: '14px' }}>
-            <a
-              href={apkUrl || "https://github.com/ahmedon1991-star/50-fakha-project/releases/latest"}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={async () => {
+                if (deferredPrompt) {
+                  deferredPrompt.prompt();
+                  const { outcome } = await deferredPrompt.userChoice;
+                  if (outcome === 'accepted') {
+                    setDeferredPrompt(null);
+                  }
+                } else {
+                  // فتح نافذة الإرشادات والتثبيت اليدوي للأجهزة التي لا تدعم التثبيت التلقائي (مثل الآيفون)
+                  setShowPwaModal(true);
+                }
+              }}
               style={{
+                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
                 background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                 color: 'white',
-                textDecoration: 'none',
+                border: 'none',
                 fontFamily: "'Cairo', sans-serif",
                 fontWeight: 900,
                 fontSize: '14px',
@@ -683,13 +706,14 @@ export default function HomePage() {
                 borderRadius: '16px',
                 boxShadow: '0 8px 20px rgba(16, 185, 129, 0.25)',
                 transition: 'all 0.2s ease',
-                textAlign: 'center'
+                textAlign: 'center',
+                cursor: 'pointer'
               }}
               className="hover:scale-[1.01] active:scale-[0.99]"
             >
-              <span style={{ fontSize: '20px' }}>🤖</span>
-              <span>تحميل تطبيق 50 فاكهة للاندرويد (آخر نسخة)</span>
-            </a>
+              <span style={{ fontSize: '20px' }}>📲</span>
+              <span>تثبيت تطبيق 50 فاكهة على الهاتف</span>
+            </button>
           </div>
         )}
 
@@ -1488,6 +1512,92 @@ export default function HomePage() {
               style={{ fontFamily: "'Cairo', sans-serif" }}
             >
               رائع، مبروك للجميع! 🎉
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── PWA INSTALLATION INSTRUCTIONS MODAL ─── */}
+      {showPwaModal && (
+        <div
+          className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[99999] p-4"
+          style={{ animation: 'fadeIn 0.3s ease-out forwards' }}
+          onClick={() => setShowPwaModal(false)}
+        >
+          <div
+            className="bg-white border border-emerald-100 rounded-[32px] p-6 max-w-sm w-full shadow-2xl relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, #FFFDF9 0%, #F5FFF8 100%)',
+              animation: 'congratsPopIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowPwaModal(false)}
+              style={{
+                position: 'absolute', top: '16px', right: '16px',
+                background: 'rgba(16, 185, 129, 0.15)', border: 'none', 
+                width: '32px', height: '32px', borderRadius: '50%',
+                fontSize: '16px', color: '#047857', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 'bold', zIndex: 20
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div className="text-center mt-2 mb-4">
+              <span className="text-5xl inline-block" style={{ animation: 'floatEmoji 3s ease-in-out infinite' }}>📲</span>
+              <h2 className="font-black text-lg text-slate-900 mt-2 mb-1" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                تثبيت تطبيق 50 فاكهة
+              </h2>
+              <p className="text-[11px] text-slate-500 font-bold" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                قم بإضافة التطبيق إلى شاشتك الرئيسية للطلب بلمسة واحدة وبأعلى سرعة
+              </p>
+              <div className="w-12 h-1 bg-emerald-500 mx-auto rounded-full mt-2"></div>
+            </div>
+
+            {/* Directions Container */}
+            <div className="space-y-4 mb-5">
+              {/* iPhone / Safari */}
+              <div className="p-3 bg-amber-50/40 rounded-2xl border border-amber-100 text-right">
+                <div className="flex items-center gap-2 mb-1.5 justify-end">
+                  <span className="text-xs font-black text-amber-900" style={{ fontFamily: "'Cairo', sans-serif" }}>لهواتف الآيفون (iOS)</span>
+                  <span className="text-lg">🍏</span>
+                </div>
+                <ol className="text-[11px] text-slate-650 font-bold space-y-1 list-decimal list-inside" style={{ fontFamily: "'Cairo', sans-serif", direction: 'rtl' }}>
+                  <li>افتح متجر 50 فاكهة في متصفح <span className="text-amber-800">Safari</span>.</li>
+                  <li>اضغط على زر المشاركة <span className="text-amber-700 font-extrabold">📤 (Share)</span> أسفل الشاشة.</li>
+                  <li>اختر <span className="text-amber-700 font-extrabold">"إضافة إلى الشاشة الرئيسية" ➕</span>.</li>
+                  <li>اضغط على <span className="text-amber-700 font-extrabold">"إضافة" (Add)</span> في الأعلى.</li>
+                </ol>
+              </div>
+
+              {/* Android / Chrome */}
+              <div className="p-3 bg-emerald-50/40 rounded-2xl border border-emerald-100 text-right">
+                <div className="flex items-center gap-2 mb-1.5 justify-end">
+                  <span className="text-xs font-black text-emerald-900" style={{ fontFamily: "'Cairo', sans-serif" }}>لهواتف الأندرويد (Chrome)</span>
+                  <span className="text-lg">🤖</span>
+                </div>
+                <ol className="text-[11px] text-slate-650 font-bold space-y-1 list-decimal list-inside" style={{ fontFamily: "'Cairo', sans-serif", direction: 'rtl' }}>
+                  <li>اضغط على النقاط الثلاثة <span className="text-emerald-700 font-extrabold">3️⃣</span> أعلى يسار الصفحة.</li>
+                  <li>اختر <span className="text-emerald-700 font-extrabold">"تثبيت التطبيق" 📲</span> أو "إضافة إلى الشاشة الرئيسية".</li>
+                  <li>وافق على التثبيت ليظهر الأيقونة فوراً على شاشتك.</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* Close action */}
+            <button
+              onClick={() => setShowPwaModal(false)}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white border-none rounded-2xl py-3 font-black text-xs cursor-pointer shadow-md active:scale-[0.98] transition"
+              style={{ fontFamily: "'Cairo', sans-serif" }}
+            >
+              فهمت، شكراً لك 👍
             </button>
           </div>
         </div>
